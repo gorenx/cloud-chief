@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>配置后台 · Cloudflare AI Gateway</title>
+<style>
+  :root {
+    --bg:#0f1216; --panel:#171b22; --border:#262c36; --text:#e6e9ef; --muted:#8b94a3;
+    --accent:#6366f1; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; --chip:#21262f;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);}
+  header{padding:16px 24px;border-bottom:1px solid var(--border);background:var(--panel);display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10;}
+  header h1{font-size:16px;margin:0;font-weight:600;}
+  header .token{display:flex;gap:6px;align-items:center;margin-left:auto;}
+  header input{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;width:200px;outline:none;}
+  header a{color:var(--accent);text-decoration:none;font-size:13px;}
+  .wrap{max-width:880px;margin:0 auto;padding:24px 20px 80px;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px;}
+  .card h2{font-size:14px;margin:0 0 14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .card h2 .desc{font-weight:400;color:var(--muted);font-size:12px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+  .field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:140px;}
+  label{font-size:12px;color:var(--muted);}
+  input,select{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13px;outline:none;font-family:inherit;}
+  input:focus,select:focus{border-color:var(--accent);}
+  input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);}
+  .checkbox{flex-direction:row;align-items:center;gap:7px;flex:0 0 auto;}
+  button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+  button:disabled{opacity:.5;cursor:not-allowed;}
+  button.ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  button.danger{background:transparent;border:1px solid #5a2a2a;color:#ff8585;padding:6px 10px;font-size:12px;}
+  table{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px;}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  th{color:var(--muted);font-weight:500;font-size:12px;}
+  .chip{display:inline-block;background:var(--chip);border-radius:6px;padding:2px 8px;font-size:11px;}
+  .chip.on{color:#bbf7d0;background:#173a26;}
+  .chip.off{color:#fecaca;background:#3a1717;}
+  code{background:var(--chip);padding:1px 6px;border-radius:5px;font-size:12px;word-break:break-all;}
+  .muted{color:var(--muted);font-size:12px;}
+  .toast{position:fixed;right:20px;bottom:20px;max-width:420px;padding:12px 16px;border-radius:10px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:50;white-space:pre-wrap;}
+  .toast.ok{background:#14321f;color:#bbf7d0;border:1px solid #1f5132;}
+  .toast.err{background:#321414;color:#fecaca;border:1px solid #5a2424;}
+  .hint{background:#1a2030;border:1px solid #2a3550;border-radius:8px;padding:10px 12px;font-size:12px;color:#aab6cf;margin-bottom:14px;}
+  .empty{color:var(--muted);font-size:13px;padding:10px 4px;}
+  .spin{color:var(--muted);font-size:13px;}
+  pre.log{display:none;margin-top:12px;background:#0a0d11;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;line-height:1.5;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#cdd6e4;}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Cloudflare AI Gateway 配置后台</h1>
+    <div class="token">
+      <input id="adminToken" type="password" placeholder="admin 令牌" />
+      <button id="saveToken" class="ghost" style="padding:7px 12px;font-size:12px;">保存</button>
+    </div>
+    <a href="/">← 返回聊天</a>
+  </header>
+
+  <div class="wrap">
+    <div class="hint" id="overview">加载中…</div>
+
+    <!-- 网关 -->
+    <div class="card">
+      <h2>网关 Gateways <span class="desc">建议用专属命名网关，BYOK 需要开启鉴权</span></h2>
+      <div id="gwTable"><div class="spin">加载中…</div></div>
+      <div class="row" style="margin-top:14px;">
+        <div class="field"><label>网关 ID（名称）</label><input id="gwId" placeholder="如 qwen-gw" /></div>
+        <div class="field checkbox"><input type="checkbox" id="gwAuth" checked /><label for="gwAuth">开启鉴权(authentication)</label></div>
+        <button id="gwSave">创建 / 更新</button>
+      </div>
+    </div>
+
+    <!-- 自定义提供商 -->
+    <div class="card">
+      <h2>自定义提供商 Custom Providers <span class="desc">base_url 只填根域名，不带路径</span></h2>
+      <div id="provTable"><div class="spin">加载中…</div></div>
+      <div class="row" style="margin-top:14px;">
+        <div class="field"><label>slug（字母数字连字符）</label><input id="provSlug" placeholder="如 qwen-beijing-maas" /></div>
+        <div class="field"><label>base_url</label><input id="provBase" placeholder="https://xxx.maas.aliyuncs.com" /></div>
+        <button id="provSave">创建 / 更新</button>
+      </div>
+    </div>
+
+    <!-- BYOK -->
+    <div class="card">
+      <h2>BYOK 存储密钥 <span class="desc">需要 Token 具备 Secrets Store Edit 权限</span></h2>
+      <div class="hint">
+        关键：BYOK 的 <b>provider_slug 必须等于自定义提供商的 slug</b>（即请求里 <code>custom-</code> 后面那个）。
+        配好后请求就<b>不用再带</b> <code>Authorization</code> 头，只保留 <code>cf-aig-authorization</code>。
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <div class="field" style="max-width:240px;"><label>选择网关</label><select id="keyGw"></select></div>
+      </div>
+      <div id="keyTable"><div class="spin">选择网关后加载…</div></div>
+      <div class="row" style="margin-top:14px;">
+        <div class="field"><label>provider_slug（从自定义提供商选择）</label>
+          <select id="keySlugSel"></select>
+        </div>
+        <div class="field"><label>或手动输入 slug（留空则用左侧）</label><input id="keySlugManual" placeholder="仅在列表里没有时填" /></div>
+        <div class="field"><label>alias</label><input id="keyAlias" value="default" /></div>
+        <div class="field"><label>密钥值（DashScope Key）</label><input id="keySecret" type="password" placeholder="sk-..." /></div>
+        <div class="field checkbox"><input type="checkbox" id="keyDefault" checked /><label for="keyDefault">设为默认</label></div>
+        <button id="keySave">添加密钥</button>
+      </div>
+      <div id="keyMatch" class="muted" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- Worker 部署 -->
+    <div class="card">
+      <h2>Worker 部署 <span class="desc">通过本机 wrangler 部署边缘代理</span></h2>
+      <div class="hint">
+        部署依赖本机 wrangler 鉴权：先 <code>wrangler login</code>，或在 <code>.env</code> 设 <code>CLOUDFLARE_API_TOKEN</code>（权限 Workers Scripts:Edit）。
+        密钥值经子进程 stdin 传入，不会出现在命令行/日志里。
+      </div>
+      <div class="row" style="margin-bottom:10px;">
+        <div class="field" style="max-width:360px;"><label>Worker 目录</label>
+          <select id="workerDir"></select>
+        </div>
+      </div>
+      <div id="workerStatus" class="muted">加载中…</div>
+      <div class="field" style="margin-top:14px;"><label>环境变量（wrangler.toml 的 <code>[vars]</code>）</label></div>
+      <div id="varsEditor"></div>
+      <div class="row" style="margin-top:8px;">
+        <button id="varAdd" class="ghost">+ 添加变量</button>
+        <button id="varsSave" class="ghost">保存变量</button>
+      </div>
+      <div class="field" style="margin-top:16px;"><label>私密配置 Secrets <span class="desc">清单来自 <code>.dev.vars.example</code>；值经 stdin/本地文件写入，不进命令行/日志</span></label></div>
+      <div id="secretsEditor"></div>
+      <div class="row" style="margin-top:8px;">
+        <button id="secretAdd" class="ghost">+ 添加 secret</button>
+        <button id="devvarsSave" class="ghost">保存到本地 .dev.vars</button>
+        <button id="secretsPush" class="ghost">推送到生产</button>
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <button id="deployBtn">部署 Worker</button>
+        <button id="statusRefresh" class="ghost">刷新状态</button>
+      </div>
+      <pre class="log" id="deployLog"></pre>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let state = null;
+let selectedWorker = ""; // 相对 WORKER_ROOT 的目录；空表示默认
+function wq(){ return selectedWorker ? ("?dir="+encodeURIComponent(selectedWorker)) : ""; }
+
+function toast(msg, ok=true){
+  const t=document.createElement("div");
+  t.className="toast "+(ok?"ok":"err");
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), ok?2600:6000);
+}
+function errText(j){
+  if(!j) return "未知错误";
+  if(j.error){ return typeof j.error==="string"?j.error:JSON.stringify(j.error); }
+  if(j.errors){ return j.errors.map(e=>e.message||JSON.stringify(e)).join("; "); }
+  return JSON.stringify(j);
+}
+
+// ---------- admin 令牌 ----------
+function adminToken(){ return localStorage.getItem("admin_token") || ""; }
+function authHeaders(extra){
+  const h = Object.assign({}, extra||{});
+  const t = adminToken();
+  if(t) h["Authorization"] = "Bearer " + t;
+  return h;
+}
+async function api(method, path, body){
+  const r = await fetch(path, {
+    method,
+    headers: authHeaders({"Content-Type":"application/json"}),
+    body: body?JSON.stringify(body):undefined,
+  });
+  const j = await r.json().catch(()=>null);
+  if(r.status===401) toast("未授权：请在右上角填写 admin 令牌", false);
+  if(r.status===503) toast(errText(j), false);
+  return {ok:r.ok && (j?.success !== false), j, status:r.status};
+}
+
+// ---------- 资源加载 ----------
+async function load(){
+  const r = await api("GET","/admin/state");
+  if(!r.ok){
+    state = {defaults:{}, gateways:[], providers:[]};
+    $("overview").innerHTML = `<span style="color:var(--warn)">无法读取状态（${r.status}）：${errText(r.j)}。请在右上角填入 admin 令牌后点“保存”。</span>`;
+    renderGateways(); renderProviders(); renderKeyGwOptions(); renderKeySlugOptions();
+    return;
+  }
+  state = r.j;
+  renderOverview();
+  renderGateways();
+  renderProviders();
+  renderKeyGwOptions();
+  renderKeySlugOptions();
+}
+
+function providerSlugs(){ return (state.providers||[]).map(p=>p.slug); }
+
+function renderKeySlugOptions(){
+  const sel=$("keySlugSel");
+  const cur=sel.value;
+  const slugs=providerSlugs();
+  sel.innerHTML = slugs.length
+    ? slugs.map(s=>`<option value="${s}">${s}</option>`).join("")
+    : '<option value="">（暂无自定义提供商）</option>';
+  if(cur && slugs.includes(cur)) sel.value=cur;
+  checkSlugMatch();
+}
+
+function effectiveSlug(){
+  const manual=$("keySlugManual").value.trim();
+  return manual || $("keySlugSel").value || "";
+}
+
+function checkSlugMatch(){
+  const slug=effectiveSlug();
+  const el=$("keyMatch");
+  if(!slug){ el.textContent=""; return; }
+  if(providerSlugs().includes(slug)){
+    el.innerHTML=`<span style="color:var(--ok)">✓ slug <code>${slug}</code> 与自定义提供商匹配，请求时用 <code>custom-${slug}</code></span>`;
+  }else{
+    el.innerHTML=`<span style="color:var(--warn)">⚠ slug <code>${slug}</code> 不在自定义提供商列表中 —— BYOK 很可能不会生效（需与请求里 custom- 后面的 slug 一致）</span>`;
+  }
+}
+
+function renderOverview(){
+  const d = state.defaults || {};
+  let warn = "";
+  if(!state.has_api_token) warn = "  ⚠️ 未配置 CF_API_TOKEN，无法管理资源";
+  if(state.gateways_error) warn += "  ⚠️ 网关读取失败："+errText({errors:state.gateways_error});
+  $("overview").innerHTML =
+    `账号 <code>${state.account_id}</code> ｜ 默认网关 <code>${d.gateway||"-"}</code> ｜ 默认提供商 <code>${d.provider_slug||"-"}</code> ｜ 默认模型 <code>${d.model||"-"}</code>`
+    + (warn?`<div style="color:var(--warn);margin-top:6px;">${warn}</div>`:"");
+}
+
+function renderGateways(){
+  const list = state.gateways||[];
+  if(!list.length){ $("gwTable").innerHTML='<div class="empty">暂无网关</div>'; return; }
+  let h='<table><tr><th>ID</th><th>鉴权</th><th>日志</th><th>操作</th></tr>';
+  for(const g of list){
+    const on = g.authentication;
+    h+=`<tr>
+      <td><code>${g.id}</code>${g.is_default?' <span class="chip">default</span>':''}</td>
+      <td><span class="chip ${on?'on':'off'}">${on?'已开启':'已关闭'}</span></td>
+      <td class="muted">${g.collect_logs?'on':'off'}</td>
+      <td>
+        <button class="ghost" data-gw-toggle="${g.id}" data-auth="${on?0:1}" style="padding:5px 9px;font-size:12px;">${on?'关闭鉴权':'开启鉴权'}</button>
+      </td>
+    </tr>`;
+  }
+  h+='</table>';
+  $("gwTable").innerHTML=h;
+  $("gwTable").querySelectorAll("[data-gw-toggle]").forEach(b=>{
+    b.onclick=async()=>{
+      b.disabled=true;
+      const r=await api("POST","/admin/gateways",{id:b.dataset.gwToggle,authentication:b.dataset.auth==="1"});
+      if(r.ok){toast("网关已更新");await load();}else{toast("失败："+errText(r.j),false);b.disabled=false;}
+    };
+  });
+}
+
+function renderProviders(){
+  const list = state.providers||[];
+  if(!list.length){ $("provTable").innerHTML='<div class="empty">暂无自定义提供商</div>'; return; }
+  let h='<table><tr><th>slug</th><th>base_url</th><th>启用</th><th>操作</th></tr>';
+  for(const p of list){
+    h+=`<tr>
+      <td><code>${p.slug}</code></td>
+      <td class="muted">${p.base_url}</td>
+      <td><span class="chip ${p.enable?'on':'off'}">${p.enable?'是':'否'}</span></td>
+      <td><button class="danger" data-prov-del="${p.id}" data-slug="${p.slug}">删除</button></td>
+    </tr>`;
+  }
+  h+='</table>';
+  $("provTable").innerHTML=h;
+  $("provTable").querySelectorAll("[data-prov-del]").forEach(b=>{
+    b.onclick=async()=>{
+      if(!confirm("确认删除提供商 "+b.dataset.slug+" ？")) return;
+      const r=await api("DELETE","/admin/providers?id="+b.dataset.provDel);
+      if(r.ok){toast("已删除");await load();}else{toast("失败："+errText(r.j),false);}
+    };
+  });
+}
+
+function renderKeyGwOptions(){
+  const sel=$("keyGw");
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— 选择网关 —</option>'+(state.gateways||[]).map(g=>`<option value="${g.id}">${g.id}${g.authentication?'（已鉴权）':'（未鉴权）'}</option>`).join("");
+  if(cur) sel.value=cur;
+}
+
+async function loadKeys(){
+  const gw=$("keyGw").value;
+  if(!gw){ $("keyTable").innerHTML='<div class="empty">请选择网关</div>'; return; }
+  $("keyTable").innerHTML='<div class="spin">加载中…</div>';
+  const r=await api("GET","/admin/keys?gateway="+encodeURIComponent(gw));
+  if(!r.ok){ $("keyTable").innerHTML=`<div class="empty" style="color:var(--err)">读取失败：${errText(r.j)}</div>`; return; }
+  const list=r.j.result||[];
+  if(!list.length){ $("keyTable").innerHTML='<div class="empty">该网关暂无 BYOK 密钥</div>'; return; }
+  let h='<table><tr><th>provider_slug</th><th>alias</th><th>默认</th><th>密钥预览</th><th>操作</th></tr>';
+  for(const k of list){
+    h+=`<tr>
+      <td><code>${k.provider_slug}</code></td>
+      <td>${k.alias}</td>
+      <td>${k.default_config?'<span class="chip on">默认</span>':''}</td>
+      <td class="muted">${k.secret_preview||''}</td>
+      <td><button class="danger" data-key-del="${k.id}">删除</button></td>
+    </tr>`;
+  }
+  h+='</table>';
+  $("keyTable").innerHTML=h;
+  $("keyTable").querySelectorAll("[data-key-del]").forEach(b=>{
+    b.onclick=async()=>{
+      if(!confirm("确认删除该密钥？")) return;
+      const r=await api("DELETE","/admin/keys?gateway="+encodeURIComponent(gw)+"&id="+b.dataset.keyDel);
+      if(r.ok){toast("已删除");loadKeys();}else{toast("失败："+errText(r.j),false);}
+    };
+  });
+}
+
+// ---------- Worker 部署 ----------
+function varRow(key, value){
+  const row=document.createElement("div");
+  row.className="row varRow";
+  row.style.marginTop="6px";
+  row.innerHTML=
+    `<div class="field" style="max-width:240px;"><input class="vk" placeholder="变量名" /></div>`
+    + `<div class="field"><input class="vv" placeholder="值" /></div>`
+    + `<button class="ghost vdel" title="移除该行">✕</button>`;
+  row.querySelector(".vk").value=key||"";
+  row.querySelector(".vv").value=value||"";
+  row.querySelector(".vdel").onclick=()=>row.remove();
+  return row;
+}
+
+function renderVars(vars){
+  const box=$("varsEditor");
+  box.innerHTML="";
+  const entries=Object.entries(vars||{});
+  if(entries.length===0){ box.appendChild(varRow("","")); return; }
+  for(const [k,v] of entries) box.appendChild(varRow(k,v));
+}
+
+function secretRow(name, value, opts){
+  opts=opts||{};
+  const row=document.createElement("div");
+  row.className="row secRow";
+  row.style.marginTop="6px";
+  row.style.alignItems="center";
+  const nameField = opts.fixed
+    ? `<div class="field" style="max-width:240px;"><input class="sk" value="${name||''}" readonly style="opacity:.85;" /></div>`
+    : `<div class="field" style="max-width:240px;"><input class="sk" placeholder="Secret 名" /></div>`;
+  row.innerHTML =
+    nameField
+    + `<div class="field"><input class="sv" type="password" placeholder="${opts.fixed?'留空则不改动':'值'}" /></div>`
+    + `<span class="sChip"></span>`
+    + (opts.fixed?'':`<button class="ghost sdel" title="移除该行">✕</button>`);
+  if(!opts.fixed){ row.querySelector(".sk").value=name||""; row.querySelector(".sdel").onclick=()=>row.remove(); }
+  row.querySelector(".sv").value=value||"";
+  return row;
+}
+
+function chipsFor(name, optional, localSet, prodSet){
+  const local = localSet.has(name) ? '<span class="chip on">本地✓</span>' : '<span class="chip off">本地✗</span>';
+  const prod = prodSet
+    ? (prodSet.has(name) ? '<span class="chip on">生产✓</span>' : '<span class="chip off">生产✗</span>')
+    : '<span class="chip off">生产?</span>';
+  const opt = optional ? ' <span class="muted" style="font-size:11px;">(可选)</span>' : '';
+  return local+' '+prod+opt;
+}
+
+let secretsMeta=[]; // [{name, optional}]
+let curLocalSet=new Set();
+let curProdSet=null;
+
+// 仅刷新徽章，不改动输入框（避免清空用户已填的值）。
+function applyChips(){
+  for(const row of document.querySelectorAll("#secretsEditor .secRow")){
+    const name=row.querySelector(".sk").value.trim();
+    const meta=secretsMeta.find(m=>m.name===name);
+    const chip=row.querySelector(".sChip");
+    if(chip) chip.innerHTML=chipsFor(name, meta ? meta.optional : false, curLocalSet, curProdSet);
+  }
+}
+
+function renderSecrets(secrets, devVars, prodSet){
+  secretsMeta = (secrets||[]).slice();
+  devVars = devVars||{};
+  curLocalSet = new Set(Object.keys(devVars));
+  curProdSet = prodSet||null;
+  const box=$("secretsEditor");
+  box.innerHTML="";
+  const seen=new Set();
+  for(const s of secretsMeta){
+    seen.add(s.name);
+    box.appendChild(secretRow(s.name, devVars[s.name], {fixed:true}));
+  }
+  // .dev.vars 里有、但不在 example 清单中的额外 key
+  for(const [k,v] of Object.entries(devVars)){
+    if(!seen.has(k)) box.appendChild(secretRow(k, v, {fixed:false}));
+  }
+  if(secretsMeta.length===0 && Object.keys(devVars).length===0) box.appendChild(secretRow("", "", {fixed:false}));
+  applyChips();
+}
+
+async function loadWorkers(){
+  const sel=$("workerDir");
+  const r=await api("GET","/admin/worker/workers");
+  if(!r.ok){ sel.innerHTML='<option value="">(列表读取失败)</option>'; return; }
+  const list=(r.j&&r.j.workers)||[];
+  const def=(r.j&&r.j.default)||"";
+  sel.innerHTML="";
+  const opts = list.length ? list : (def?[def]:[]);
+  for(const w of opts){
+    const o=document.createElement("option");
+    o.value=w; o.textContent=w;
+    if(w===def) o.selected=true;
+    sel.appendChild(o);
+  }
+  selectedWorker = sel.value || "";
+}
+
+async function loadWorkerStatus(){
+  const el=$("workerStatus");
+  const r=await api("GET","/admin/worker/status"+wq());
+  if(!r.ok){ el.innerHTML=`<span style="color:var(--warn)">状态读取失败：${errText(r.j)}</span>`; return; }
+  const s=r.j;
+  renderVars(s.vars);
+  renderSecrets(s.secrets, s.dev_vars, null);
+  el.innerHTML =
+    `wrangler：${s.wrangler_version?`<code>${s.wrangler_version}</code>`:'<span style="color:var(--err)">未检测到</span>'}`
+    + ` ｜ 登录：${s.logged_in?'<span class="chip on">已登录</span>':'<span class="chip off">未登录</span>'}`
+    + ` ｜ Worker：<code>${s.worker_name||'-'}</code>`
+    + ` ｜ 目录：<code>${s.worker_dir_rel||s.worker_dir}</code>${s.worker_dir_exists?'':' <span style="color:var(--err)">(不存在)</span>'}`;
+  // 生产 secret 列表需联网且已登录，单独拉取后只刷新徽章（不动输入框）
+  if(s.logged_in){
+    const pr=await api("GET","/admin/worker/secrets"+wq());
+    if(pr.ok && pr.j && pr.j.ok){
+      curProdSet=new Set(pr.j.names||[]);
+      applyChips();
+    }
+  }
+}
+
+function parseSSE(buffer, onEvent){
+  // 返回剩余未完成的 buffer；对每个完整记录调用 onEvent({event,data})
+  const records = buffer.split("\n\n");
+  const rest = records.pop();
+  for(const rec of records){
+    let ev="message", data=[];
+    for(const line of rec.split("\n")){
+      if(line.startsWith("event:")) ev=line.slice(6).trim();
+      else if(line.startsWith("data:")) data.push(line.slice(5).replace(/^ /,""));
+    }
+    onEvent({event:ev, data:data.join("\n")});
+  }
+  return rest;
+}
+
+$("deployBtn").onclick=async()=>{
+  const log=$("deployLog");
+  log.style.display="block"; log.textContent="";
+  $("deployBtn").disabled=true;
+  try{
+    const resp=await fetch("/admin/worker/deploy"+wq(),{method:"POST",headers:authHeaders()});
+    if(!resp.ok || !(resp.headers.get("content-type")||"").includes("text/event-stream")){
+      const j=await resp.json().catch(()=>null);
+      log.textContent="启动失败 ("+resp.status+")："+errText(j);
+      return;
+    }
+    const reader=resp.body.getReader();
+    const dec=new TextDecoder();
+    let buf="";
+    while(true){
+      const {done,value}=await reader.read();
+      if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      buf=parseSSE(buf,(e)=>{
+        log.textContent += e.data + "\n";
+        log.scrollTop = log.scrollHeight;
+        if(e.event==="done") toast(e.data==="0"?"部署成功":"部署结束，退出码 "+e.data, e.data==="0");
+        if(e.event==="error") toast("部署错误："+e.data, false);
+      });
+    }
+  }catch(e){
+    log.textContent += "\n错误："+e.message;
+  }finally{
+    $("deployBtn").disabled=false;
+    loadWorkerStatus();
+  }
+};
+
+$("statusRefresh").onclick=loadWorkerStatus;
+$("workerDir").onchange=()=>{ selectedWorker=$("workerDir").value||""; loadWorkerStatus(); };
+
+$("varAdd").onclick=()=>{ $("varsEditor").appendChild(varRow("","")); };
+
+$("varsSave").onclick=async()=>{
+  const vars={};
+  for(const row of document.querySelectorAll("#varsEditor .varRow")){
+    const k=row.querySelector(".vk").value.trim();
+    const v=row.querySelector(".vv").value;
+    if(!k) continue;
+    if(!/^[A-Z][A-Z0-9_]*$/.test(k)) return toast(`变量名 ${k} 非法（需大写字母开头，仅大写字母/数字/下划线）`,false);
+    vars[k]=v;
+  }
+  if(Object.keys(vars).length===0) return toast("请至少填写一个变量",false);
+  const r=await api("PUT","/admin/worker/config",{vars});
+  if(r.ok){toast("已写入 wrangler.toml");loadWorkerStatus();}else toast("失败："+errText(r.j),false);
+};
+
+// 收集 secrets 编辑区中“填了值”的行，校验名字合法。
+function collectSecrets(){
+  const out={};
+  for(const row of document.querySelectorAll("#secretsEditor .secRow")){
+    const k=row.querySelector(".sk").value.trim();
+    const v=row.querySelector(".sv").value;
+    if(!k || v==="") continue;
+    if(!/^[A-Z][A-Z0-9_]*$/.test(k)) { toast(`Secret 名 ${k} 非法`,false); return null; }
+    out[k]=v;
+  }
+  return out;
+}
+
+$("secretAdd").onclick=()=>{ $("secretsEditor").appendChild(secretRow("", "", {fixed:false})); };
+
+$("devvarsSave").onclick=async()=>{
+  const secrets=collectSecrets();
+  if(secrets===null) return;
+  if(Object.keys(secrets).length===0) return toast("没有填写任何 secret 值",false);
+  $("devvarsSave").disabled=true;
+  const r=await api("PUT","/admin/worker/devvars"+wq(),{secrets});
+  $("devvarsSave").disabled=false;
+  if(r.ok && r.j && r.j.ok){
+    toast("已写入本地 .dev.vars（"+Object.keys(secrets).join(", ")+"）");
+    curLocalSet=new Set(Object.keys(r.j.dev_vars||{}));
+    applyChips(); // 保留已填的值，仅更新本地徽章
+  } else toast("写入失败："+errText(r.j),false);
+};
+
+$("secretsPush").onclick=async()=>{
+  const secrets=collectSecrets();
+  if(secrets===null) return;
+  const names=Object.keys(secrets);
+  if(names.length===0) return toast("没有填写任何 secret 值",false);
+  $("secretsPush").disabled=true;
+  const done=[]; let fail=0;
+  for(const name of names){
+    const r=await api("POST","/admin/worker/secret"+wq(),{name,value:secrets[name]});
+    if(r.ok && r.j && r.j.ok) done.push(name); else { fail++; toast("推送 "+name+" 失败："+((r.j&&r.j.output)||errText(r.j)),false); }
+  }
+  $("secretsPush").disabled=false;
+  if(fail===0) toast("已推送到生产："+names.join(", "));
+  // 乐观更新生产徽章，保留已填的值（不清空、不整页重载）
+  if(done.length){
+    if(!curProdSet) curProdSet=new Set();
+    for(const name of done) curProdSet.add(name);
+    applyChips();
+  }
+};
+
+// ---------- 事件 ----------
+$("saveToken").onclick=()=>{
+  localStorage.setItem("admin_token", $("adminToken").value.trim());
+  toast("令牌已保存");
+  load(); initWorker();
+};
+$("gwSave").onclick=async()=>{
+  const id=$("gwId").value.trim();
+  if(!id) return toast("请填写网关 ID",false);
+  const r=await api("POST","/admin/gateways",{id,authentication:$("gwAuth").checked});
+  if(r.ok){toast("网关已保存");$("gwId").value="";await load();}else toast("失败："+errText(r.j),false);
+};
+$("provSave").onclick=async()=>{
+  const slug=$("provSlug").value.trim(), base_url=$("provBase").value.trim();
+  if(!slug||!base_url) return toast("请填写 slug 和 base_url",false);
+  const r=await api("POST","/admin/providers",{slug,base_url,name:slug});
+  if(r.ok){toast("提供商已保存");$("provSlug").value="";$("provBase").value="";await load();}else toast("失败："+errText(r.j),false);
+};
+$("keyGw").onchange=loadKeys;
+$("keySlugSel").onchange=checkSlugMatch;
+$("keySlugManual").oninput=checkSlugMatch;
+$("keySave").onclick=async()=>{
+  const gw=$("keyGw").value;
+  const provider_slug=effectiveSlug();
+  const secret=$("keySecret").value.trim();
+  if(!gw) return toast("请先选择网关",false);
+  if(!provider_slug||!secret) return toast("请选择/填写 provider_slug 和密钥值",false);
+  if(!providerSlugs().includes(provider_slug)){
+    if(!confirm(`slug "${provider_slug}" 不在自定义提供商列表中，BYOK 很可能不生效。仍要继续吗？`)) return;
+  }
+  const r=await api("POST","/admin/keys",{gateway:gw,provider_slug,alias:$("keyAlias").value.trim()||"default",default_config:$("keyDefault").checked,secret});
+  if(r.ok){toast("密钥已保存");$("keySecret").value="";$("keySlugManual").value="";checkSlugMatch();loadKeys();}
+  else{
+    let m=errText(r.j);
+    if(/Authentication error|10000/.test(m)) m="保存失败：API Token 缺少 Secrets Store Edit 权限。请到 Cloudflare 给 Token 加上该权限。";
+    toast(m,false);
+  }
+};
+
+// 初始化
+async function initWorker(){ await loadWorkers(); await loadWorkerStatus(); }
+$("adminToken").value = adminToken();
+load();
+initWorker();
+</script>
+</body>
+</html>

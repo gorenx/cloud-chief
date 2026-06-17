@@ -1,0 +1,8 @@
+# 复制为 .dev.vars 供 `wrangler dev` 使用（.dev.vars 已被 .gitignore 忽略）。
+# 线上请改用：npx wrangler secret put <NAME>
+
+CF_AIG_TOKEN=cfut_你的网关令牌
+DASHSCOPE_API_KEY=sk-你的阿里云DashScopeKey
+
+# 仅当 Supabase 项目仍用旧版 HS256 共享密钥时才需要（新项目走 JWKS，不用填）：
+# SUPABASE_JWT_SECRET=你的SupabaseJWT密钥
