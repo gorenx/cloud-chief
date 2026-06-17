@@ -3,10 +3,14 @@ import { resolveWorkerFromCf, mergeWorkerVars } from "./cf-worker-resolve";
 import { readWranglerToml } from "./wrangler-vars";
 
 export type WorkerConfigSource = "cf" | "env" | "wrangler" | "default";
+export type WorkerTarget = "local" | "online";
 
 export interface WorkerRuntimeConfig {
   script_name: string | null;
   url: string;
+  local_url: string;
+  online_url: string | null;
+  online_available: boolean;
   url_source: WorkerConfigSource;
   vars: Record<string, string>;
   vars_source: "cf" | "wrangler" | "merged";
@@ -35,6 +39,32 @@ function resolveScriptName(): string | null {
   return fromToml ?? null;
 }
 
+function resolveLocalUrl(): string {
+  const envUrl = env.WORKER_URL?.trim().replace(/\/$/, "") ?? "";
+  if (envUrl && isLoopbackWorkerUrl(envUrl)) return envUrl;
+  return defaultLocalUrl();
+}
+
+export function parseWorkerTarget(raw: string | null | undefined): WorkerTarget {
+  return raw === "online" ? "online" : "local";
+}
+
+export function pickWorkerUrl(
+  runtime: WorkerRuntimeConfig,
+  target: WorkerTarget,
+): { url: string; error?: string } {
+  if (target === "online") {
+    if (!runtime.online_url) {
+      return {
+        url: runtime.local_url,
+        error: "未解析到线上 Worker（需 CF_API_TOKEN 且已部署并启用 workers.dev）",
+      };
+    }
+    return { url: runtime.online_url };
+  }
+  return { url: runtime.local_url };
+}
+
 export async function getWorkerRuntimeConfig(options?: {
   refresh?: boolean;
 }): Promise<WorkerRuntimeConfig> {
@@ -50,14 +80,18 @@ export async function getWorkerRuntimeConfig(options?: {
 
   const { vars, source: vars_source } = mergeWorkerVars(cf?.vars ?? {}, wrangler.vars);
 
-  let url = defaultLocalUrl();
+  const local_url = resolveLocalUrl();
+  const online_url = cf?.ok && cf.url ? cf.url : null;
+  const online_available = Boolean(online_url);
+
+  let url = local_url;
   let url_source: WorkerConfigSource = "default";
   let cf_error = cf?.error ?? null;
 
   const envUrl = env.WORKER_URL?.trim().replace(/\/$/, "") ?? "";
 
   if (envUrl && isLoopbackWorkerUrl(envUrl)) {
-    url = envUrl;
+    url = local_url;
     url_source = "env";
   } else if (cf?.ok && cf.url) {
     url = cf.url;
@@ -70,6 +104,9 @@ export async function getWorkerRuntimeConfig(options?: {
   const cfg: WorkerRuntimeConfig = {
     script_name: scriptName,
     url,
+    local_url,
+    online_url,
+    online_available,
     url_source,
     vars,
     vars_source,

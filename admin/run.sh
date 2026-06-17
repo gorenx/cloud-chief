@@ -81,7 +81,7 @@ cmd_dev() {
   local port="${PORT:-8787}"
   ok "开发模式启动中（$(pm_name)）"
   echo "   API   : http://127.0.0.1:${port}"
-  echo "   前端  : http://127.0.0.1:5173  （Vite 代理 /admin /api /config）"
+  echo "   前端  : http://localhost:5173  （Vite 代理 /admin /api /config；OAuth 请用 localhost）"
   echo "   在「设置」页填入 ADMIN_TOKEN 后即可管理资源"
   echo ""
 

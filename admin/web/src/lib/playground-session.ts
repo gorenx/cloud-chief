@@ -1,5 +1,16 @@
 export type CallMode = "gateway" | "worker";
 export type WorkerConfigSource = "worker" | "ui";
+export type WorkerTarget = "local" | "online";
+
+/** 按切换目标解析展示 / 请求用的 Worker URL */
+export function resolveWorkerDisplayUrl(
+  worker: { local_url?: string; online_url?: string | null; url: string } | null,
+  target: WorkerTarget,
+): string {
+  if (!worker) return "";
+  if (target === "online" && worker.online_url) return worker.online_url;
+  return worker.local_url ?? worker.url;
+}
 
 /** Playground 派生逻辑所需的最小 config 切片（避免 @/ 路径依赖） */
 export interface PlaygroundConfigSlice {
@@ -67,6 +78,9 @@ export interface ChatRequestParams {
   gateway: string;
   providerSlug?: string;
   workerAccessToken: string;
+  workerTestEmail?: string;
+  workerTestPassword?: string;
+  workerTarget?: WorkerTarget;
   useWorkerToml: boolean;
 }
 
@@ -75,16 +89,20 @@ export function buildChatRequest(params: ChatRequestParams): {
   body: Record<string, unknown>;
 } {
   if (params.callMode === "worker") {
-    return {
-      url: "/api/worker-chat",
-      body: {
-        model: params.effectiveModel,
-        messages: params.messages,
-        access_token: params.workerAccessToken.trim() || undefined,
-        endpoint: "responses",
-        use_worker_config: params.useWorkerToml,
-      },
+    const body: Record<string, unknown> = {
+      model: params.effectiveModel,
+      messages: params.messages,
+      endpoint: "responses",
+      use_worker_config: params.useWorkerToml,
+      worker_target: params.workerTarget ?? "local",
     };
+    const token = params.workerAccessToken.trim();
+    if (token) body.access_token = token;
+    const email = params.workerTestEmail?.trim();
+    const password = params.workerTestPassword;
+    if (email) body.email = email;
+    if (password) body.password = password;
+    return { url: "/api/worker-chat", body };
   }
   return {
     url: "/api/chat",

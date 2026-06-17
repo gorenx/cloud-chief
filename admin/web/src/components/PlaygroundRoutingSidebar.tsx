@@ -1,6 +1,7 @@
 import type { GatewayContext, ModelMeta, ResponseMeta, RoutingInfo, WorkerDebugInfo, WorkerRoutingInfo } from "@/types";
 import { pickFields } from "@/lib/field-meta";
 import type { PlaygroundDataView } from "@/lib/playground-sources";
+import type { WorkerTarget } from "@/lib/playground-session";
 import { ByokKeysCard, AdminTokenHintCard, GatewayStatusCard, RoutingWarnings } from "./GatewayDetailPanel";
 import { RoutingFieldList } from "./RoutingFieldList";
 import { RoutingMismatchNotice, RoutingSectionHeader, RoutingSourceLegend } from "./RoutingSectionHeader";
@@ -25,9 +26,15 @@ export function PlaygroundRoutingSidebar({
   workerInfo,
   workerAccessToken,
   onWorkerAccessTokenChange,
+  workerTestEmail,
+  onWorkerTestEmailChange,
+  workerTestPassword,
+  onWorkerTestPasswordChange,
   onWorkerHealthCheck,
   workerHealthChecking,
   workerHealthResult,
+  workerTarget,
+  effectiveWorkerUrl,
   onConfigRefresh,
 }: {
   routing: RoutingInfo;
@@ -43,9 +50,15 @@ export function PlaygroundRoutingSidebar({
   workerInfo: WorkerDebugInfo | null;
   workerAccessToken: string;
   onWorkerAccessTokenChange: (v: string) => void;
+  workerTestEmail: string;
+  onWorkerTestEmailChange: (v: string) => void;
+  workerTestPassword: string;
+  onWorkerTestPasswordChange: (v: string) => void;
   onWorkerHealthCheck: () => void;
   workerHealthChecking: boolean;
   workerHealthResult: string | null;
+  workerTarget: WorkerTarget;
+  effectiveWorkerUrl: string;
   onConfigRefresh?: () => void;
 }) {
   const routingFields = pickFields(configMeta);
@@ -56,6 +69,18 @@ export function PlaygroundRoutingSidebar({
 
   return (
     <div className="space-y-4">
+      {isWorker && workerInfo && (
+        <WorkerChatNotice
+          workerUrl={effectiveWorkerUrl}
+          workerTarget={workerTarget}
+          workerUrlMeta={controls.workerUrl}
+          onHealthCheck={onWorkerHealthCheck}
+          healthChecking={workerHealthChecking}
+          healthResult={workerHealthResult}
+          hasAdminToken={hasAdminToken}
+        />
+      )}
+
       <Card className="p-4">
         <PlaygroundSourceSummary view={dataView} />
       </Card>
@@ -64,7 +89,7 @@ export function PlaygroundRoutingSidebar({
         <CardTitle desc={isWorker ? "经 Worker 边缘代理验签后转发" : "由 Admin 代理转发至 AI Gateway"}>
           本页请求
         </CardTitle>
-        <div className="space-y-2 text-xs">
+        <div className="min-w-0 space-y-2 text-xs">
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
             <code className="mono text-[var(--color-text)]">
               {isWorker ? "POST /api/worker-chat" : "POST /api/chat"}
@@ -90,19 +115,18 @@ export function PlaygroundRoutingSidebar({
                   {workerInfo.url_source === "cf" ? ` · URL：${workerInfo.url}` : ""}
                 </p>
               )}
-              <SupabaseConnectPanel onApplied={onConfigRefresh} />
-              <WorkerChatNotice
-                workerUrl={workerInfo.url}
+              <SupabaseConnectPanel
                 supabaseUrl={workerInfo.supabase_url}
-                hasTestCredentials={workerInfo.has_test_credentials}
-                workerAuthMeta={controls.request}
-                workerUrlMeta={controls.workerUrl}
                 supabaseUrlMeta={controls.supabaseUrl}
+                hasAnonKey={workerInfo.has_anon_key}
+                hasTestCredentials={workerInfo.has_test_credentials}
+                testEmail={workerTestEmail}
+                onTestEmailChange={onWorkerTestEmailChange}
+                testPassword={workerTestPassword}
+                onTestPasswordChange={onWorkerTestPasswordChange}
                 accessToken={workerAccessToken}
                 onAccessTokenChange={onWorkerAccessTokenChange}
-                onHealthCheck={onWorkerHealthCheck}
-                healthChecking={workerHealthChecking}
-                healthResult={workerHealthResult}
+                onApplied={onConfigRefresh}
               />
             </>
           ) : (

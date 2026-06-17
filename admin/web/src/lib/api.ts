@@ -105,8 +105,20 @@ export async function fetchCfDeployedWorkers(token: string) {
 export interface SupabaseOAuthStatus {
   oauth_configured: boolean;
   connected: boolean;
+  account: {
+    primary_email: string | null;
+    username: string | null;
+    projects_count: number;
+    test_email: string | null;
+  } | null;
+  local_test: {
+    email: string | null;
+    configured: boolean;
+  };
   expires_at: number | null;
   redirect_uri: string | null;
+  client_id_hint: string | null;
+  oauth_apps_url: string;
   local_only: boolean;
 }
 
@@ -154,8 +166,39 @@ export async function applySupabaseProject(token: string, ref: string) {
   }>(token, "POST", "/admin/supabase/apply", { ref });
 }
 
+export async function saveSupabaseTestCredentials(
+  token: string,
+  email: string,
+  password: string,
+) {
+  return adminFetch<{ ok: boolean; saved: { email: string } }>(
+    token,
+    "POST",
+    "/admin/supabase/test-credentials",
+    { email, password },
+  );
+}
+
 export async function disconnectSupabase(token: string) {
   return adminFetch<{ ok: boolean }>(token, "POST", "/admin/supabase/disconnect");
+}
+
+export async function fetchWorkerDevStatus(token: string, dir?: string) {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<{ running: boolean; pid: number | null; healthy: boolean }>(
+    token,
+    "GET",
+    `/admin/worker/dev/status${q}`,
+  );
+}
+
+export async function startWorkerDev(token: string, dir?: string) {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<{ ok: boolean; already_running: boolean }>(
+    token,
+    "POST",
+    `/admin/worker/dev/start${q}`,
+  );
 }
 
 export function buildInvokeUrl(

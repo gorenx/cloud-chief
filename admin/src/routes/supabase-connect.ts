@@ -4,11 +4,18 @@ import { adminAuth } from "../auth";
 import { env, reloadEnv, setEnvFileValue, workerDir } from "../env";
 import { generatePkce, randomOAuthState } from "../supabase-oauth-pkce";
 import {
+  oauthCookieSecure,
+  probeOAuthClientRegistration,
+  SUPABASE_ORG_OAUTH_APPS_URL,
+  validateOAuthRedirectUri,
+} from "../supabase-oauth-probe";
+import {
   clearSupabaseOAuthTokens,
   readSupabaseOAuthTokens,
   writeSupabaseOAuthTokens,
 } from "../supabase-oauth-store";
 import {
+  buildSupabaseAccountSummary,
   exchangeOAuthCode,
   fetchProjectConfig,
   listSupabaseProjects,
@@ -61,18 +68,29 @@ supabaseConnect.post("/connect", adminAuth, async (c) => {
     );
   }
 
+  const httpsErr = validateOAuthRedirectUri(env.SUPABASE_OAUTH_REDIRECT_URI);
+  if (httpsErr) return c.json({ error: httpsErr }, 400);
+
   const { codeVerifier, codeChallenge } = generatePkce();
   const state = randomOAuthState();
 
   const cookieOpts = {
     path: COOKIE_PATH,
     httpOnly: true,
-    secure: false,
+    secure: oauthCookieSecure(env.SUPABASE_OAUTH_REDIRECT_URI),
     sameSite: "Lax" as const,
     maxAge: COOKIE_MAX_AGE,
   };
   setCookie(c, "sb_oauth_state", state, cookieOpts);
   setCookie(c, "sb_code_verifier", codeVerifier, cookieOpts);
+
+  const probe = await probeOAuthClientRegistration(
+    env.SUPABASE_OAUTH_CLIENT_ID,
+    env.SUPABASE_OAUTH_REDIRECT_URI,
+  );
+  if (!probe.ok) {
+    return c.json({ error: probe.error, docs_url: SUPABASE_ORG_OAUTH_APPS_URL }, 400);
+  }
 
   const url = new URL(OAUTH_API);
   url.searchParams.set("client_id", env.SUPABASE_OAUTH_CLIENT_ID);
@@ -124,13 +142,48 @@ supabaseConnect.get("/oauth/callback", async (c) => {
   return c.redirect(playgroundRedirect("?supabase=connected"), 302);
 });
 
-supabaseConnect.get("/status", adminAuth, (c) => {
+function localTestAccount() {
+  return {
+    email: env.SUPABASE_TEST_EMAIL || null,
+    configured: Boolean(
+      env.SUPABASE_ANON_KEY && env.SUPABASE_TEST_EMAIL && env.SUPABASE_TEST_PASSWORD,
+    ),
+  };
+}
+
+supabaseConnect.get("/status", adminAuth, async (c) => {
   const tokens = readSupabaseOAuthTokens();
+  const connected = Boolean(tokens?.access_token);
+
+  let account: {
+    primary_email: string | null;
+    username: string | null;
+    projects_count: number;
+    test_email: string | null;
+  } | null = null;
+  if (connected) {
+    const summary = await buildSupabaseAccountSummary();
+    account = summary.ok
+      ? summary.account
+      : {
+          primary_email: null,
+          username: null,
+          projects_count: 0,
+          test_email: env.SUPABASE_TEST_EMAIL || null,
+        };
+  }
+
   return c.json({
     oauth_configured: oauthConfigured(),
-    connected: Boolean(tokens?.access_token),
+    connected,
+    account,
+    local_test: localTestAccount(),
     expires_at: tokens?.expires_at ?? null,
     redirect_uri: env.SUPABASE_OAUTH_REDIRECT_URI || null,
+    client_id_hint: env.SUPABASE_OAUTH_CLIENT_ID
+      ? `${env.SUPABASE_OAUTH_CLIENT_ID.slice(0, 8)}…`
+      : null,
+    oauth_apps_url: SUPABASE_ORG_OAUTH_APPS_URL,
     local_only: env.ADMIN_BIND === "127.0.0.1" || env.ADMIN_BIND === "localhost",
   });
 });
@@ -166,6 +219,31 @@ supabaseConnect.post("/apply", adminAuth, async (c) => {
       supabase_url: cfg.config.supabase_url,
       anon_key_preview: `${cfg.config.anon_key.slice(0, 8)}…`,
     },
+  });
+});
+
+supabaseConnect.post("/test-credentials", adminAuth, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    email?: string;
+    password?: string;
+  };
+  const email = body.email?.trim();
+  const password = body.password ?? "";
+  if (!email) return c.json({ error: "缺少 email" }, 400);
+  if (!password) return c.json({ error: "缺少 password" }, 400);
+
+  if (!setEnvFileValue("SUPABASE_TEST_EMAIL", email)) {
+    return c.json({ error: "写入 admin/.env SUPABASE_TEST_EMAIL 失败" }, 500);
+  }
+  if (!setEnvFileValue("SUPABASE_TEST_PASSWORD", password)) {
+    return c.json({ error: "写入 admin/.env SUPABASE_TEST_PASSWORD 失败" }, 500);
+  }
+
+  reloadEnv({ quiet: false });
+
+  return c.json({
+    ok: true,
+    saved: { email },
   });
 });
 

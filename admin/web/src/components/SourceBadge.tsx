@@ -1,5 +1,6 @@
 import type { FieldMetaEntry, FieldSource } from "@/types";
 import { cn } from "@/lib/utils";
+import type { SelectHTMLAttributes } from "react";
 
 const SOURCE_LABEL: Record<FieldSource, string> = {
   env: "admin/.env",
@@ -53,6 +54,42 @@ export function FieldLabel({
     <div className="flex items-center gap-1.5">
       {label ? <span className="text-xs text-[var(--color-muted)]">{label}</span> : null}
       {meta ? <SourceBadge meta={meta} /> : null}
+    </div>
+  );
+}
+
+/** 下拉框内嵌来源徽章（CF / admin/.env 等），不撑开外部布局 */
+export function SelectWithSourceBadge({
+  meta,
+  className,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { meta?: FieldMetaEntry }) {
+  const badgePad =
+    meta?.source === "env" ? "pr-[6.5rem]" : meta ? "pr-[4.5rem]" : "pr-8";
+
+  return (
+    <div
+      className={cn(
+        "relative min-w-0 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] focus-within:border-[var(--color-accent)]",
+        props.disabled && "opacity-60",
+      )}
+    >
+      <select
+        className={cn(
+          "w-full rounded-lg border-0 bg-transparent py-2 pl-3 text-sm text-[var(--color-text)] outline-none",
+          badgePad,
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </select>
+      {meta && (
+        <span className="pointer-events-none absolute right-7 top-1/2 -translate-y-1/2">
+          <SourceBadge meta={meta} />
+        </span>
+      )}
     </div>
   );
 }

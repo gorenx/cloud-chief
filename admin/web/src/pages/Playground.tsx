@@ -25,6 +25,9 @@ export function PlaygroundPage() {
     setCallMode,
     workerConfigSource,
     setWorkerConfigSource,
+    workerTarget,
+    setWorkerTarget,
+    effectiveWorkerUrl,
     gateway,
     setGateway,
     setUiModel,
@@ -37,9 +40,15 @@ export function PlaygroundPage() {
     gatewayContextLoading,
     workerAccessToken,
     setWorkerAccessToken,
+    workerTestEmail,
+    setWorkerTestEmail,
+    workerTestPassword,
+    setWorkerTestPassword,
     workerHealthChecking,
     workerHealthResult,
     checkWorkerHealth,
+    startLocalDev,
+    startingLocalDev,
     catalogSynced,
     refetchConfig,
   } = session;
@@ -48,7 +57,7 @@ export function PlaygroundPage() {
     const supabase = searchParams.get("supabase");
     if (!supabase) return;
     if (supabase === "connected") {
-      toast.success("Supabase 已授权，请选择项目并应用配置");
+      toast.success("步骤 1 完成：请选择项目 → 应用配置 → 填写测试账号");
       void refetchConfig();
     } else if (supabase === "error") {
       const reason = searchParams.get("reason") ?? "未知错误";
@@ -66,6 +75,9 @@ export function PlaygroundPage() {
       gateway,
       providerSlug: config?.provider_slug,
       workerAccessToken,
+      workerTestEmail,
+      workerTestPassword,
+      workerTarget,
       useWorkerToml: flags.useWorkerToml,
     });
   }
@@ -77,6 +89,9 @@ export function PlaygroundPage() {
         onCallModeChange={setCallMode}
         workerConfigSource={workerConfigSource}
         onWorkerConfigSourceChange={setWorkerConfigSource}
+        workerTarget={workerTarget}
+        onWorkerTargetChange={setWorkerTarget}
+        workerOnlineAvailable={config?.worker.online_available ?? false}
         flags={flags}
         dataView={dataView}
         config={config}
@@ -87,6 +102,10 @@ export function PlaygroundPage() {
         sidebarOpen={sidebarOpen}
         onSidebarToggle={() => setSidebarOpen((o) => !o)}
         catalogSynced={catalogSynced}
+        onStartLocalDev={() => startLocalDev()}
+        startingLocalDev={startingLocalDev}
+        hasAdminToken={Boolean(token)}
+        workerHealthResult={workerHealthResult}
       />
 
       <div className="flex min-h-0 flex-1 gap-4">
@@ -147,7 +166,7 @@ export function PlaygroundPage() {
         </div>
 
         {sidebarOpen && routing && (
-          <div className="w-80 shrink-0 overflow-y-auto">
+          <div className="w-80 min-w-0 shrink-0 overflow-y-auto overflow-x-hidden">
             <PlaygroundRoutingSidebar
               routing={routing}
               workerRouting={config?.worker_routing ?? null}
@@ -162,9 +181,15 @@ export function PlaygroundPage() {
               workerInfo={config?.worker ?? null}
               workerAccessToken={workerAccessToken}
               onWorkerAccessTokenChange={setWorkerAccessToken}
+              workerTestEmail={workerTestEmail}
+              onWorkerTestEmailChange={setWorkerTestEmail}
+              workerTestPassword={workerTestPassword}
+              onWorkerTestPasswordChange={setWorkerTestPassword}
               onWorkerHealthCheck={() => void checkWorkerHealth()}
               workerHealthChecking={workerHealthChecking}
               workerHealthResult={workerHealthResult}
+              workerTarget={workerTarget}
+              effectiveWorkerUrl={effectiveWorkerUrl}
               onConfigRefresh={() => void refetchConfig()}
             />
           </div>

@@ -6,6 +6,11 @@ import { adminAuth } from "../auth";
 import { env, workerDir, workerRoot } from "../env";
 import { runWrangler, spawnWrangler } from "../wrangler";
 import {
+  getWorkerDevProcessStatus,
+  probeLocalWorkerHealth,
+  startWorkerDev,
+} from "../worker-dev-process";
+import {
   listCfDeployedWorkers,
   resolveWorkerFromCf,
 } from "../cf-worker-resolve";
@@ -327,6 +332,22 @@ deploy.put("/config", async (c) => {
     return c.json({ error: `写入失败: ${(e as Error).message}` }, 500);
   }
   return c.json({ ok: true, vars: parseVars(next) });
+});
+
+deploy.get("/dev/status", async (c) => {
+  const dir = resolveWorkerDir(c.req.query("dir"));
+  if (dir === null) return c.json({ error: "无效的 worker 目录" }, 400);
+  const proc = getWorkerDevProcessStatus();
+  const healthy = await probeLocalWorkerHealth();
+  return c.json({ ...proc, healthy, worker_dir: dir });
+});
+
+deploy.post("/dev/start", async (c) => {
+  const dir = resolveWorkerDir(c.req.query("dir"));
+  if (dir === null) return c.json({ error: "无效的 worker 目录" }, 400);
+  const result = await startWorkerDev(dir);
+  if (!result.ok) return c.json({ error: result.error }, 500);
+  return c.json({ ok: true, already_running: result.already_running });
 });
 
 // 部署 Worker：SSE 实时回传 wrangler deploy 日志

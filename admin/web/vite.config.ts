@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: "localhost",
     port: 5173,
     proxy: {
       "/admin": { target: "http://127.0.0.1:8787", changeOrigin: true },

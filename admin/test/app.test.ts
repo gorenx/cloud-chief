@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { app } from "../src/app";
+import { env } from "../src/env";
 import { secretSet, gatewayUpsert, devVarsUpdate } from "../src/schemas";
 
 const TOKEN = "test-token";
@@ -190,14 +191,27 @@ describe("gateway context", () => {
 
 describe("worker chat", () => {
   it("POST /api/worker-chat without credentials -> 400", async () => {
-    const res = await app.request("/api/worker-chat", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: "qwen3-max", messages: [{ role: "user", content: "hi" }] }),
-    });
-    expect(res.status).toBe(400);
-    const j = (await res.json()) as { error: string };
-    expect(j.error).toMatch(/Supabase|access_token/i);
+    const prevEmail = env.SUPABASE_TEST_EMAIL;
+    const prevPassword = env.SUPABASE_TEST_PASSWORD;
+    env.SUPABASE_TEST_EMAIL = "";
+    env.SUPABASE_TEST_PASSWORD = "";
+    try {
+      const res = await app.request("/api/worker-chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model: "qwen3-max",
+          messages: [{ role: "user", content: "hi" }],
+          worker_target: "local",
+        }),
+      });
+      expect(res.status).toBe(400);
+      const j = (await res.json()) as { error: string };
+      expect(j.error).toMatch(/Supabase|access_token|JWT/i);
+    } finally {
+      env.SUPABASE_TEST_EMAIL = prevEmail;
+      env.SUPABASE_TEST_PASSWORD = prevPassword;
+    }
   });
 
   it("GET /api/worker-chat/info returns worker debug info", async () => {

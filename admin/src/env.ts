@@ -30,8 +30,8 @@ const schema = z.object({
   SUPABASE_OAUTH_CLIENT_SECRET: z.string().default(""),
   SUPABASE_OAUTH_REDIRECT_URI: z
     .string()
-    .default("http://127.0.0.1:5173/admin/supabase/oauth/callback"),
-  /** OAuth 回调后跳转的前端 origin（dev 填 http://127.0.0.1:5173；生产留空=同域） */
+    .default("http://localhost:5173/admin/supabase/oauth/callback"),
+  /** OAuth 回调后跳转的前端 origin（dev 填 http://localhost:5173；生产留空=同域） */
   ADMIN_WEB_ORIGIN: z.string().default(""),
 });
 

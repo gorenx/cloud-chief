@@ -11,7 +11,7 @@ port = 8788
 CF_ACCOUNT_ID = "b3838716ec9751a9294f72ae81d4eba3"
 CF_GATEWAY_ID = "qwen-gw"
 PROVIDER_SLUG = "qwen-beijing-maas"
-DEFAULT_MODEL = "qwen3-plus"
+DEFAULT_MODEL = "qwen-plus"
 
 # ===== Supabase 鉴权 =====
 # 你的 Supabase 项目地址（不要带末尾斜杠），用于拉 JWKS 公钥并校验 iss。

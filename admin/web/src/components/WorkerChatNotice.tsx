@@ -1,69 +1,50 @@
 import type { FieldMetaEntry } from "@/types";
 import { SourceBadge } from "./SourceBadge";
 import { Button } from "./ui/Button";
+import { cn } from "@/lib/utils";
+import type { WorkerTarget } from "@/lib/playground-session";
 
-/** Worker 模式：经 Supabase JWT 调用边缘代理 */
+/** Worker 模式：请求路径与本地调试说明 */
 export function WorkerChatNotice({
   workerUrl,
-  supabaseUrl,
-  hasTestCredentials,
-  workerAuthMeta,
+  workerTarget,
   workerUrlMeta,
-  supabaseUrlMeta,
-  accessToken,
-  onAccessTokenChange,
   onHealthCheck,
   healthChecking,
   healthResult,
+  hasAdminToken,
 }: {
   workerUrl: string;
-  supabaseUrl: string | null;
-  hasTestCredentials: boolean;
-  workerAuthMeta?: FieldMetaEntry;
+  workerTarget: WorkerTarget;
   workerUrlMeta?: FieldMetaEntry;
-  supabaseUrlMeta?: FieldMetaEntry;
-  accessToken: string;
-  onAccessTokenChange: (v: string) => void;
   onHealthCheck: () => void;
   healthChecking: boolean;
   healthResult: string | null;
+  hasAdminToken?: boolean;
 }) {
   return (
-    <div className="space-y-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <div className="min-w-0 space-y-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
       <div>
-        <div className="flex flex-wrap items-center gap-1.5 text-[var(--color-text)]">
-          <span className="font-medium">经 Worker</span>
-          {workerAuthMeta && <SourceBadge meta={workerAuthMeta} />}
+        <p className="text-[10px] text-[var(--color-muted)]">
+          目标：
+          <span className="text-[var(--color-text)]">
+            {workerTarget === "local" ? "本地 Worker（:8788）" : "线上 Worker（workers.dev）"}
+          </span>
+        </p>
+        <div className="relative mt-1 min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
+          <p className={cn("break-all text-xs text-[var(--color-muted)]", workerUrlMeta && "pr-20")}>
+            <code className="mono">POST /api/worker-chat</code> →{" "}
+            <code className="mono">{workerUrl}/v1/responses</code>
+          </p>
+          {workerUrlMeta && (
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+              <SourceBadge meta={workerUrlMeta} />
+            </span>
+          )}
         </div>
-        <p className="mt-1 text-[var(--color-muted)]">
-          <code className="mono">POST /api/worker-chat</code> →{" "}
-          <code className="mono">{workerUrl}/v1/responses</code>
-          {workerUrlMeta && <SourceBadge meta={workerUrlMeta} />}
-        </p>
-        <p className="mt-1 text-[var(--color-muted)]">
-          Worker 验 Supabase JWT 后注入网关密钥转发；与直连 Gateway 路径不同。
-        </p>
-      </div>
-      {supabaseUrl && (
-        <p className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-muted)]">
-          Supabase：<code className="mono">{supabaseUrl}</code>
-          {supabaseUrlMeta && <SourceBadge meta={supabaseUrlMeta} />}
-        </p>
-      )}
-      <div className="space-y-1.5">
-        <label className="text-xs text-[var(--color-muted)]">
-          access_token（可选，留空则用 admin/.env 测试账号代换）
-        </label>
-        <input
-          type="password"
-          value={accessToken}
-          onChange={(e) => onAccessTokenChange(e.target.value)}
-          placeholder={hasTestCredentials ? "已配置测试账号，可留空" : "粘贴 Supabase access_token"}
-          className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] px-2 py-1.5 text-xs outline-none focus:border-[var(--color-accent)]"
-        />
-        {!hasTestCredentials && !accessToken && (
-          <p className="text-xs text-amber-200">
-            未配置 SUPABASE_ANON_KEY / TEST_EMAIL / TEST_PASSWORD，请粘贴 token 或填写 admin/.env
+        {workerTarget === "local" && (
+          <p className="mt-1 text-[10px] text-[var(--color-muted)]">
+            本地需在 <code className="mono">worker/</code> 运行 wrangler dev；顶栏可启动或切换「线上 Worker」。
           </p>
         )}
       </div>
@@ -73,6 +54,9 @@ export function WorkerChatNotice({
         </Button>
         {healthResult && <span className="text-xs text-[var(--color-muted)]">{healthResult}</span>}
       </div>
+      {workerTarget === "local" && !hasAdminToken && (
+        <p className="text-[10px] text-amber-200">配置 ADMIN_TOKEN 后可在顶栏一键启动本地 Worker。</p>
+      )}
     </div>
   );
 }

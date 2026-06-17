@@ -195,6 +195,55 @@ export async function getValidManagementToken(): Promise<
   return { ok: true, accessToken: refreshed.tokens.access_token };
 }
 
+export interface SupabaseAccountSummary {
+  primary_email: string | null;
+  username: string | null;
+  projects_count: number;
+  test_email: string | null;
+}
+
+export async function fetchSupabaseProfile(): Promise<
+  | { ok: true; profile: { primary_email: string | null; username: string | null } }
+  | { ok: false; error: string }
+> {
+  const token = await getValidManagementToken();
+  if (!token.ok) return token;
+
+  const res = await managementFetch<{
+    primary_email?: string;
+    username?: string;
+  }>("/profile", token.accessToken);
+  if (!res.ok) return res;
+
+  return {
+    ok: true,
+    profile: {
+      primary_email: res.data.primary_email ?? null,
+      username: res.data.username ?? null,
+    },
+  };
+}
+
+export async function buildSupabaseAccountSummary(): Promise<
+  { ok: true; account: SupabaseAccountSummary } | { ok: false; error: string }
+> {
+  const token = await getValidManagementToken();
+  if (!token.ok) return token;
+
+  const projects = await listSupabaseProjects();
+  if (!projects.ok) return projects;
+
+  return {
+    ok: true,
+    account: {
+      primary_email: null,
+      username: null,
+      projects_count: projects.projects.length,
+      test_email: env.SUPABASE_TEST_EMAIL || null,
+    },
+  };
+}
+
 export async function listSupabaseProjects(): Promise<
   { ok: true; projects: SupabaseProject[] } | { ok: false; error: string }
 > {

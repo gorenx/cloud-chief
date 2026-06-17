@@ -57,7 +57,7 @@ export function WorkerPage() {
         />
         <WorkerOnlineVarsCard
           script={page.onlineScript}
-          compareVars={page.localVarsRecord}
+          localVars={page.vars}
           matched={page.matchedOnline}
           loading={page.cfDeployedQ.isLoading}
           error={cfError}

@@ -1,6 +1,6 @@
 import { useRef, useState, type RefObject } from "react";
 import { streamChatResponse } from "@/lib/chat-stream";
-import { buildChatRequest, type CallMode } from "@/lib/playground-session";
+import { buildChatRequest, type CallMode, type WorkerTarget } from "@/lib/playground-session";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -19,6 +19,9 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
     gateway: string;
     providerSlug?: string;
     workerAccessToken: string;
+    workerTestEmail?: string;
+    workerTestPassword?: string;
+    workerTarget?: WorkerTarget;
     useWorkerToml: boolean;
   }) {
     const text = input.trim();

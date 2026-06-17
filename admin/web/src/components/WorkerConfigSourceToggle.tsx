@@ -9,7 +9,7 @@ export function WorkerConfigSourceToggle({
   onChange: (v: WorkerConfigSource) => void;
 }) {
   return (
-    <div className="flex rounded-lg border border-[var(--color-border)] p-0.5">
+    <div className="flex w-fit justify-self-start rounded-lg border border-[var(--color-border)] p-0.5">
       <button
         type="button"
         className={cn(
