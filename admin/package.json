@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "concurrently -n api,web -c blue,green \"tsx watch src/index.ts\" \"npm run dev --prefix web\"",
+    "dev:api": "tsx watch src/index.ts",
+    "dev:web": "npm run dev --prefix web",
     "start": "tsx src/index.ts",
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "build": "npm run build --prefix web && tsc",
+    "typecheck": "tsc --noEmit && npm run typecheck --prefix web",
     "test": "vitest run"
   },
   "dependencies": {
@@ -17,6 +19,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
+    "concurrently": "^9.2.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"

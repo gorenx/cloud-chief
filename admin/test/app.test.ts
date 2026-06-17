@@ -69,7 +69,7 @@ describe("schemas", () => {
 });
 
 describe("public config", () => {
-  it("GET /config returns model + gateway id + gateways list", async () => {
+  it("GET /config returns model + gateway id + gateways list + models", async () => {
     const realFetch = globalThis.fetch;
     globalThis.fetch = (async () =>
       new Response(
@@ -83,14 +83,95 @@ describe("public config", () => {
         model: string;
         gateway: string;
         gateways: string[];
+        models: unknown[];
+        routing_preview: string;
+        base_url: string;
+        path: string;
       };
       expect(j.model).toBeTruthy();
       expect(j.gateway).toBeTruthy();
       expect(Array.isArray(j.gateways)).toBe(true);
       expect(j.gateways).toContain(j.gateway);
       expect(j.gateways).toContain("gw-a");
+      expect(Array.isArray(j.models)).toBe(true);
+      expect(j.models.length).toBeGreaterThan(0);
+      expect(typeof j.routing_preview).toBe("string");
     } finally {
       globalThis.fetch = realFetch;
     }
+  });
+});
+
+describe("gateway context", () => {
+  it("GET /admin/gateways/:id/context requires auth", async () => {
+    const res = await app.request("/admin/gateways/test-gw/context");
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /admin/gateways/:id/context returns routing + model_meta", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("/gateways/test-gw") && !url.includes("provider_configs")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            result: { id: "test-gw", authentication: true, collect_logs: true },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (url.includes("custom-providers")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            result: [{ slug: "test-slug", base_url: "https://example.com", enable: true }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (url.includes("provider_configs")) {
+        return new Response(JSON.stringify({ success: true, result: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ success: false }), { status: 404 });
+    }) as typeof fetch;
+    try {
+      const res = await app.request("/admin/gateways/test-gw/context", {
+        headers: { authorization: "Bearer test-token" },
+      });
+      expect(res.status).toBe(200);
+      const j = (await res.json()) as {
+        routing: { model: string; invoke_url: string; api_type: string };
+        model_meta: { id: string } | null;
+      };
+      expect(j.routing.model).toBeTruthy();
+      expect(j.routing.api_type).toBe("responses");
+      expect(j.routing.invoke_url).toContain("test-gw");
+      expect(j.routing.invoke_url).toContain("custom-test-slug");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
+
+describe("spa static", () => {
+  it("GET / serves web/dist index.html when built", async () => {
+    const res = await app.request("/");
+    if (res.status === 200) {
+      const text = await res.text();
+      expect(text.includes("root") || text.includes("Qwen")).toBe(true);
+    }
+  });
+});
+
+describe("health", () => {
+  it("GET /health returns ok", async () => {
+    const res = await app.request("/health");
+    expect(res.status).toBe(200);
+    const j = (await res.json()) as { ok: boolean };
+    expect(j.ok).toBe(true);
   });
 });

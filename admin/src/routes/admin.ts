@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { adminAuth } from "../auth";
 import { cfApi } from "../cf";
 import { env } from "../env";
+import { buildRouting, modelMetaFor } from "../routing";
+import type { ProviderInfo } from "../routing";
 import {
   gatewayUpsert,
   providerUpsert,
@@ -35,6 +37,37 @@ admin.get("/state", async (c) => {
     providers_error: provs.json.success ? null : provs.json.errors,
   });
 });
+
+// 网关上下文：聚合路由链、BYOK 密钥、模型元数据
+admin.get("/gateways/:id/context", async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "缺少网关 id" }, 400);
+
+  const [gwRes, provRes, keysRes] = await Promise.all([
+    cfApi("GET", `/ai-gateway/gateways/${id}`),
+    cfApi("GET", "/ai-gateway/custom-providers?per_page=100"),
+    cfApi("GET", `/ai-gateway/gateways/${id}/provider_configs?per_page=100`),
+  ]);
+
+  const providers = (provsRes(provRes) ?? []) as ProviderInfo[];
+  const gateway = gwRes.json.success ? gwRes.json.result : null;
+  const routing = buildRouting(id, providers);
+  const keys = keysRes.json.success ? keysRes.json.result ?? [] : [];
+  const model_meta = modelMetaFor(routing.model);
+
+  return c.json({
+    gateway,
+    gateway_error: gwRes.json.success ? null : gwRes.json.errors,
+    routing,
+    keys,
+    keys_error: keysRes.json.success ? null : keysRes.json.errors,
+    model_meta,
+  });
+});
+
+function provsRes(r: Awaited<ReturnType<typeof cfApi>>): unknown[] | null {
+  return r.json.success && Array.isArray(r.json.result) ? r.json.result : null;
+}
 
 // 网关：创建/更新（upsert）
 admin.post("/gateways", async (c) => {
