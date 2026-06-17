@@ -53,7 +53,8 @@ admin/
 - `ADMIN_TOKEN`（必填）：访问 `/admin/*` 需要 `Authorization: Bearer <ADMIN_TOKEN>`。
 - `ADMIN_BIND`（默认 `127.0.0.1`）、`PORT`（默认 `8787`）。
 - `CF_ACCOUNT_ID` / `CF_API_TOKEN`：调 Cloudflare API；路由默认从 CF 实时解析。
-- `DASHSCOPE_API_KEY`：Playground 本地聊天代理。
+- `DASHSCOPE_API_KEY`：Playground 本地聊天代理（直连 Gateway 模式）。
+- `WORKER_URL` / `SUPABASE_*`：Playground **经 Worker** 模式调试（可选）。
 - `CLOUDFLARE_API_TOKEN`（可选）：部署 Worker 时注入给 wrangler 子进程。
 
 ## 开发

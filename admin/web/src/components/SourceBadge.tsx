@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 const SOURCE_LABEL: Record<FieldSource, string> = {
   env: "admin/.env",
   cf: "CF",
-  wrangler: "wrangler",
+  wrangler: "Worker",
   catalog: "catalog",
   derived: "derived",
 };

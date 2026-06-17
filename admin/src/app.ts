@@ -4,13 +4,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { env } from "./env";
-import { listModels } from "./model-catalog";
-import { buildRouting } from "./routing";
+import { listModels, ensureModelCatalog } from "./model-catalog";
+import { buildRouting, buildWorkerRouting } from "./routing";
 import { configMeta } from "./field-meta";
 import { loadCfLists, pickDefaultGateway, pickDefaultProvider, RESPONSES_API_PATH } from "./cf-resolve";
+import { buildWorkerDebugInfo } from "./worker-debug";
 import { admin } from "./routes/admin";
 import { deploy } from "./routes/deploy";
 import { chat } from "./routes/chat";
+import { workerChat } from "./routes/worker-chat";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(here, "..");
@@ -27,6 +29,11 @@ export function createApp(): Hono {
     const defaultProvider = pickDefaultProvider(providers);
     const gatewayId = defaultGw?.id ?? "";
     const routing = buildRouting(gatewayId, defaultProvider);
+    const workerRouting = buildWorkerRouting(providers);
+    const catalogSync = ensureModelCatalog([
+      env.MODEL,
+      workerRouting.default_model ?? "",
+    ]);
 
     return c.json({
       model: env.MODEL,
@@ -36,13 +43,17 @@ export function createApp(): Hono {
       base_url: defaultProvider?.base_url ?? "",
       path: RESPONSES_API_PATH,
       models: listModels(),
+      catalog_synced: catalogSync.added,
       routing,
       routing_preview: routing.invoke_url,
+      worker_routing: workerRouting,
+      worker: buildWorkerDebugInfo(),
       _meta: configMeta(),
     });
   });
 
   app.route("/api/chat", chat);
+  app.route("/api/worker-chat", workerChat);
   app.route("/admin/worker", deploy);
   app.route("/admin", admin);
 

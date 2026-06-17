@@ -86,7 +86,46 @@ Playground 与公开配置。无需 ADMIN_TOKEN。
 
 **上游**：`https://gateway.ai.cloudflare.com/v1/...`；可选头 `cf-aig-authorization`。
 
-**调用方**：`PlaygroundPage` 直接 `fetch("/api/chat")`
+**调用方**：`PlaygroundPage` 直连 Gateway 模式 `fetch("/api/chat")`
+
+---
+
+### `GET /api/worker-chat/health`
+
+探测 Worker `/health`（目标 `env.WORKER_URL`）。
+
+```json
+{ "ok": true, "status": 200, "body": "ok" }
+```
+
+---
+
+### `GET /api/worker-chat/info`
+
+Worker 调试元数据（与 `GET /config` 的 `worker` 字段同源）。
+
+---
+
+### `POST /api/worker-chat`
+
+Playground **经 Worker** 模式：Admin 代持 Supabase JWT，代理到 Worker `POST /v1/responses`（或 chat）。
+
+**请求体**
+
+```json
+{
+  "model": "可选，默认 wrangler DEFAULT_MODEL 或 env.MODEL",
+  "messages": [],
+  "access_token": "可选；留空则用 env SUPABASE_* 换 token",
+  "endpoint": "responses | chat，默认 responses"
+}
+```
+
+**前置**：`worker/wrangler.toml [vars].SUPABASE_URL`；`access_token` 或 `SUPABASE_ANON_KEY` + `SUPABASE_TEST_EMAIL` + `SUPABASE_TEST_PASSWORD`。
+
+**上游**：`{WORKER_URL}/v1/responses`；鉴权 `Authorization: Bearer <supabase access_token>`。
+
+**调用方**：`PlaygroundPage` 经 Worker 模式 `fetch("/api/worker-chat")`
 
 ---
 

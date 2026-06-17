@@ -3,6 +3,7 @@ import type { GatewayContext, FieldMetaEntry } from "@/types";
 import { Card, CardTitle } from "./ui/Card";
 import { ModelDetailCard } from "./ModelDetailCard";
 import { RoutingFieldList } from "./RoutingFieldList";
+import { RoutingSectionHeader } from "./RoutingSectionHeader";
 import { SourceBadge } from "./SourceBadge";
 import { Chip } from "./ui/Chip";
 
@@ -141,10 +142,23 @@ export function GatewayDetailPanel({ ctx, loading }: { ctx: GatewayContext | nul
       <RoutingWarnings ctx={ctx} />
 
       <Card>
-        <CardTitle desc="悬停标签查看 env 键名或计算方式">路由链</CardTitle>
+        <RoutingSectionHeader
+          title="路由链"
+          badge="CF"
+          desc="网关与提供商从 CF API 实时解析"
+          className="mb-4"
+        />
         <RoutingFieldList
-          routing={r}
-          gateway={ctx.gateway?.id ?? ""}
+          section="cf"
+          fieldPrefix="routing"
+          routing={{
+            invoke_url: r.invoke_url,
+            gateway: ctx.gateway?.id ?? "",
+            provider_slug: r.provider_slug,
+            path: r.path,
+            base_url: r.base_url,
+            provider: r.provider,
+          }}
           fields={fields}
         />
       </Card>

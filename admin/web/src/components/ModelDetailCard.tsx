@@ -17,16 +17,22 @@ export function ModelDetailCard({
   routing,
   fieldMeta,
   compact,
+  showWorker = true,
+  workerModel,
 }: {
   modelId: string;
   modelMeta: ModelMeta | null;
   routing?: RoutingInfo;
   fieldMeta?: Record<string, FieldMetaEntry>;
   compact?: boolean;
+  /** Playground 直连模式可设为 false，隐藏 Worker 默认模型与不一致提示 */
+  showWorker?: boolean;
+  workerModel?: string | null;
 }) {
+  const effectiveWorkerModel = workerModel ?? routing?.worker_model ?? null;
   const workerMismatch =
-    routing?.worker_model && routing.worker_model !== modelId
-      ? `Worker DEFAULT_MODEL (${routing.worker_model}) 与当前模型不一致`
+    showWorker && effectiveWorkerModel && effectiveWorkerModel !== modelId
+      ? `Worker DEFAULT_MODEL (${effectiveWorkerModel}) 与当前模型不一致`
       : null;
 
   return (
@@ -62,10 +68,10 @@ export function ModelDetailCard({
               <SourceBadge meta={fieldMeta["routing.api_type"]} />
             )}
           </div>
-          {routing.worker_model && (
+          {showWorker && effectiveWorkerModel && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span>
-                Worker 默认模型：<code className="mono">{routing.worker_model}</code>
+                Worker 默认模型：<code className="mono">{effectiveWorkerModel}</code>
               </span>
               {fieldMeta?.["routing.worker_model"] && (
                 <SourceBadge meta={fieldMeta["routing.worker_model"]} />

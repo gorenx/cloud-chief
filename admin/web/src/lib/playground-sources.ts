@@ -1,0 +1,111 @@
+import type { PlaygroundSessionFlags } from "./playground-session";
+
+export type FieldSource = "env" | "cf" | "wrangler" | "catalog" | "derived";
+
+export interface FieldMetaSlice {
+  source: FieldSource;
+  key?: string;
+  hint?: string;
+}
+
+export type PlaygroundFields = Record<string, FieldMetaSlice | undefined>;
+
+export interface PlaygroundDataView {
+  /** 侧栏路由链展示 Worker 还是 CF */
+  routingSection: "cf" | "worker";
+  /** 是否拉取网关/BYOK 上下文 */
+  showGatewayContext: boolean;
+  /** Worker+调试界面时展示与 wrangler 差异 */
+  showRoutingMismatch: boolean;
+  /** 顶栏与侧栏各字段的来源 meta */
+  controls: {
+    gateway?: FieldMetaSlice;
+    model: FieldMetaSlice;
+    request: FieldMetaSlice;
+    workerUrl?: FieldMetaSlice;
+    supabaseUrl?: FieldMetaSlice;
+  };
+  /** 侧栏顶部一行摘要 */
+  summary: Array<{ label: string; meta: FieldMetaSlice }>;
+}
+
+const FALLBACK: Record<FieldSource, FieldMetaSlice> = {
+  env: { source: "env" },
+  cf: { source: "cf" },
+  wrangler: { source: "wrangler" },
+  catalog: { source: "catalog" },
+  derived: { source: "derived" },
+};
+
+function pick(fields: PlaygroundFields, key: string, fallback: FieldMetaSlice): FieldMetaSlice {
+  return fields[key] ?? fallback;
+}
+
+/** 按 Playground 当前模式解析各控件数据来源（单一事实来源） */
+export function resolvePlaygroundDataView(
+  flags: PlaygroundSessionFlags,
+  fields: PlaygroundFields,
+): PlaygroundDataView {
+  if (flags.isWorker && flags.useWorkerToml) {
+    const gateway = pick(fields, "worker_routing.gateway", FALLBACK.wrangler);
+    const model = pick(fields, "worker_routing.default_model", FALLBACK.wrangler);
+    const request = pick(fields, "worker.authorization", FALLBACK.derived);
+    return {
+      routingSection: "worker",
+      showGatewayContext: false,
+      showRoutingMismatch: false,
+      controls: {
+        gateway,
+        model,
+        request,
+        workerUrl: fields["worker.url"],
+        supabaseUrl: fields["worker.supabase_url"],
+      },
+      summary: [
+        { label: "网关", meta: gateway },
+        { label: "模型", meta: model },
+        { label: "鉴权", meta: request },
+      ],
+    };
+  }
+
+  if (flags.isWorker) {
+    const model = pick(fields, "models", { source: "env", key: "MODEL_CATALOG" });
+    const request = pick(fields, "worker.authorization", FALLBACK.derived);
+    return {
+      routingSection: "cf",
+      showGatewayContext: true,
+      showRoutingMismatch: true,
+      controls: {
+        gateway: pick(fields, "gateways", FALLBACK.cf),
+        model,
+        request,
+        workerUrl: fields["worker.url"],
+        supabaseUrl: fields["worker.supabase_url"],
+      },
+      summary: [
+        { label: "模型", meta: model },
+        { label: "路由(对照)", meta: pick(fields, "gateway", FALLBACK.cf) },
+        { label: "鉴权", meta: request },
+      ],
+    };
+  }
+
+  const model = pick(fields, "models", { source: "env", key: "MODEL_CATALOG" });
+  const request = pick(fields, "chat.authorization", FALLBACK.env);
+  return {
+    routingSection: "cf",
+    showGatewayContext: true,
+    showRoutingMismatch: false,
+    controls: {
+      gateway: pick(fields, "gateways", FALLBACK.cf),
+      model,
+      request,
+    },
+    summary: [
+      { label: "模型", meta: model },
+      { label: "路由", meta: pick(fields, "gateway", FALLBACK.cf) },
+      { label: "鉴权", meta: request },
+    ],
+  };
+}

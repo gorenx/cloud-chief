@@ -1,53 +1,155 @@
-import type { GatewayContext, ModelMeta, ResponseMeta, RoutingInfo } from "@/types";
+import type { GatewayContext, ModelMeta, ResponseMeta, RoutingInfo, WorkerDebugInfo, WorkerRoutingInfo } from "@/types";
 import { pickFields } from "@/lib/field-meta";
+import type { PlaygroundDataView } from "@/lib/playground-sources";
 import { ByokKeysCard, AdminTokenHintCard, GatewayStatusCard, RoutingWarnings } from "./GatewayDetailPanel";
 import { RoutingFieldList } from "./RoutingFieldList";
+import { RoutingMismatchNotice, RoutingSectionHeader, RoutingSourceLegend } from "./RoutingSectionHeader";
 import { ChatAuthPathNotice } from "./PlaygroundSourceNotices";
+import { PlaygroundSourceSummary } from "./PlaygroundSourceSummary";
+import { WorkerChatNotice } from "./WorkerChatNotice";
 import { Card, CardTitle } from "./ui/Card";
 import { ModelDetailCard } from "./ModelDetailCard";
 
 export function PlaygroundRoutingSidebar({
   routing,
+  workerRouting,
   modelMeta,
   gateway,
   gatewayContext,
   gatewayContextLoading,
   hasAdminToken,
   configMeta,
+  dataView,
+  isWorker,
+  workerInfo,
+  workerAccessToken,
+  onWorkerAccessTokenChange,
+  onWorkerHealthCheck,
+  workerHealthChecking,
+  workerHealthResult,
 }: {
   routing: RoutingInfo;
+  workerRouting: WorkerRoutingInfo | null;
   modelMeta: ModelMeta | null;
   gateway: string;
   gatewayContext: GatewayContext | null;
   gatewayContextLoading?: boolean;
   hasAdminToken: boolean;
   configMeta?: ResponseMeta;
+  dataView: PlaygroundDataView;
+  isWorker: boolean;
+  workerInfo: WorkerDebugInfo | null;
+  workerAccessToken: string;
+  onWorkerAccessTokenChange: (v: string) => void;
+  onWorkerHealthCheck: () => void;
+  workerHealthChecking: boolean;
+  workerHealthResult: string | null;
 }) {
   const routingFields = pickFields(configMeta);
-  const chatAuthMeta = routingFields["chat.authorization"];
+  const { controls } = dataView;
+  const showWorkerRouting = dataView.routingSection === "worker";
+  const showCfRouting = dataView.routingSection === "cf";
   const hasByok = (gatewayContext?.keys.length ?? 0) > 0;
 
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <CardTitle desc="本页不直接请求 invoke_url，由 Admin 服务代理转发">
+        <PlaygroundSourceSummary view={dataView} />
+      </Card>
+
+      <Card className="p-4">
+        <CardTitle desc={isWorker ? "经 Worker 边缘代理验签后转发" : "由 Admin 代理转发至 AI Gateway"}>
           本页请求
         </CardTitle>
         <div className="space-y-2 text-xs">
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
-            <code className="mono text-[var(--color-text)]">POST /api/chat</code>
+            <code className="mono text-[var(--color-text)]">
+              {isWorker ? "POST /api/worker-chat" : "POST /api/chat"}
+            </code>
           </div>
-          <p className="text-[var(--color-muted)]">
-            请求体含 <code className="mono">model</code>、<code className="mono">messages</code>
-            ，以及当前选择的网关 <code className="mono">{gateway || "—"}</code>。
-          </p>
-          <ChatAuthPathNotice chatAuthMeta={chatAuthMeta} hasByok={hasByok} />
+          {!isWorker && (
+            <p className="text-[var(--color-muted)]">
+              请求体含 <code className="mono">model</code>、<code className="mono">messages</code>
+              ，网关 <code className="mono">{gateway || "—"}</code>。
+            </p>
+          )}
+          {isWorker && workerInfo ? (
+            <WorkerChatNotice
+              workerUrl={workerInfo.url}
+              supabaseUrl={workerInfo.supabase_url}
+              hasTestCredentials={workerInfo.has_test_credentials}
+              workerAuthMeta={controls.request}
+              workerUrlMeta={controls.workerUrl}
+              supabaseUrlMeta={controls.supabaseUrl}
+              accessToken={workerAccessToken}
+              onAccessTokenChange={onWorkerAccessTokenChange}
+              onHealthCheck={onWorkerHealthCheck}
+              healthChecking={workerHealthChecking}
+              healthResult={workerHealthResult}
+            />
+          ) : (
+            <ChatAuthPathNotice chatAuthMeta={controls.request} hasByok={hasByok} />
+          )}
         </div>
       </Card>
 
       <Card className="p-4">
-        <CardTitle desc="悬停标签查看数据来源">路由链</CardTitle>
-        <RoutingFieldList routing={routing} gateway={gateway} fields={routingFields} />
+        <div className="mb-3 space-y-2">
+          <RoutingSectionHeader
+            title="路由链"
+            badge={showWorkerRouting ? "Worker" : "CF"}
+            desc={
+              showWorkerRouting
+                ? "wrangler.toml [vars]"
+                : isWorker
+                  ? "调试界面 CF 对照（Worker 实际仍走 wrangler）"
+                  : "CF API 实时解析"
+            }
+          />
+          <RoutingSourceLegend showWorker={showWorkerRouting} />
+        </div>
+        <div className="space-y-3">
+          {dataView.showRoutingMismatch && (
+            <RoutingMismatchNotice
+              cfGateway={gateway}
+              workerGateway={workerRouting?.gateway ?? ""}
+              cfSlug={routing.provider_slug}
+              workerSlug={workerRouting?.provider_slug ?? ""}
+            />
+          )}
+          {showCfRouting && (
+            <RoutingFieldList
+              section="cf"
+              fieldPrefix="routing"
+              routing={{
+                invoke_url: routing.invoke_url,
+                gateway,
+                provider_slug: routing.provider_slug,
+                path: routing.path,
+                base_url: routing.base_url,
+                provider: routing.provider,
+              }}
+              fields={routingFields}
+            />
+          )}
+          {showWorkerRouting && workerRouting && (
+            <RoutingFieldList
+              section="worker"
+              fieldPrefix="worker_routing"
+              routing={{
+                invoke_url: workerRouting.invoke_url,
+                gateway: workerRouting.gateway,
+                provider_slug: workerRouting.provider_slug,
+                path: workerRouting.path,
+                base_url: workerRouting.base_url,
+                provider: workerRouting.provider,
+                account_id: workerRouting.account_id,
+                default_model: workerRouting.default_model,
+              }}
+              fields={routingFields}
+            />
+          )}
+        </div>
       </Card>
 
       <ModelDetailCard
@@ -56,11 +158,13 @@ export function PlaygroundRoutingSidebar({
         routing={routing}
         fieldMeta={routingFields}
         compact
+        showWorker={showWorkerRouting}
+        workerModel={workerRouting?.default_model}
       />
 
       {!hasAdminToken ? (
         <AdminTokenHintCard />
-      ) : (
+      ) : dataView.showGatewayContext ? (
         <>
           {gatewayContextLoading && (
             <Card className="p-4">
@@ -79,7 +183,7 @@ export function PlaygroundRoutingSidebar({
             fieldMeta={gatewayContext?._meta.fields.keys}
           />
         </>
-      )}
+      ) : null}
     </div>
   );
 }

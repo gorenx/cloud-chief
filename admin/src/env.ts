@@ -13,12 +13,18 @@ const schema = z.object({
   CF_AIG_TOKEN: z.string().default(""),
   DASHSCOPE_API_KEY: z.string().default(""),
   MODEL: z.string().default("qwen3-max"),
+  /** Playground 模型下拉：逗号分隔 id；留空则展示 model-catalog.ts 全部条目 */
+  MODEL_CATALOG: z.string().default(""),
   ADMIN_TOKEN: z.string().default(""),
   ADMIN_BIND: z.string().default("127.0.0.1"),
   PORT: z.coerce.number().int().positive().default(8787),
   CLOUDFLARE_API_TOKEN: z.string().default(""),
   WORKER_DIR: z.string().default("../worker"),
   WORKER_ROOT: z.string().default(".."),
+  WORKER_URL: z.string().default("http://127.0.0.1:8788"),
+  SUPABASE_ANON_KEY: z.string().default(""),
+  SUPABASE_TEST_EMAIL: z.string().default(""),
+  SUPABASE_TEST_PASSWORD: z.string().default(""),
 });
 
 export type AppEnv = z.infer<typeof schema>;
@@ -37,6 +43,29 @@ export function parseEnvFileContent(text: string): Record<string, string> {
     out[m[1]] = v;
   }
   return out;
+}
+
+/** 更新 admin/.env 中已有键的值；不存在则追加到文件末尾 */
+export function setEnvFileValue(key: string, value: string): boolean {
+  if (process.env.VITEST) return false;
+  if (!fs.existsSync(envFilePath)) return false;
+
+  const text = fs.readFileSync(envFilePath, "utf8");
+  const lines = text.split("\n");
+  const keyRe = new RegExp(`^\\s*${key}\\s*=`);
+  const newLine = `${key}=${value}`;
+  let found = false;
+  const next = lines
+    .map((line) => {
+      if (!keyRe.test(line)) return line;
+      found = true;
+      return newLine;
+    })
+    .join("\n");
+
+  const out = found ? next : (text.endsWith("\n") ? text : `${text}\n`) + `${newLine}\n`;
+  fs.writeFileSync(envFilePath, out);
+  return true;
 }
 
 function readEnvFileMap(): Record<string, string> | null {

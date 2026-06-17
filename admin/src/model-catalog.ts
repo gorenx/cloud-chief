@@ -1,3 +1,5 @@
+import { env, reloadEnv, setEnvFileValue } from "./env";
+
 export type ModelFamily = "max" | "plus" | "flash" | "coder" | "other";
 
 export interface ModelMeta {
@@ -40,6 +42,12 @@ export const MODEL_CATALOG: ModelMeta[] = [
     display_name: "Qwen 3 Max (2026-01-23)",
     family: "max",
     supports_thinking: true,
+  },
+  {
+    id: "qwen3-plus",
+    display_name: "Qwen 3 Plus",
+    family: "plus",
+    supports_thinking: false,
   },
   {
     id: "qwen3.7-plus",
@@ -105,10 +113,84 @@ export const MODEL_CATALOG: ModelMeta[] = [
   },
 ];
 
-export function lookupModel(id: string): ModelMeta | null {
-  return MODEL_CATALOG.find((m) => m.id === id) ?? null;
+const CATALOG_BY_ID = new Map(MODEL_CATALOG.map((m) => [m.id, m]));
+
+/** 解析 admin/.env MODEL_CATALOG；留空表示使用全部内置条目 */
+export function parseModelCatalogIds(raw: string): string[] | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return trimmed
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
+function metaForId(id: string): ModelMeta {
+  return (
+    CATALOG_BY_ID.get(id) ?? {
+      id,
+      display_name: id,
+      family: "other",
+      supports_thinking: false,
+    }
+  );
+}
+
+export function lookupModel(id: string): ModelMeta | null {
+  return CATALOG_BY_ID.get(id) ?? null;
+}
+
+export function builtinModelIds(): string[] {
+  return MODEL_CATALOG.map((m) => m.id);
+}
+
+/** 当前生效的 catalog id 列表（不含元数据） */
+export function activeModelCatalogIds(): string[] {
+  const explicit = parseModelCatalogIds(env.MODEL_CATALOG);
+  return explicit ?? builtinModelIds();
+}
+
+export function isInActiveCatalog(id: string): boolean {
+  if (!id) return false;
+  return activeModelCatalogIds().includes(id);
+}
+
+/** 计算需追加到 MODEL_CATALOG 的 id（纯函数，供测试） */
+export function mergeModelCatalogIds(
+  currentRaw: string,
+  requiredIds: string[],
+  builtinIds: string[],
+): { next: string | null; added: string[] } {
+  const required = [...new Set(requiredIds.filter(Boolean))];
+  const explicit = parseModelCatalogIds(currentRaw);
+  const effective = explicit ?? builtinIds;
+  const effectiveSet = new Set(effective);
+  const missing = required.filter((id) => !effectiveSet.has(id));
+  if (missing.length === 0) return { next: null, added: [] };
+
+  if (!explicit) {
+    const nextIds = [...builtinIds, ...missing.filter((id) => !builtinIds.includes(id))];
+    return { next: nextIds.join(","), added: missing };
+  }
+  return { next: [...explicit, ...missing].join(","), added: missing };
+}
+
+/** 将缺失模型 id 写入 admin/.env MODEL_CATALOG 并重载 env */
+export function ensureModelCatalog(requiredIds: string[]): { added: string[] } {
+  const { next, added } = mergeModelCatalogIds(
+    env.MODEL_CATALOG,
+    requiredIds,
+    builtinModelIds(),
+  );
+  if (!next || added.length === 0) return { added: [] };
+  if (!setEnvFileValue("MODEL_CATALOG", next)) return { added: [] };
+
+  reloadEnv({ quiet: false });
+  console.log(`📝 MODEL_CATALOG 已自动追加: ${added.join(", ")}`);
+  return { added };
+}
+
+/** Playground 模型列表：由 admin/.env MODEL_CATALOG 控制 */
 export function listModels(): ModelMeta[] {
-  return MODEL_CATALOG;
+  return activeModelCatalogIds().map(metaForId);
 }

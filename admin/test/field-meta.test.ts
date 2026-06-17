@@ -5,12 +5,15 @@ describe("field-meta", () => {
   it("configMeta marks data sources", () => {
     const m = configMeta();
     expect(m.fields.gateway.source).toBe("cf");
-    expect(m.fields.model.source).toBe("catalog");
+    expect(m.fields.model.source).toBe("env");
+    expect(m.fields.models.key).toBe("MODEL_CATALOG");
     expect(m.fields.gateways.source).toBe("cf");
     expect(m.fields["routing.provider_slug"].source).toBe("cf");
     expect(m.fields["routing.path"].source).toBe("derived");
     expect(m.fields["routing.invoke_url"].source).toBe("derived");
     expect(m.fields["chat.authorization"].key).toBe("DASHSCOPE_API_KEY");
+    expect(m.fields["worker.url"].key).toBe("WORKER_URL");
+    expect(m.fields["worker_routing.gateway"].key).toBe("CF_GATEWAY_ID");
     expect(m.fields["routing.worker_model"].source).toBe("wrangler");
   });
 

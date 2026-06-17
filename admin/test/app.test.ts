@@ -100,6 +100,8 @@ describe("public config", () => {
         base_url: string;
         path: string;
         _meta: { fields: Record<string, { source: string; key?: string }> };
+        worker: { url: string; supabase_url: string | null; endpoints: string[] };
+        worker_routing: { gateway: string; provider_slug: string; invoke_url: string };
       };
       expect(j.model).toBeTruthy();
       expect(j.gateway).toBeTruthy();
@@ -112,9 +114,16 @@ describe("public config", () => {
       expect(j.routing.invoke_url).toBe(j.routing_preview);
       expect(typeof j.routing.path).toBe("string");
       expect(j._meta.fields.gateway.source).toBe("cf");
-      expect(j._meta.fields.model.source).toBe("catalog");
+      expect(j._meta.fields.model.source).toBe("env");
+      expect(j._meta.fields.models.key).toBe("MODEL_CATALOG");
       expect(j._meta.fields["routing.invoke_url"].source).toBe("derived");
       expect(j._meta.fields["routing.provider_slug"].source).toBe("cf");
+      expect(j.worker.url).toBeTruthy();
+      expect(j.worker.endpoints).toContain("/v1/responses");
+      expect(j.worker_routing.gateway).toBeTruthy();
+      expect(j.worker_routing.invoke_url).toContain(j.worker_routing.gateway);
+      expect(j._meta.fields["worker.url"].source).toBe("env");
+      expect(j._meta.fields["worker_routing.gateway"].source).toBe("wrangler");
     } finally {
       globalThis.fetch = realFetch;
     }
@@ -176,6 +185,27 @@ describe("gateway context", () => {
     } finally {
       globalThis.fetch = realFetch;
     }
+  });
+});
+
+describe("worker chat", () => {
+  it("POST /api/worker-chat without credentials -> 400", async () => {
+    const res = await app.request("/api/worker-chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ model: "qwen3-max", messages: [{ role: "user", content: "hi" }] }),
+    });
+    expect(res.status).toBe(400);
+    const j = (await res.json()) as { error: string };
+    expect(j.error).toMatch(/Supabase|access_token/i);
+  });
+
+  it("GET /api/worker-chat/info returns worker debug info", async () => {
+    const res = await app.request("/api/worker-chat/info");
+    expect(res.status).toBe(200);
+    const j = (await res.json()) as { url: string; endpoints: string[] };
+    expect(j.url).toBeTruthy();
+    expect(j.endpoints.length).toBe(2);
   });
 });
 

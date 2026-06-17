@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { env } from "../env";
 import { gatewayUrl } from "../cf";
 import { loadCfLists, resolveDefaults, RESPONSES_API_PATH } from "../cf-resolve";
+import { proxyUpstreamChat } from "../sse-proxy";
 
 // 本地调试用的聊天代理：浏览器 -> 本服务 -> AI Gateway -> 阿里云 MaaS。
 export const chat = new Hono();
@@ -65,29 +65,5 @@ chat.post("/", async (c) => {
     return c.json({ error: (e as Error).message }, 502);
   }
 
-  const ct = upstream.headers.get("content-type") || "";
-  if (!upstream.ok || !ct.includes("text/event-stream")) {
-    const text = await upstream.text();
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = text;
-    }
-    const err =
-      parsed && typeof parsed === "object" && "error" in parsed
-        ? (parsed as { error: unknown }).error
-        : parsed;
-    const status =
-      upstream.status >= 400 && upstream.status <= 599 ? upstream.status : 502;
-    return c.json({ error: err }, status as ContentfulStatusCode);
-  }
-
-  return new Response(upstream.body, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache",
-    },
-  });
+  return proxyUpstreamChat(c, upstream);
 });

@@ -1,9 +1,8 @@
-import fs from "node:fs";
-import path from "node:path";
 import { env, workerDir } from "./env";
-import { gatewayUrl } from "./cf";
+import { gatewayUrl, gatewayUrlWithAccount } from "./cf";
 import { lookupModel } from "./model-catalog";
 import { RESPONSES_API_PATH } from "./cf-resolve";
+import { readWranglerToml } from "./wrangler-vars";
 
 export interface ProviderInfo {
   id?: string;
@@ -23,31 +22,50 @@ export interface RoutingInfo {
   base_url: string;
 }
 
+/** Worker 边缘代理实际使用的路由（wrangler.toml [vars] + CF 提供商匹配） */
+export interface WorkerRoutingInfo {
+  account_id: string;
+  gateway: string;
+  provider_slug: string;
+  default_model: string | null;
+  provider: ProviderInfo | null;
+  path: string;
+  invoke_url: string;
+  base_url: string;
+  api_type: "responses";
+}
+
+function readWorkerVars() {
+  return readWranglerToml(workerDir).vars;
+}
+
 function readWorkerModel(): string | null {
-  const file = path.join(workerDir, "wrangler.toml");
-  try {
-    const toml = fs.readFileSync(file, "utf8");
-    let inVars = false;
-    for (const line of toml.split("\n")) {
-      const t = line.trim();
-      if (t.startsWith("[")) {
-        inVars = t === "[vars]";
-        continue;
-      }
-      if (!inVars || !t || t.startsWith("#")) continue;
-      const m = t.match(/^DEFAULT_MODEL\s*=\s*(.+)$/);
-      if (!m) continue;
-      let v = m[1].trim();
-      if (v.startsWith('"')) {
-        const end = v.indexOf('"', 1);
-        v = end > 0 ? v.slice(1, end) : v.slice(1);
-      }
-      return v || null;
-    }
-  } catch {
-    /* worker 目录不存在时忽略 */
-  }
-  return null;
+  return readWorkerVars().DEFAULT_MODEL ?? null;
+}
+
+export function buildWorkerRouting(providers: ProviderInfo[]): WorkerRoutingInfo {
+  const vars = readWorkerVars();
+  const accountId = vars.CF_ACCOUNT_ID ?? env.CF_ACCOUNT_ID;
+  const gateway = vars.CF_GATEWAY_ID ?? "";
+  const slug = vars.PROVIDER_SLUG ?? "";
+  const pathStr = RESPONSES_API_PATH;
+  const provider = providers.find((p) => p.slug === slug) ?? null;
+  const invokeUrl =
+    slug && gateway && accountId
+      ? gatewayUrlWithAccount(accountId, gateway, slug, pathStr)
+      : "";
+
+  return {
+    account_id: accountId,
+    gateway,
+    provider_slug: slug,
+    default_model: vars.DEFAULT_MODEL ?? null,
+    provider,
+    path: pathStr,
+    invoke_url: invokeUrl,
+    base_url: provider?.base_url ?? "",
+    api_type: "responses",
+  };
 }
 
 export function buildRouting(

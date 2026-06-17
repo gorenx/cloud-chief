@@ -47,6 +47,19 @@ export interface RoutingInfo {
   base_url: string;
 }
 
+/** Worker 边缘代理路由（wrangler.toml [vars]） */
+export interface WorkerRoutingInfo {
+  account_id: string;
+  gateway: string;
+  provider_slug: string;
+  default_model: string | null;
+  provider: { slug: string; base_url: string; enable?: boolean } | null;
+  path: string;
+  invoke_url: string;
+  base_url: string;
+  api_type: "responses";
+}
+
 export type FieldSource = "env" | "cf" | "wrangler" | "catalog" | "derived";
 
 export interface FieldMetaEntry {
@@ -78,6 +91,15 @@ export interface ByokKey {
   secret_preview?: string;
 }
 
+export interface WorkerDebugInfo {
+  url: string;
+  worker_name: string | null;
+  supabase_url: string | null;
+  default_model: string | null;
+  has_test_credentials: boolean;
+  endpoints: ["/v1/responses", "/v1/chat/completions"];
+}
+
 export interface PublicConfig {
   model: string;
   gateway: string;
@@ -88,6 +110,10 @@ export interface PublicConfig {
   models: ModelMeta[];
   routing: RoutingInfo;
   routing_preview: string;
+  worker_routing: WorkerRoutingInfo;
+  worker: WorkerDebugInfo;
+  /** 本次 /config 自动写入 MODEL_CATALOG 的模型 id */
+  catalog_synced?: string[];
   _meta: ResponseMeta;
 }
 
