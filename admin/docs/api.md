@@ -42,7 +42,25 @@ Playground 与公开配置。无需 ADMIN_TOKEN。
 | `base_url` | string | env |
 | `path` | string | env |
 | `models` | ModelMeta[] | `model-catalog.ts` |
-| `routing_preview` | string | `buildRouting()` |
+| `routing` | RoutingInfo | `buildRouting()` |
+| `routing_preview` | string | `routing.invoke_url`（兼容字段） |
+| `_meta` | ResponseMeta | 各字段数据来源，见下 |
+
+**`_meta.fields` 常用键**
+
+| 键 | `source` | 说明 |
+|----|----------|------|
+| `gateway` | `cf` | Cloudflare 网关 id |
+| `gateways` | `cf` | 下拉列表，`GET /ai-gateway/gateways` |
+| `model` | `catalog` | model-catalog.ts 中的模型 id |
+| `models` | `catalog` | 模型目录列表 |
+| `provider_slug` / `base_url` | `cf` | CF 自定义提供商列表 |
+| `path` | `derived` | 代码常量 `RESPONSES_API_PATH` |
+| `routing.invoke_url` | `derived` | 由 account + gateway + slug + path 拼接 |
+| `routing.worker_model` | `wrangler` | `wrangler.toml [vars].DEFAULT_MODEL` |
+| `chat.authorization` | `env` | `DASHSCOPE_API_KEY`；Playground 聊天专用，不经 BYOK |
+
+`source` 枚举：`env` | `cf` | `wrangler` | `catalog` | `derived`。每项可选 `key`、`dependsOn`、`hint`。
 
 **调用方**：`PlaygroundPage` → `fetchPublicConfig()`
 
@@ -122,11 +140,21 @@ Playground 与公开配置。无需 ADMIN_TOKEN。
   },
   "keys": [],
   "keys_error": null,
-  "model_meta": { "id": "...", "display_name": "...", "family": "max", "supports_thinking": true }
+  "model_meta": { "id": "...", "display_name": "...", "family": "max", "supports_thinking": true },
+  "_meta": {
+    "fields": {
+      "gateway.id": { "source": "cf" },
+      "routing.provider_slug": { "source": "env", "key": "PROVIDER_SLUG" },
+      "keys": { "source": "cf" },
+      "model_meta": { "source": "catalog" }
+    }
+  }
 }
 ```
 
-**调用方**：Dashboard、Gateways、Keys
+`_meta` 结构与 `GET /config` 相同（`field-meta.ts` 生成）；路由链里 `gateway` 为 `cf`，`routing.model` 为 `catalog`。
+
+**调用方**：Dashboard、Gateways、Keys、Playground（有 Admin Token 时）
 
 ---
 

@@ -16,7 +16,7 @@ function safeEqual(a: string, b: string): boolean {
 export const adminAuth = createMiddleware(async (c, next) => {
   if (!env.ADMIN_TOKEN) {
     return c.json(
-      { error: "管理接口未启用：请在 .env 设置 ADMIN_TOKEN 后重启服务" },
+      { error: "管理接口未启用：请在 admin/.env 设置 ADMIN_TOKEN 后重启服务" },
       503,
     );
   }

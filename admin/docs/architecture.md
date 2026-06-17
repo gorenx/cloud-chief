@@ -51,7 +51,7 @@ Vite 将 `/admin`、`/api`、`/config`、`/health` 代理到 `127.0.0.1:8787`（
 | 模块 | 文件 | 职责 |
 |------|------|------|
 | 应用装配 | `app.ts` | 注册路由、静态托管、SPA fallback |
-| 环境 | `env.ts` | 加载 `.env`、zod 校验、`WORKER_DIR` 解析 |
+| 环境 | `env.ts` | 仅加载 `admin/.env`、zod 校验、`WORKER_DIR` 解析 |
 | 鉴权 | `auth.ts` | `ADMIN_TOKEN` Bearer 校验 |
 | CF 客户端 | `cf.ts` | `api.cloudflare.com` REST + `gatewayUrl()` |
 | 路由聚合 | `routing.ts` | 合成 `invoke_url`、读 worker `DEFAULT_MODEL` |

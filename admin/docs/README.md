@@ -18,17 +18,17 @@ Admin 是**本地/内网运维控制台**：用 Hono 代理 Cloudflare AI Gatewa
 ## 核心概念
 
 ```
-.env 默认值 ──┐
+CF API 实时 ──┐
               ├──► 路由展示（invoke_url、模型、提供商）
-CF API 实时 ──┘         │
-                        ▼
+admin/.env ───┘         │
+（MODEL 等）            ▼
               网关 × 自定义提供商 × BYOK 密钥
                         │
                         ▼
               Playground / Worker / 外部客户端
 ```
 
-- **配置默认值**：`CF_GATEWAY_ID`、`PROVIDER_SLUG`、`MODEL` 等来自 `.env`，不是从 Cloudflare 控制台「点选」。
+- **路由默认**：网关与 `provider_slug` / `base_url` 从 **CF API** 解析；`path` 为代码常量；`MODEL` 来自 `admin/.env`。
 - **资源真身**：网关、提供商、BYOK 密钥的权威数据在 **Cloudflare**；Admin 只做 CRUD 代理与聚合展示。
 - **模型目录**：`model-catalog.ts` 是本地维护的 Qwen 元数据，与 CF 无关。
 - **生产聊天**：应走已部署的 **Worker**；Playground 的 `/api/chat` 是本地调试捷径。

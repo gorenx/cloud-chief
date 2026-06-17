@@ -47,6 +47,19 @@ export interface RoutingInfo {
   base_url: string;
 }
 
+export type FieldSource = "env" | "cf" | "wrangler" | "catalog" | "derived";
+
+export interface FieldMetaEntry {
+  source: FieldSource;
+  key?: string;
+  dependsOn?: string[];
+  hint?: string;
+}
+
+export interface ResponseMeta {
+  fields: Record<string, FieldMetaEntry>;
+}
+
 export interface GatewayContext {
   gateway: Gateway | null;
   gateway_error: unknown;
@@ -54,6 +67,7 @@ export interface GatewayContext {
   keys: ByokKey[];
   keys_error: unknown;
   model_meta: ModelMeta | null;
+  _meta: ResponseMeta;
 }
 
 export interface ByokKey {
@@ -74,6 +88,7 @@ export interface PublicConfig {
   models: ModelMeta[];
   routing: RoutingInfo;
   routing_preview: string;
+  _meta: ResponseMeta;
 }
 
 export interface WorkerStatus {

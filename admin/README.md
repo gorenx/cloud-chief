@@ -43,11 +43,17 @@ admin/
 
 ## 配置
 
-服务按顺序读取环境变量：真实 `process.env` > `admin/.env` > 仓库根 `.env`。
+**仅读取 `admin/.env`**（复制 `admin/.env.example`）。不加载仓库根 `.env`。
+
+| 范围 | 配置文件 |
+|------|----------|
+| Admin 服务 + CLI | `admin/.env` |
+| Worker 运行时 | `worker/wrangler.toml` + `worker/.dev.vars` |
 
 - `ADMIN_TOKEN`（必填）：访问 `/admin/*` 需要 `Authorization: Bearer <ADMIN_TOKEN>`。
 - `ADMIN_BIND`（默认 `127.0.0.1`）、`PORT`（默认 `8787`）。
-- `CF_ACCOUNT_ID` / `CF_API_TOKEN` / `CF_GATEWAY_ID` / `MODEL` 等：管理与路由展示用。
+- `CF_ACCOUNT_ID` / `CF_API_TOKEN`：调 Cloudflare API；路由默认从 CF 实时解析。
+- `DASHSCOPE_API_KEY`：Playground 本地聊天代理。
 - `CLOUDFLARE_API_TOKEN`（可选）：部署 Worker 时注入给 wrangler 子进程。
 
 ## 开发
@@ -80,7 +86,7 @@ pnpm dev:api         # 仅 Hono
 pnpm dev:web         # 仅 Vite
 ```
 
-在 **设置** 页填入与 `.env` 一致的 `ADMIN_TOKEN`。
+在 **设置** 页填入与 `admin/.env` 中一致的 `ADMIN_TOKEN`。
 
 ## 内网部署
 

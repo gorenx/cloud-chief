@@ -6,6 +6,7 @@ import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { PlaygroundRoutingSidebar } from "@/components/PlaygroundRoutingSidebar";
+import { SourceBadge } from "@/components/SourceBadge";
 import type { ModelMeta, PublicConfig } from "@/types";
 import { playgroundRouting } from "@/lib/routing";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ export function PlaygroundPage() {
     config?.models.find((m) => m.id === model) ?? null;
 
   const routing = config ? playgroundRouting(config, gateway, model) : null;
+  const fieldMeta = config?._meta?.fields;
 
   async function send() {
     const text = input.trim();
@@ -149,36 +151,44 @@ export function PlaygroundPage() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">聊天调试</h1>
-        <Select
-          value={gateway}
-          onChange={(e) => setGateway(e.target.value)}
-          className="w-auto min-w-[140px]"
-        >
-          {(config?.gateways ?? []).map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          className="w-auto min-w-[160px]"
-        >
-          {(config?.models ?? [{ id: model, display_name: model, family: "other" as const, supports_thinking: false }]).map(
-            (m) => (
-              <option key={m.id} value={m.id}>
-                {m.display_name || m.id}
-              </option>
-            ),
-          )}
-        </Select>
+      <div className="mb-4 space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-semibold">聊天调试</h1>
+          <div className="flex items-center gap-1.5">
+            <Select
+              value={gateway}
+              onChange={(e) => setGateway(e.target.value)}
+              className="w-auto min-w-[140px]"
+            >
+              {(config?.gateways ?? []).map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </Select>
+            {fieldMeta?.gateways && <SourceBadge meta={fieldMeta.gateways} />}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="w-auto min-w-[160px]"
+            >
+              {(config?.models ?? [{ id: model, display_name: model, family: "other" as const, supports_thinking: false }]).map(
+                (m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.display_name || m.id}
+                  </option>
+                ),
+              )}
+            </Select>
+            {fieldMeta?.models && <SourceBadge meta={fieldMeta.models} />}
+          </div>
         <Button variant="ghost" size="sm" onClick={() => setSidebarOpen((o) => !o)}>
           {sidebarOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           路由详情
         </Button>
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1 gap-4">
@@ -247,6 +257,7 @@ export function PlaygroundPage() {
               gatewayContext={gatewayCtxQ.data ?? null}
               gatewayContextLoading={gatewayCtxQ.isLoading}
               hasAdminToken={Boolean(token)}
+              configMeta={config?._meta}
             />
           </div>
         )}

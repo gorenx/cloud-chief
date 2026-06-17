@@ -4,18 +4,17 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -f "$SCRIPT_DIR/.env" ]; then
-  set -a; # shellcheck disable=SC1091
-  source "$SCRIPT_DIR/.env"; set +a
-else
-  echo "❌ 未找到 .env" >&2; exit 1
-fi
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/scripts/load-admin-env.sh"
+load_admin_env "$SCRIPT_DIR" || exit 1
 
-: "${CF_ACCOUNT_ID:?}" ; : "${DASHSCOPE_API_KEY:?请在 .env 设置 DASHSCOPE_API_KEY}"
-: "${PROVIDER_SLUG:?}"
-CF_GATEWAY_ID="${CF_GATEWAY_ID:-default}"
-PROVIDER_PATH="${PROVIDER_PATH:-/compatible-mode/v1/chat/completions}"
+: "${CF_GATEWAY_ID:=qwen-gw}"
+: "${PROVIDER_SLUG:=qwen-beijing-maas}"
+: "${PROVIDER_PATH:=/compatible-mode/v1/chat/completions}"
 MODEL="${MODEL:-qwen-max}"
+
+: "${CF_ACCOUNT_ID:?请在 admin/.env 设置 CF_ACCOUNT_ID}"
+: "${DASHSCOPE_API_KEY:?请在 admin/.env 设置 DASHSCOPE_API_KEY}"
 
 URL="https://gateway.ai.cloudflare.com/v1/${CF_ACCOUNT_ID}/${CF_GATEWAY_ID}/custom-${PROVIDER_SLUG}${PROVIDER_PATH}"
 PROMPT="${1:-你好，请用一句话介绍你自己。}"

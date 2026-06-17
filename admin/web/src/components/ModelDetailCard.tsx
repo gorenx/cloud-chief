@@ -1,6 +1,7 @@
-import type { ModelMeta, RoutingInfo } from "@/types";
+import type { FieldMetaEntry, ModelMeta, RoutingInfo } from "@/types";
 import { Card } from "./ui/Card";
 import { Chip } from "./ui/Chip";
+import { SourceBadge } from "./SourceBadge";
 
 const FAMILY_LABEL: Record<string, string> = {
   max: "旗舰 Max",
@@ -14,11 +15,13 @@ export function ModelDetailCard({
   modelId,
   modelMeta,
   routing,
+  fieldMeta,
   compact,
 }: {
   modelId: string;
   modelMeta: ModelMeta | null;
   routing?: RoutingInfo;
+  fieldMeta?: Record<string, FieldMetaEntry>;
   compact?: boolean;
 }) {
   const workerMismatch =
@@ -30,10 +33,14 @@ export function ModelDetailCard({
     <Card className={compact ? "p-4" : ""}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="mono text-sm font-semibold text-[var(--color-accent)]">{modelId}</span>
+        {fieldMeta?.["routing.model"] && (
+          <SourceBadge meta={fieldMeta["routing.model"]} />
+        )}
         {modelMeta ? (
           <>
             <Chip>{FAMILY_LABEL[modelMeta.family] ?? modelMeta.family}</Chip>
             {modelMeta.supports_thinking && <Chip variant="on">支持思考模式</Chip>}
+            {fieldMeta?.model_meta && <SourceBadge meta={fieldMeta.model_meta} />}
           </>
         ) : (
           <Chip variant="warn">不在已知目录中</Chip>
@@ -47,9 +54,23 @@ export function ModelDetailCard({
       )}
       {routing && (
         <div className="mt-3 space-y-1 text-xs text-[var(--color-muted)]">
-          <div>API 类型：<span className="text-[var(--color-text)]">{routing.api_type}</span></div>
+          <div className="flex items-center gap-1.5">
+            <span>
+              API 类型：<span className="text-[var(--color-text)]">{routing.api_type}</span>
+            </span>
+            {fieldMeta?.["routing.api_type"] && (
+              <SourceBadge meta={fieldMeta["routing.api_type"]} />
+            )}
+          </div>
           {routing.worker_model && (
-            <div>Worker 默认模型：<code className="mono">{routing.worker_model}</code></div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span>
+                Worker 默认模型：<code className="mono">{routing.worker_model}</code>
+              </span>
+              {fieldMeta?.["routing.worker_model"] && (
+                <SourceBadge meta={fieldMeta["routing.worker_model"]} />
+              )}
+            </div>
           )}
         </div>
       )}

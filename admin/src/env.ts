@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(here, ".."); // admin/
-const repoRoot = path.resolve(adminRoot, ".."); // 仓库根
 
-// 加载顺序：admin/.env 优先，其次仓库根 .env；已存在的 process.env 永远最高。
+// 仅加载 admin/.env（与 Worker 的 wrangler.toml / .dev.vars 分离）。
+// 已存在的 process.env 永远最高（便于 CI / 容器注入）。
 function loadEnvFile(file: string): void {
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, "utf8").split("\n")) {
@@ -22,16 +22,11 @@ function loadEnvFile(file: string): void {
   }
 }
 loadEnvFile(path.join(adminRoot, ".env"));
-loadEnvFile(path.join(repoRoot, ".env"));
 
 const schema = z.object({
   CF_ACCOUNT_ID: z.string().min(1, "缺少 CF_ACCOUNT_ID"),
   CF_API_TOKEN: z.string().default(""),
-  CF_GATEWAY_ID: z.string().default("default"),
   CF_AIG_TOKEN: z.string().default(""),
-  PROVIDER_SLUG: z.string().default(""),
-  PROVIDER_BASE_URL: z.string().default(""),
-  PROVIDER_PATH: z.string().default("/compatible-mode/v1/responses"),
   DASHSCOPE_API_KEY: z.string().default(""),
   MODEL: z.string().default("qwen3-max"),
   ADMIN_TOKEN: z.string().default(""),

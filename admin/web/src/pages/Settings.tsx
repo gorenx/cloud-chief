@@ -24,7 +24,7 @@ export function SettingsPage() {
           type="password"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="与 .env 中 ADMIN_TOKEN 一致"
+          placeholder="与 admin/.env 中 ADMIN_TOKEN 一致"
         />
         <div className="mt-4 flex gap-2">
           <Button

@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { env } from "../env";
 import { gatewayUrl } from "../cf";
+import { loadCfLists, resolveDefaults, RESPONSES_API_PATH } from "../cf-resolve";
 
 // 本地调试用的聊天代理：浏览器 -> 本服务 -> AI Gateway -> 阿里云 MaaS。
-// 生产聊天走 Worker；这里仅方便本地不部署 Worker 也能测。无 admin 鉴权。
 export const chat = new Hono();
 
 chat.post("/", async (c) => {
@@ -16,23 +16,36 @@ chat.post("/", async (c) => {
     provider_slug?: unknown;
   };
 
-  if (!env.PROVIDER_SLUG || !env.DASHSCOPE_API_KEY) {
+  if (!env.DASHSCOPE_API_KEY) {
     return c.json(
-      { error: "聊天功能需要在 .env 配置 PROVIDER_SLUG 和 DASHSCOPE_API_KEY" },
+      { error: "聊天功能需要在 admin/.env 配置 DASHSCOPE_API_KEY" },
       400,
     );
   }
 
-  const gateway =
+  const { gateways, providers } = await loadCfLists();
+  const gatewayOverride =
     typeof payload.gateway === "string" && payload.gateway.trim()
       ? payload.gateway.trim()
-      : env.CF_GATEWAY_ID;
-  const providerSlug =
+      : undefined;
+  const slugOverride =
     typeof payload.provider_slug === "string" && payload.provider_slug.trim()
       ? payload.provider_slug.trim()
-      : env.PROVIDER_SLUG;
+      : undefined;
 
-  const url = gatewayUrl(gateway, providerSlug, env.PROVIDER_PATH);
+  const { gateway, provider } = resolveDefaults(gateways, providers, {
+    gatewayId: gatewayOverride,
+    providerSlug: slugOverride,
+  });
+
+  if (!gateway?.id) {
+    return c.json({ error: "CF 上暂无可用网关，请先创建 AI Gateway" }, 400);
+  }
+  if (!provider?.slug) {
+    return c.json({ error: "CF 上暂无已启用的自定义提供商" }, 400);
+  }
+
+  const url = gatewayUrl(gateway.id, provider.slug, RESPONSES_API_PATH);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${env.DASHSCOPE_API_KEY}`,

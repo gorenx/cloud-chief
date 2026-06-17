@@ -46,15 +46,13 @@ export function SetupFlowActions({
 
       {pageStep === "gateway" && !status.gatewayDone && (
         <p className="text-xs text-[var(--color-muted)]">
-          建议创建专属命名网关（如 <code className="mono">qwen-gw</code>），并在{" "}
-          <code className="mono">.env</code> 设置相同的 <code className="mono">CF_GATEWAY_ID</code>
-          。不要使用 Cloudflare 内置 <code className="mono">default</code> 网关。
+          在 Cloudflare 创建专属命名网关（如 <code className="mono">qwen-gw</code>），不要使用内置{" "}
+          <code className="mono">default</code> 网关。Admin 默认选中以 CF 列表为准。
         </p>
       )}
       {pageStep === "provider" && status.gatewayDone && !status.providerDone && (
         <p className="text-xs text-[var(--color-muted)]">
-          slug 创建后需与 <code className="mono">.env</code> 的{" "}
-          <code className="mono">PROVIDER_SLUG</code> 一致，否则路由预览会对不上。
+          在 Cloudflare 创建自定义提供商后，路由链中的 slug 与 base_url 将从 CF 实时读取。
         </p>
       )}
     </>

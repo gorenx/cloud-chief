@@ -31,21 +31,16 @@ need_node() {
 }
 
 load_env() {
-  if [ -f "$REPO_ROOT/.env" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$REPO_ROOT/.env"
-    set +a
-  elif [ -f "$ADMIN_DIR/.env" ]; then
+  if [ -f "$ADMIN_DIR/.env" ]; then
     set -a
     # shellcheck disable=SC1091
     source "$ADMIN_DIR/.env"
     set +a
   else
-    die "未找到 .env，请先执行: cp $REPO_ROOT/.env.example $REPO_ROOT/.env"
+    die "未找到 admin/.env，请先执行: cp $ADMIN_DIR/.env.example $ADMIN_DIR/.env"
   fi
 
-  : "${CF_ACCOUNT_ID:?请在 .env 中设置 CF_ACCOUNT_ID}"
+  : "${CF_ACCOUNT_ID:?请在 admin/.env 中设置 CF_ACCOUNT_ID}"
 
   if [ -z "${ADMIN_TOKEN:-}" ]; then
     warn "未设置 ADMIN_TOKEN，/admin/* 管理接口将全部拒绝（可在设置页保存令牌前先配置 .env）"

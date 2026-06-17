@@ -188,9 +188,9 @@ export function SetupStepCallGuide({
 
   const desc: Record<SetupStep, string> = {
     gateway:
-      "网关 ID 是 AI Gateway 的入口标识，出现在 URL 路径中；须与 .env 的 CF_GATEWAY_ID 一致。",
+      "网关 ID 来自 Cloudflare AI Gateway，出现在 invoke URL 路径中；Admin 默认选中 CF 列表中的网关。",
     provider:
-      "custom- 后面的 slug 必须等于自定义提供商的 slug，且与 .env 的 PROVIDER_SLUG 一致。",
+      "custom- 后面的 slug 与 base_url 来自 CF 自定义提供商；API path 为 Responses 固定路径。",
     byok:
       "BYOK 可选：配置后直连 Gateway 时无需再传上游 Authorization；不配置则用 .env DASHSCOPE_API_KEY。",
   };
@@ -215,13 +215,12 @@ export function SetupStepCallGuide({
       {step === "gateway" && (
         <>
           <CodeBlock
-            children={`# .env 与网关 id 对齐
-CF_GATEWAY_ID=${gatewayId || "qwen-gw"}
+            children={`# 网关由 CF API 管理，Admin 从 GET /config / GET /admin/state 读取
 
 # 若开启网关鉴权（authentication=true），直连时需加：
 cf-aig-authorization: Bearer $CF_AIG_TOKEN
 
-# Playground 从 GET /config 读取 gateway 字段作为默认选中`}
+# 当前默认网关 id：${gatewayId || "（尚未创建）"}`}
           />
           <p className="text-xs text-[var(--color-muted)]">
             仅有网关还无法完成上游调用，创建后请继续第 2 步添加提供商。
@@ -232,12 +231,11 @@ cf-aig-authorization: Bearer $CF_AIG_TOKEN
       {step === "provider" && (
         <>
           <CodeBlock
-            children={`# .env 与提供商 slug 对齐
-PROVIDER_SLUG=${providerSlug || "qwen-beijing-maas"}
-PROVIDER_BASE_URL=https://xxx.maas.aliyuncs.com
-PROVIDER_PATH=${path || "/compatible-mode/v1/responses"}
+            children={`# 提供商 slug / base_url 来自 CF 自定义提供商 API
+# 当前默认 slug：${providerSlug || "（尚未创建）"}
+# Responses API path（固定）：${path || "/compatible-mode/v1/responses"}
 
-# 此时直连仍需上游密钥（或使用第 3 步 BYOK）：
+# 直连仍需上游密钥（或使用第 3 步 BYOK）：
 Authorization: Bearer $DASHSCOPE_API_KEY`}
           />
           {hasUrl && (

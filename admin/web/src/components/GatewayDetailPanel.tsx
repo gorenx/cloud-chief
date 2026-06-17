@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import type { GatewayContext } from "@/types";
+import type { GatewayContext, FieldMetaEntry } from "@/types";
 import { Card, CardTitle } from "./ui/Card";
-import { InvokeUrlCopy } from "./InvokeUrlCopy";
 import { ModelDetailCard } from "./ModelDetailCard";
+import { RoutingFieldList } from "./RoutingFieldList";
+import { SourceBadge } from "./SourceBadge";
 import { Chip } from "./ui/Chip";
 
 export function RoutingWarnings({ ctx }: { ctx: GatewayContext }) {
@@ -12,7 +13,7 @@ export function RoutingWarnings({ ctx }: { ctx: GatewayContext }) {
 
   if (!g) warnings.push("无法从 Cloudflare 读取该网关详情");
   if (g && !g.authentication) warnings.push("网关鉴权未开启 — BYOK 场景建议开启 authentication");
-  if (r.provider_slug && !r.provider) warnings.push(`提供商 slug「${r.provider_slug}」不在自定义提供商列表中`);
+  if (!r.provider) warnings.push("CF 上暂无已启用的自定义提供商");
 
   if (warnings.length === 0) return null;
 
@@ -27,19 +28,27 @@ export function RoutingWarnings({ ctx }: { ctx: GatewayContext }) {
 
 export function GatewayStatusCard({ ctx }: { ctx: GatewayContext }) {
   const g = ctx.gateway;
+  const fields = ctx._meta?.fields ?? {};
   return (
     <Card className="p-4">
       <CardTitle>网关状态</CardTitle>
       {g ? (
-        <div className="flex flex-wrap gap-2 text-sm">
-          <code className="mono">{g.id}</code>
-          {g.is_default && <Chip>default</Chip>}
-          <Chip variant={g.authentication ? "on" : "off"}>
-            鉴权 {g.authentication ? "已开启" : "已关闭"}
-          </Chip>
-          <Chip variant={g.collect_logs ? "on" : "off"}>
-            日志 {g.collect_logs ? "on" : "off"}
-          </Chip>
+        <div className="space-y-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="mono">{g.id}</code>
+            <SourceBadge meta={fields["gateway.id"]} />
+            {g.is_default && <Chip>default</Chip>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Chip variant={g.authentication ? "on" : "off"}>
+              鉴权 {g.authentication ? "已开启" : "已关闭"}
+            </Chip>
+            <SourceBadge meta={fields["gateway.authentication"]} />
+            <Chip variant={g.collect_logs ? "on" : "off"}>
+              日志 {g.collect_logs ? "on" : "off"}
+            </Chip>
+            <SourceBadge meta={fields["gateway.collect_logs"]} />
+          </div>
         </div>
       ) : (
         <p className="text-sm text-[var(--color-err)]">网关不存在或无法读取</p>
@@ -60,6 +69,8 @@ export function AdminTokenHintCard() {
           设置
         </Link>{" "}
         中配置后，方可从 Cloudflare 拉取下方网关状态与 BYOK 密钥列表。
+        另：本页 <code className="mono">POST /api/chat</code> 固定使用 admin/.env{" "}
+        <code className="mono">DASHSCOPE_API_KEY</code>，与 BYOK 无关。
       </p>
     </Card>
   );
@@ -68,13 +79,18 @@ export function AdminTokenHintCard() {
 export function ByokKeysCard({
   ctx,
   loading,
+  fieldMeta,
 }: {
   ctx?: GatewayContext | null;
   loading?: boolean;
+  fieldMeta?: FieldMetaEntry;
 }) {
   return (
     <Card className="p-4">
-      <CardTitle>BYOK 密钥</CardTitle>
+      <div className="mb-4 flex items-center gap-2">
+        <span className="text-sm font-semibold text-[var(--color-text)]">BYOK 密钥</span>
+        {fieldMeta && <SourceBadge meta={fieldMeta} />}
+      </div>
       {loading ? (
         <p className="text-sm text-[var(--color-muted)]">加载中…</p>
       ) : !ctx || ctx.keys.length === 0 ? (
@@ -116,6 +132,7 @@ export function GatewayDetailPanel({ ctx, loading }: { ctx: GatewayContext | nul
   if (!ctx) return null;
 
   const r = ctx.routing;
+  const fields = ctx._meta?.fields ?? {};
 
   return (
     <div className="space-y-4">
@@ -124,32 +141,22 @@ export function GatewayDetailPanel({ ctx, loading }: { ctx: GatewayContext | nul
       <RoutingWarnings ctx={ctx} />
 
       <Card>
-        <CardTitle>路由链</CardTitle>
-        <div className="space-y-3 text-sm">
-          <div>
-            <div className="mb-1 text-xs text-[var(--color-muted)]">invoke_url</div>
-            <InvokeUrlCopy url={r.invoke_url} />
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <span className="text-xs text-[var(--color-muted)]">provider_slug</span>
-              <div className="mono mt-0.5">{r.provider_slug || "—"}</div>
-            </div>
-            <div>
-              <span className="text-xs text-[var(--color-muted)]">API path</span>
-              <div className="mono mt-0.5 break-all">{r.path}</div>
-            </div>
-            <div className="sm:col-span-2">
-              <span className="text-xs text-[var(--color-muted)]">上游 base_url</span>
-              <div className="mono mt-0.5 break-all">{r.base_url || r.provider?.base_url || "—"}</div>
-            </div>
-          </div>
-        </div>
+        <CardTitle desc="悬停标签查看 env 键名或计算方式">路由链</CardTitle>
+        <RoutingFieldList
+          routing={r}
+          gateway={ctx.gateway?.id ?? ""}
+          fields={fields}
+        />
       </Card>
 
-      <ModelDetailCard modelId={r.model} modelMeta={ctx.model_meta} routing={r} />
+      <ModelDetailCard
+        modelId={r.model}
+        modelMeta={ctx.model_meta}
+        routing={r}
+        fieldMeta={fields}
+      />
 
-      <ByokKeysCard ctx={ctx} />
+      <ByokKeysCard ctx={ctx} fieldMeta={fields.keys} />
     </div>
   );
 }

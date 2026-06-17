@@ -6,21 +6,18 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 加载 .env
-if [ -f "$SCRIPT_DIR/.env" ]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$SCRIPT_DIR/.env"
-  set +a
-else
-  echo "❌ 未找到 .env，请先复制 .env.example 为 .env 并填写。" >&2
-  exit 1
-fi
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/scripts/load-admin-env.sh"
+load_admin_env "$SCRIPT_DIR" || exit 1
 
-: "${CF_ACCOUNT_ID:?请在 .env 中设置 CF_ACCOUNT_ID}"
-: "${CF_API_TOKEN:?请在 .env 中设置 CF_API_TOKEN}"
-: "${PROVIDER_SLUG:?请在 .env 中设置 PROVIDER_SLUG}"
-: "${PROVIDER_BASE_URL:?请在 .env 中设置 PROVIDER_BASE_URL}"
+# 以下可在命令行覆盖（默认与 worker/wrangler.toml 常见配置一致）
+: "${CF_GATEWAY_ID:=qwen-gw}"
+: "${PROVIDER_SLUG:=qwen-beijing-maas}"
+: "${PROVIDER_BASE_URL:=https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com}"
+: "${PROVIDER_PATH:=/compatible-mode/v1/responses}"
+
+: "${CF_ACCOUNT_ID:?请在 admin/.env 中设置 CF_ACCOUNT_ID}"
+: "${CF_API_TOKEN:?请在 admin/.env 中设置 CF_API_TOKEN}"
 
 API="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}"
 AUTH=(-H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")

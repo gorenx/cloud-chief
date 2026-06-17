@@ -3,7 +3,14 @@ import { adminAuth } from "../auth";
 import { cfApi } from "../cf";
 import { env } from "../env";
 import { buildRouting, modelMetaFor } from "../routing";
-import type { ProviderInfo } from "../routing";
+import { gatewayContextMeta } from "../field-meta";
+import {
+  loadCfLists,
+  pickDefaultGateway,
+  pickDefaultProvider,
+  parseProviderList,
+  RESPONSES_API_PATH,
+} from "../cf-resolve";
 import {
   gatewayUpsert,
   providerUpsert,
@@ -15,26 +22,25 @@ export const admin = new Hono();
 
 admin.use("*", adminAuth);
 
-// 账号信息 + .env 默认值 + 网关/提供商列表
+// 账号信息 + CF 解析的默认路由 + 网关/提供商列表
 admin.get("/state", async (c) => {
-  const [gws, provs] = await Promise.all([
-    cfApi("GET", "/ai-gateway/gateways?per_page=50"),
-    cfApi("GET", "/ai-gateway/custom-providers?per_page=100"),
-  ]);
+  const { gateways, providers, gateways_error, providers_error } = await loadCfLists();
+  const defaultGw = pickDefaultGateway(gateways);
+  const defaultProvider = pickDefaultProvider(providers);
   return c.json({
     account_id: env.CF_ACCOUNT_ID,
     has_api_token: Boolean(env.CF_API_TOKEN),
     defaults: {
-      gateway: env.CF_GATEWAY_ID,
-      provider_slug: env.PROVIDER_SLUG,
-      base_url: env.PROVIDER_BASE_URL,
-      path: env.PROVIDER_PATH,
+      gateway: defaultGw?.id ?? "",
+      provider_slug: defaultProvider?.slug ?? "",
+      base_url: defaultProvider?.base_url ?? "",
+      path: RESPONSES_API_PATH,
       model: env.MODEL,
     },
-    gateways: gws.json.result || [],
-    gateways_error: gws.json.success ? null : gws.json.errors,
-    providers: provs.json.result || [],
-    providers_error: provs.json.success ? null : provs.json.errors,
+    gateways,
+    gateways_error,
+    providers,
+    providers_error,
   });
 });
 
@@ -49,9 +55,10 @@ admin.get("/gateways/:id/context", async (c) => {
     cfApi("GET", `/ai-gateway/gateways/${id}/provider_configs?per_page=100`),
   ]);
 
-  const providers = (provsRes(provRes) ?? []) as ProviderInfo[];
+  const providers = parseProviderList(provRes.json.result);
   const gateway = gwRes.json.success ? gwRes.json.result : null;
-  const routing = buildRouting(id, providers);
+  const provider = pickDefaultProvider(providers);
+  const routing = buildRouting(id, provider);
   const keys = keysRes.json.success ? keysRes.json.result ?? [] : [];
   const model_meta = modelMetaFor(routing.model);
 
@@ -62,12 +69,9 @@ admin.get("/gateways/:id/context", async (c) => {
     keys,
     keys_error: keysRes.json.success ? null : keysRes.json.errors,
     model_meta,
+    _meta: gatewayContextMeta(id),
   });
 });
-
-function provsRes(r: Awaited<ReturnType<typeof cfApi>>): unknown[] | null {
-  return r.json.success && Array.isArray(r.json.result) ? r.json.result : null;
-}
 
 // 网关：创建/更新（upsert）
 admin.post("/gateways", async (c) => {

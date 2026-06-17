@@ -18,9 +18,8 @@ https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/resp
 | --- | --- |
 | `admin/` | **配置 / 管理服务**（TypeScript + Hono）：管理网关 / 提供商 / BYOK，部署 Worker，本地聊天调试页。详见 [admin/README.md](admin/README.md) |
 | `worker/` | **生产边缘代理**（Cloudflare Worker，TS + Hono + jose）：验 Supabase JWT 后转发到 AI Gateway。详见 [worker/README.md](worker/README.md) |
-| `.env.example` | 配置模板，复制为 `.env` 后填写（admin 服务复用它） |
-| `setup.sh` | （可选，CLI）创建/更新自定义提供商并确保网关存在 |
-| `test.sh` | （可选，CLI）用 curl 验证链路 |
+| `setup.sh` | （可选，CLI）创建/更新自定义提供商并确保网关存在（读 `admin/.env`） |
+| `test.sh` | （可选，CLI）用 curl 验证链路（读 `admin/.env`） |
 | `admin.sh` / `admin/run.sh` | 一键安装依赖、开发或生产启动配置后台 |
 
 两条调用路径：
@@ -65,8 +64,8 @@ https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/resp
 ### 1. 配置
 
 ```bash
-cp .env.example .env
-# 编辑 .env，至少填写：
+cp admin/.env.example admin/.env
+# 编辑 admin/.env，至少填写：
 #   CF_ACCOUNT_ID、CF_API_TOKEN、DASHSCOPE_API_KEY
 ```
 
@@ -140,7 +139,7 @@ AI Gateway 不替你管理上游鉴权，请求需要两个头：
 - `Authorization: Bearer <DASHSCOPE_API_KEY>` —— 上游（阿里云）必需。
 - `cf-aig-authorization: Bearer <CF_AIG_TOKEN>` —— 当网关开启 Authenticated Gateway 时必需。
 
-`setup.sh` 会根据 `.env` 自动处理网关 `authentication`：
+`setup.sh` 会根据 `admin/.env` 的 `CF_AIG_TOKEN` 自动处理网关 `authentication`：
 
 - 填了 `CF_AIG_TOKEN` → 开启网关鉴权（更安全），请求自动带上该令牌。
 - 留空 `CF_AIG_TOKEN` → 关闭网关鉴权（上游仍有 DashScope Key 保护）。

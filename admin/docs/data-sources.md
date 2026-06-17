@@ -22,14 +22,12 @@
 ```
 process.env（已存在则不覆盖）
     ↓
-admin/.env
-    ↓
-仓库根 .env
-    ↓
-zod 默认值（如 CF_GATEWAY_ID 默认 "default"）
+admin/.env   ← Admin 仅此一处
 ```
 
-启动时 **`CF_ACCOUNT_ID` 必填**，缺失则进程退出。
+Worker 使用 `worker/wrangler.toml` `[vars]` 与 `worker/.dev.vars`（或 `wrangler secret`）。
+
+仓库根 `setup.sh` / `test.sh` 与 Admin 共用 `admin/.env`。
 
 ---
 
@@ -41,10 +39,10 @@ zod 默认值（如 CF_GATEWAY_ID 默认 "default"）
 |------|------|------|
 | `account_id` | `env.CF_ACCOUNT_ID` | 概览、invoke_url |
 | `has_api_token` | `Boolean(env.CF_API_TOKEN)` | 是否可调 CF API |
-| `defaults.gateway` | `env.CF_GATEWAY_ID` | **非** CF `is_default` 字段 |
-| `defaults.provider_slug` | `env.PROVIDER_SLUG` | |
-| `defaults.base_url` | `env.PROVIDER_BASE_URL` | 展示用；路由以 slug 为准 |
-| `defaults.path` | `env.PROVIDER_PATH` | 如 `/compatible-mode/v1/responses` |
+| `defaults.gateway` | CF API `pickDefaultGateway()` | `is_default` 或首个非内置网关 |
+| `defaults.provider_slug` | CF API `pickDefaultProvider()` | 首个已启用的自定义提供商 |
+| `defaults.base_url` | CF 提供商对象 | |
+| `defaults.path` | 代码常量 `RESPONSES_API_PATH` | CF 不存储 path |
 | `defaults.model` | `env.MODEL` | Playground 与 routing 默认模型 |
 
 出现位置：`GET /admin/state`、`GET /config`（部分字段）。
@@ -87,10 +85,10 @@ zod 默认值（如 CF_GATEWAY_ID 默认 "default"）
 |------|------|
 | `model` | `env.MODEL`（或 override） |
 | `worker_model` | 读 `{WORKER_DIR}/wrangler.toml` → `[vars].DEFAULT_MODEL` |
-| `provider_slug` | `env.PROVIDER_SLUG` |
-| `provider` | CF 提供商列表中按 slug 查找 |
-| `path` | `env.PROVIDER_PATH` |
-| `base_url` | `env.PROVIDER_BASE_URL` |
+| `provider_slug` | CF 默认提供商 `.slug` |
+| `provider` | 同上提供商对象 |
+| `path` | 常量 `/compatible-mode/v1/responses` |
+| `base_url` | CF 默认提供商 `.base_url` |
 | `invoke_url` | 计算：`gatewayUrl(gatewayId, providerSlug, path)` |
 | `api_type` | 固定 `"responses"` |
 

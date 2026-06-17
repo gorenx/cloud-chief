@@ -49,6 +49,8 @@ worker/
 
 ## 一、配置
 
+**Worker 环境独立于 `admin/.env`**：非敏感项在 `wrangler.toml` `[vars]`，密钥在 `.dev.vars` / Secrets。
+
 编辑 `wrangler.toml` 里的 `[vars]`：
 
 - `CF_ACCOUNT_ID` / `CF_GATEWAY_ID` / `PROVIDER_SLUG`：与你 AI Gateway 配置一致。

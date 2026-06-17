@@ -71,11 +71,22 @@ describe("schemas", () => {
 describe("public config", () => {
   it("GET /config returns model + gateway id + gateways list + models", async () => {
     const realFetch = globalThis.fetch;
-    globalThis.fetch = (async () =>
-      new Response(
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes("custom-providers")) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            result: [{ slug: "test-slug", base_url: "https://example.com", enable: true }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(
         JSON.stringify({ success: true, result: [{ id: "gw-a" }, { id: "gw-b" }] }),
         { status: 200, headers: { "content-type": "application/json" } },
-      )) as typeof fetch;
+      );
+    }) as typeof fetch;
     try {
       const res = await app.request("/config");
       expect(res.status).toBe(200);
@@ -88,6 +99,7 @@ describe("public config", () => {
         routing_preview: string;
         base_url: string;
         path: string;
+        _meta: { fields: Record<string, { source: string; key?: string }> };
       };
       expect(j.model).toBeTruthy();
       expect(j.gateway).toBeTruthy();
@@ -99,6 +111,10 @@ describe("public config", () => {
       expect(typeof j.routing_preview).toBe("string");
       expect(j.routing.invoke_url).toBe(j.routing_preview);
       expect(typeof j.routing.path).toBe("string");
+      expect(j._meta.fields.gateway.source).toBe("cf");
+      expect(j._meta.fields.model.source).toBe("catalog");
+      expect(j._meta.fields["routing.invoke_url"].source).toBe("derived");
+      expect(j._meta.fields["routing.provider_slug"].source).toBe("cf");
     } finally {
       globalThis.fetch = realFetch;
     }
@@ -149,11 +165,14 @@ describe("gateway context", () => {
       const j = (await res.json()) as {
         routing: { model: string; invoke_url: string; api_type: string };
         model_meta: { id: string } | null;
+        _meta: { fields: Record<string, { source: string }> };
       };
       expect(j.routing.model).toBeTruthy();
       expect(j.routing.api_type).toBe("responses");
       expect(j.routing.invoke_url).toContain("test-gw");
       expect(j.routing.invoke_url).toContain("custom-test-slug");
+      expect(j._meta.fields.keys.source).toBe("cf");
+      expect(j._meta.fields["routing.provider_slug"].source).toBe("cf");
     } finally {
       globalThis.fetch = realFetch;
     }

@@ -3,6 +3,7 @@ import path from "node:path";
 import { env, workerDir } from "./env";
 import { gatewayUrl } from "./cf";
 import { lookupModel } from "./model-catalog";
+import { RESPONSES_API_PATH } from "./cf-resolve";
 
 export interface ProviderInfo {
   id?: string;
@@ -51,13 +52,12 @@ function readWorkerModel(): string | null {
 
 export function buildRouting(
   gatewayId: string,
-  providers: ProviderInfo[],
+  provider: ProviderInfo | null,
   modelOverride?: string,
 ): RoutingInfo {
   const model = modelOverride ?? env.MODEL;
-  const providerSlug = env.PROVIDER_SLUG;
-  const provider = providers.find((p) => p.slug === providerSlug) ?? null;
-  const pathStr = env.PROVIDER_PATH;
+  const providerSlug = provider?.slug ?? "";
+  const pathStr = RESPONSES_API_PATH;
   const invokeUrl =
     providerSlug && gatewayId
       ? gatewayUrl(gatewayId, providerSlug, pathStr)
@@ -71,7 +71,7 @@ export function buildRouting(
     path: pathStr,
     invoke_url: invokeUrl,
     api_type: "responses",
-    base_url: env.PROVIDER_BASE_URL,
+    base_url: provider?.base_url ?? "",
   };
 }
 
