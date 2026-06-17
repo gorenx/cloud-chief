@@ -416,9 +416,10 @@ async function loadWorkers(){
   sel.innerHTML="";
   const opts = list.length ? list : (def?[def]:[]);
   for(const w of opts){
+    const dir = typeof w === "string" ? w : w.dir;
     const o=document.createElement("option");
-    o.value=w; o.textContent=w;
-    if(w===def) o.selected=true;
+    o.value=dir; o.textContent=dir;
+    if(dir===def) o.selected=true;
     sel.appendChild(o);
   }
   selectedWorker = sel.value || "";

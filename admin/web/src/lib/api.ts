@@ -3,6 +3,7 @@ import type {
   GatewayContext,
   PublicConfig,
   WorkerList,
+  CfDeployedList,
   WorkerStatus,
 } from "@/types";
 
@@ -95,6 +96,66 @@ export async function fetchWorkerStatus(token: string, dir?: string) {
 export async function fetchWorkerSecrets(token: string, dir?: string) {
   const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
   return adminFetch<{ ok: boolean; names: string[] }>(token, "GET", `/admin/worker/secrets${q}`);
+}
+
+export async function fetchCfDeployedWorkers(token: string) {
+  return adminFetch<CfDeployedList>(token, "GET", "/admin/worker/cf-deployed");
+}
+
+export interface SupabaseOAuthStatus {
+  oauth_configured: boolean;
+  connected: boolean;
+  expires_at: number | null;
+  redirect_uri: string | null;
+  local_only: boolean;
+}
+
+export interface SupabaseProjectRow {
+  id: string;
+  ref: string;
+  name: string;
+}
+
+async function adminFetchWithCredentials<T>(
+  token: string,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<ApiResult<T>> {
+  const res = await fetch(path, {
+    method,
+    credentials: "include",
+    headers: authHeaders(token, body ? { "Content-Type": "application/json" } : {}),
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const j = await parseJson<T & { error?: string }>(res);
+  if (!res.ok) {
+    return { ok: false, status: res.status, error: errText(j) };
+  }
+  return { ok: true, data: j as T };
+}
+
+export async function fetchSupabaseStatus(token: string) {
+  return adminFetch<SupabaseOAuthStatus>(token, "GET", "/admin/supabase/status");
+}
+
+export async function startSupabaseConnect(token: string) {
+  return adminFetchWithCredentials<{ url: string }>(token, "POST", "/admin/supabase/connect");
+}
+
+export async function fetchSupabaseProjects(token: string) {
+  return adminFetch<{ projects: SupabaseProjectRow[] }>(token, "GET", "/admin/supabase/projects");
+}
+
+export async function applySupabaseProject(token: string, ref: string) {
+  return adminFetch<{
+    ok: boolean;
+    applied: { ref: string; name: string; supabase_url: string; anon_key_preview: string };
+  }>(token, "POST", "/admin/supabase/apply", { ref });
+}
+
+export async function disconnectSupabase(token: string) {
+  return adminFetch<{ ok: boolean }>(token, "POST", "/admin/supabase/disconnect");
 }
 
 export function buildInvokeUrl(

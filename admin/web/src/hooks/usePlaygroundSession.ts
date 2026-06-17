@@ -125,5 +125,6 @@ export function usePlaygroundSession() {
     workerHealthResult,
     checkWorkerHealth,
     catalogSynced: config?.catalog_synced ?? [],
+    refetchConfig: () => configQ.refetch(),
   };
 }

@@ -25,6 +25,14 @@ const schema = z.object({
   SUPABASE_ANON_KEY: z.string().default(""),
   SUPABASE_TEST_EMAIL: z.string().default(""),
   SUPABASE_TEST_PASSWORD: z.string().default(""),
+  /** Supabase 平台 OAuth（Management API）；仅建议 ADMIN_BIND=127.0.0.1 本地使用 */
+  SUPABASE_OAUTH_CLIENT_ID: z.string().default(""),
+  SUPABASE_OAUTH_CLIENT_SECRET: z.string().default(""),
+  SUPABASE_OAUTH_REDIRECT_URI: z
+    .string()
+    .default("http://127.0.0.1:5173/admin/supabase/oauth/callback"),
+  /** OAuth 回调后跳转的前端 origin（dev 填 http://127.0.0.1:5173；生产留空=同域） */
+  ADMIN_WEB_ORIGIN: z.string().default(""),
 });
 
 export type AppEnv = z.infer<typeof schema>;

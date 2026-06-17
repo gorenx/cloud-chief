@@ -7,6 +7,7 @@ import { RoutingMismatchNotice, RoutingSectionHeader, RoutingSourceLegend } from
 import { ChatAuthPathNotice } from "./PlaygroundSourceNotices";
 import { PlaygroundSourceSummary } from "./PlaygroundSourceSummary";
 import { WorkerChatNotice } from "./WorkerChatNotice";
+import { SupabaseConnectPanel } from "./SupabaseConnectPanel";
 import { Card, CardTitle } from "./ui/Card";
 import { ModelDetailCard } from "./ModelDetailCard";
 
@@ -27,6 +28,7 @@ export function PlaygroundRoutingSidebar({
   onWorkerHealthCheck,
   workerHealthChecking,
   workerHealthResult,
+  onConfigRefresh,
 }: {
   routing: RoutingInfo;
   workerRouting: WorkerRoutingInfo | null;
@@ -44,6 +46,7 @@ export function PlaygroundRoutingSidebar({
   onWorkerHealthCheck: () => void;
   workerHealthChecking: boolean;
   workerHealthResult: string | null;
+  onConfigRefresh?: () => void;
 }) {
   const routingFields = pickFields(configMeta);
   const { controls } = dataView;
@@ -74,19 +77,34 @@ export function PlaygroundRoutingSidebar({
             </p>
           )}
           {isWorker && workerInfo ? (
-            <WorkerChatNotice
-              workerUrl={workerInfo.url}
-              supabaseUrl={workerInfo.supabase_url}
-              hasTestCredentials={workerInfo.has_test_credentials}
-              workerAuthMeta={controls.request}
-              workerUrlMeta={controls.workerUrl}
-              supabaseUrlMeta={controls.supabaseUrl}
-              accessToken={workerAccessToken}
-              onAccessTokenChange={onWorkerAccessTokenChange}
-              onHealthCheck={onWorkerHealthCheck}
-              healthChecking={workerHealthChecking}
-              healthResult={workerHealthResult}
-            />
+            <>
+              {workerInfo.cf_error && (
+                <p className="text-xs text-amber-200">
+                  CF Worker 解析：{workerInfo.cf_error}（已回退 wrangler.toml / .env）
+                </p>
+              )}
+              {workerInfo.vars_source && workerInfo.vars_source !== "wrangler" && (
+                <p className="text-[10px] text-[var(--color-muted)]">
+                  Worker vars 来源：
+                  {workerInfo.vars_source === "cf" ? "CF 部署" : "CF + wrangler 合并"}
+                  {workerInfo.url_source === "cf" ? ` · URL：${workerInfo.url}` : ""}
+                </p>
+              )}
+              <SupabaseConnectPanel onApplied={onConfigRefresh} />
+              <WorkerChatNotice
+                workerUrl={workerInfo.url}
+                supabaseUrl={workerInfo.supabase_url}
+                hasTestCredentials={workerInfo.has_test_credentials}
+                workerAuthMeta={controls.request}
+                workerUrlMeta={controls.workerUrl}
+                supabaseUrlMeta={controls.supabaseUrl}
+                accessToken={workerAccessToken}
+                onAccessTokenChange={onWorkerAccessTokenChange}
+                onHealthCheck={onWorkerHealthCheck}
+                healthChecking={workerHealthChecking}
+                healthResult={workerHealthResult}
+              />
+            </>
           ) : (
             <ChatAuthPathNotice chatAuthMeta={controls.request} hasByok={hasByok} />
           )}

@@ -1,21 +1,22 @@
 import { Hono } from "hono";
-import { env, workerDir } from "../env";
+import { env } from "../env";
 import { fetchSupabaseAccessToken } from "../supabase-auth";
 import { proxyUpstreamChat } from "../sse-proxy";
 import { buildWorkerDebugInfo } from "../worker-debug";
-import { readWranglerToml } from "../wrangler-vars";
+import { getWorkerRuntimeConfig } from "../worker-runtime";
 
 // Playground Worker 调试：浏览器 -> Admin -> Worker（Supabase JWT）-> AI Gateway。
 export const workerChat = new Hono();
 
 workerChat.get("/health", async (c) => {
-  const base = env.WORKER_URL.replace(/\/$/, "");
+  const runtime = await getWorkerRuntimeConfig();
+  const base = runtime.url.replace(/\/$/, "");
   try {
     const r = await fetch(`${base}/health`, { signal: AbortSignal.timeout(5000) });
     const text = await r.text();
-    return c.json({ ok: r.ok, status: r.status, body: text.trim() });
+    return c.json({ ok: r.ok, status: r.status, body: text.trim(), worker_url: base });
   } catch (e) {
-    return c.json({ ok: false, error: (e as Error).message }, 502);
+    return c.json({ ok: false, error: (e as Error).message, worker_url: base }, 502);
   }
 });
 
@@ -29,11 +30,12 @@ workerChat.post("/", async (c) => {
     use_worker_config?: boolean;
   };
 
-  const { vars } = readWranglerToml(workerDir);
+  const runtime = await getWorkerRuntimeConfig();
+  const vars = runtime.vars;
   const supabaseUrl = vars.SUPABASE_URL;
   if (!supabaseUrl) {
     return c.json(
-      { error: "worker/wrangler.toml [vars] 未配置 SUPABASE_URL" },
+      { error: "Worker 未配置 SUPABASE_URL（CF 部署 vars 或 wrangler.toml）" },
       400,
     );
   }
@@ -51,7 +53,7 @@ workerChat.post("/", async (c) => {
 
   const endpoint =
     payload.endpoint === "chat" ? "chat/completions" : "responses";
-  const base = env.WORKER_URL.replace(/\/$/, "");
+  const base = runtime.url.replace(/\/$/, "");
   const url = `${base}/v1/${endpoint}`;
   const useWorkerConfig = payload.use_worker_config === true;
   const model = useWorkerConfig
@@ -81,4 +83,7 @@ workerChat.post("/", async (c) => {
   return proxyUpstreamChat(c, upstream);
 });
 
-workerChat.get("/info", (c) => c.json(buildWorkerDebugInfo()));
+workerChat.get("/info", async (c) => {
+  const runtime = await getWorkerRuntimeConfig();
+  return c.json(buildWorkerDebugInfo(runtime));
+});

@@ -1,4 +1,6 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
+import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 import { PlaygroundRoutingSidebar } from "@/components/PlaygroundRoutingSidebar";
 import { PlaygroundToolbar } from "@/components/PlaygroundToolbar";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +14,7 @@ export function PlaygroundPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const session = usePlaygroundSession();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { messages, input, setInput, sending, send } = usePlaygroundChat(chatRef);
 
   const {
@@ -38,7 +41,23 @@ export function PlaygroundPage() {
     workerHealthResult,
     checkWorkerHealth,
     catalogSynced,
+    refetchConfig,
   } = session;
+
+  useEffect(() => {
+    const supabase = searchParams.get("supabase");
+    if (!supabase) return;
+    if (supabase === "connected") {
+      toast.success("Supabase 已授权，请选择项目并应用配置");
+      void refetchConfig();
+    } else if (supabase === "error") {
+      const reason = searchParams.get("reason") ?? "未知错误";
+      toast.error(`Supabase 授权失败：${reason}`);
+    }
+    searchParams.delete("supabase");
+    searchParams.delete("reason");
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams, refetchConfig]);
 
   function handleSend() {
     void send({
@@ -146,6 +165,7 @@ export function PlaygroundPage() {
               onWorkerHealthCheck={() => void checkWorkerHealth()}
               workerHealthChecking={workerHealthChecking}
               workerHealthResult={workerHealthResult}
+              onConfigRefresh={() => void refetchConfig()}
             />
           </div>
         )}

@@ -93,9 +93,13 @@ export interface ByokKey {
 
 export interface WorkerDebugInfo {
   url: string;
+  url_source?: "cf" | "env" | "wrangler" | "default";
   worker_name: string | null;
   supabase_url: string | null;
   default_model: string | null;
+  vars_source?: "cf" | "wrangler" | "merged";
+  secret_names?: string[];
+  cf_error?: string | null;
   has_test_credentials: boolean;
   endpoints: ["/v1/responses", "/v1/chat/completions"];
 }
@@ -117,23 +121,56 @@ export interface PublicConfig {
   _meta: ResponseMeta;
 }
 
+export interface WorkerCfMatch {
+  matched: boolean;
+  script_name: string | null;
+  url: string | null;
+  subdomain_enabled: boolean;
+  error?: string;
+}
+
 export interface WorkerStatus {
   worker_dir: string;
   worker_dir_rel: string;
   worker_dir_exists: boolean;
   worker_name: string | null;
+  compatibility_date: string | null;
   vars: Record<string, string>;
   secrets: Array<{ name: string; optional: boolean }>;
   dev_vars: Record<string, string>;
   local_secrets: string[];
+  has_dev_vars: boolean;
   wrangler_version: string | null;
   wrangler_error: string | null;
   logged_in: boolean;
   whoami: string;
+  cf_match?: WorkerCfMatch | null;
+}
+
+export interface WorkerListEntry {
+  dir: string;
+  script_name: string | null;
 }
 
 export interface WorkerList {
   root: string;
   default: string;
-  workers: string[];
+  workers: WorkerListEntry[];
+}
+
+export interface CfDeployedWorker {
+  name: string;
+  url: string | null;
+  subdomain_enabled: boolean;
+  vars: Record<string, string>;
+  secret_names: string[];
+  compatibility_date: string | null;
+  usage_model: string | null;
+}
+
+export interface CfDeployedList {
+  ok: boolean;
+  account_subdomain: string | null;
+  scripts: CfDeployedWorker[];
+  error?: string;
 }

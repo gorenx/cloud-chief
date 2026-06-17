@@ -3,8 +3,12 @@ import { streamSSE } from "hono/streaming";
 import fs from "node:fs";
 import path from "node:path";
 import { adminAuth } from "../auth";
-import { workerDir, workerRoot } from "../env";
+import { env, workerDir, workerRoot } from "../env";
 import { runWrangler, spawnWrangler } from "../wrangler";
+import {
+  listCfDeployedWorkers,
+  resolveWorkerFromCf,
+} from "../cf-worker-resolve";
 import {
   secretSet,
   workerVarsUpdate,
@@ -122,6 +126,11 @@ function parseName(toml: string): string | null {
   return m ? m[1] : null;
 }
 
+function parseCompatibilityDate(toml: string): string | null {
+  const m = toml.match(/^\s*compatibility_date\s*=\s*"([^"]*)"/m);
+  return m ? m[1] : null;
+}
+
 // 解析 [vars] 段为键值对（仅取该段，遇到下一个表头结束）。
 function parseVars(toml: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -180,13 +189,27 @@ function setVars(toml: string, vars: Record<string, string>): string {
   return lines.join("\n");
 }
 
-// 可选 worker 目录列表（相对 WORKER_ROOT）+ 当前默认
+// 可选 worker 目录列表（相对 WORKER_ROOT）+ wrangler name + 当前默认
 deploy.get("/workers", (c) => {
+  const workers = listWorkers().map((rel) => {
+    const abs = path.resolve(workerRoot, rel === "." ? workerRoot : path.join(workerRoot, rel));
+    const toml = readToml(abs);
+    return {
+      dir: rel,
+      script_name: toml ? parseName(toml) : null,
+    };
+  });
   return c.json({
     root: workerRoot,
     default: path.relative(workerRoot, workerDir) || ".",
-    workers: listWorkers(),
+    workers,
   });
+});
+
+// CF 账号下已部署的 Worker 脚本列表
+deploy.get("/cf-deployed", async (c) => {
+  const r = await listCfDeployedWorkers(Boolean(env.CF_API_TOKEN));
+  return c.json(r);
 });
 
 // wrangler 可用性、登录态、worker 名、当前 [vars]、私密配置清单与本地状态
@@ -199,11 +222,33 @@ deploy.get("/status", async (c) => {
   const ver = await runWrangler(["--version"], { cwd: dir });
   const who = await runWrangler(["whoami"], { cwd: dir });
   const devVars = devvars ? parseDevVars(devvars) : {};
+  const worker_name = toml ? parseName(toml) : null;
+
+  let cf_match: {
+    matched: boolean;
+    script_name: string | null;
+    url: string | null;
+    subdomain_enabled: boolean;
+    error?: string;
+  } | null = null;
+
+  if (worker_name && env.CF_API_TOKEN) {
+    const cf = await resolveWorkerFromCf(worker_name, true);
+    cf_match = {
+      matched: cf.ok,
+      script_name: worker_name,
+      url: cf.url,
+      subdomain_enabled: cf.subdomain_enabled,
+      error: cf.ok ? undefined : cf.error,
+    };
+  }
+
   return c.json({
     worker_dir: dir,
     worker_dir_rel: path.relative(workerRoot, dir) || ".",
     worker_dir_exists: toml !== null,
-    worker_name: toml ? parseName(toml) : null,
+    worker_name,
+    compatibility_date: toml ? parseCompatibilityDate(toml) : null,
     vars: toml ? parseVars(toml) : {},
     secrets: example ? parseSecretManifest(example) : [],
     dev_vars: devVars,
@@ -213,6 +258,7 @@ deploy.get("/status", async (c) => {
     wrangler_error: ver.code === 0 ? null : ver.output.trim(),
     logged_in: who.code === 0,
     whoami: who.output.trim(),
+    cf_match,
   });
 });
 

@@ -6,13 +6,15 @@ import { fileURLToPath } from "node:url";
 import { env } from "./env";
 import { listModels, ensureModelCatalog } from "./model-catalog";
 import { buildRouting, buildWorkerRouting } from "./routing";
-import { configMeta } from "./field-meta";
+import { configMeta, patchWorkerRuntimeMeta } from "./field-meta";
 import { loadCfLists, pickDefaultGateway, pickDefaultProvider, RESPONSES_API_PATH } from "./cf-resolve";
 import { buildWorkerDebugInfo } from "./worker-debug";
+import { getWorkerRuntimeConfig } from "./worker-runtime";
 import { admin } from "./routes/admin";
 import { deploy } from "./routes/deploy";
 import { chat } from "./routes/chat";
 import { workerChat } from "./routes/worker-chat";
+import { supabaseConnect } from "./routes/supabase-connect";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(here, "..");
@@ -28,8 +30,14 @@ export function createApp(): Hono {
     const defaultGw = pickDefaultGateway(gateways);
     const defaultProvider = pickDefaultProvider(providers);
     const gatewayId = defaultGw?.id ?? "";
-    const routing = buildRouting(gatewayId, defaultProvider);
-    const workerRouting = buildWorkerRouting(providers);
+    const runtime = await getWorkerRuntimeConfig();
+    const routing = buildRouting(
+      gatewayId,
+      defaultProvider,
+      undefined,
+      runtime.vars.DEFAULT_MODEL ?? null,
+    );
+    const workerRouting = buildWorkerRouting(providers, runtime.vars);
     const catalogSync = ensureModelCatalog([
       env.MODEL,
       workerRouting.default_model ?? "",
@@ -47,13 +55,14 @@ export function createApp(): Hono {
       routing,
       routing_preview: routing.invoke_url,
       worker_routing: workerRouting,
-      worker: buildWorkerDebugInfo(),
-      _meta: configMeta(),
+      worker: buildWorkerDebugInfo(runtime),
+      _meta: patchWorkerRuntimeMeta(configMeta(), runtime),
     });
   });
 
   app.route("/api/chat", chat);
   app.route("/api/worker-chat", workerChat);
+  app.route("/admin/supabase", supabaseConnect);
   app.route("/admin/worker", deploy);
   app.route("/admin", admin);
 

@@ -22,7 +22,7 @@ export interface RoutingInfo {
   base_url: string;
 }
 
-/** Worker 边缘代理实际使用的路由（wrangler.toml [vars] + CF 提供商匹配） */
+/** Worker 边缘代理实际使用的路由（CF 部署 vars 优先，wrangler.toml 补全） */
 export interface WorkerRoutingInfo {
   account_id: string;
   gateway: string;
@@ -35,16 +35,15 @@ export interface WorkerRoutingInfo {
   api_type: "responses";
 }
 
-function readWorkerVars() {
+function readWorkerVarsFromToml() {
   return readWranglerToml(workerDir).vars;
 }
 
-function readWorkerModel(): string | null {
-  return readWorkerVars().DEFAULT_MODEL ?? null;
-}
-
-export function buildWorkerRouting(providers: ProviderInfo[]): WorkerRoutingInfo {
-  const vars = readWorkerVars();
+export function buildWorkerRouting(
+  providers: ProviderInfo[],
+  workerVars?: Record<string, string>,
+): WorkerRoutingInfo {
+  const vars = workerVars ?? readWorkerVarsFromToml();
   const accountId = vars.CF_ACCOUNT_ID ?? env.CF_ACCOUNT_ID;
   const gateway = vars.CF_GATEWAY_ID ?? "";
   const slug = vars.PROVIDER_SLUG ?? "";
@@ -72,6 +71,7 @@ export function buildRouting(
   gatewayId: string,
   provider: ProviderInfo | null,
   modelOverride?: string,
+  workerModel?: string | null,
 ): RoutingInfo {
   const model = modelOverride ?? env.MODEL;
   const providerSlug = provider?.slug ?? "";
@@ -83,7 +83,7 @@ export function buildRouting(
 
   return {
     model,
-    worker_model: readWorkerModel(),
+    worker_model: workerModel ?? readWorkerVarsFromToml().DEFAULT_MODEL ?? null,
     provider_slug: providerSlug,
     provider,
     path: pathStr,

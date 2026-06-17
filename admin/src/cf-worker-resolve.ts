@@ -1,0 +1,235 @@
+import { cfApi } from "./cf";
+
+export interface CfWorkerBinding {
+  type?: string;
+  name?: string;
+  text?: string;
+}
+
+export interface CfWorkerResolveResult {
+  ok: boolean;
+  script_name: string;
+  account_subdomain: string | null;
+  subdomain_enabled: boolean;
+  url: string | null;
+  vars: Record<string, string>;
+  secret_names: string[];
+  error?: string;
+}
+
+export function parseBindings(bindings: unknown): {
+  vars: Record<string, string>;
+  secret_names: string[];
+} {
+  const vars: Record<string, string> = {};
+  const secret_names: string[] = [];
+  if (!Array.isArray(bindings)) return { vars, secret_names };
+
+  for (const b of bindings as CfWorkerBinding[]) {
+    if (!b?.name) continue;
+    if (b.type === "plain_text" && typeof b.text === "string") {
+      vars[b.name] = b.text;
+    } else if (b.type === "secret_text") {
+      secret_names.push(b.name);
+    }
+  }
+  return { vars, secret_names };
+}
+
+export function buildWorkersDevUrl(
+  scriptName: string,
+  accountSubdomain: string | null,
+  enabled: boolean,
+): string | null {
+  if (!enabled || !accountSubdomain || !scriptName) return null;
+  return `https://${scriptName}.${accountSubdomain}.workers.dev`;
+}
+
+export interface CfDeployedWorker {
+  name: string;
+  url: string | null;
+  subdomain_enabled: boolean;
+  vars: Record<string, string>;
+  secret_names: string[];
+  compatibility_date: string | null;
+  usage_model: string | null;
+}
+
+function normalizeScriptNames(result: unknown): string[] {
+  if (!Array.isArray(result)) return [];
+  return result
+    .map((item) => {
+      if (typeof item === "string") return item;
+      if (item && typeof item === "object" && "id" in item) {
+        return String((item as { id: string }).id);
+      }
+      return null;
+    })
+    .filter((n): n is string => Boolean(n));
+}
+
+async function fetchAccountSubdomain(): Promise<string | null> {
+  const subRes = await cfApi("GET", "/workers/subdomain");
+  if (!subRes.json.success || typeof subRes.json.result !== "object" || !subRes.json.result) {
+    return null;
+  }
+  return (subRes.json.result as { subdomain?: string }).subdomain ?? null;
+}
+
+async function fetchScriptDeployMeta(
+  scriptName: string,
+  accountSubdomain: string | null,
+): Promise<CfDeployedWorker | null> {
+  const [settingsRes, scriptSubRes] = await Promise.all([
+    cfApi("GET", `/workers/scripts/${encodeURIComponent(scriptName)}/settings`),
+    cfApi("GET", `/workers/scripts/${encodeURIComponent(scriptName)}/subdomain`),
+  ]);
+  if (!settingsRes.json.success) return null;
+
+  const subdomainEnabled =
+    scriptSubRes.json.success &&
+    typeof scriptSubRes.json.result === "object" &&
+    scriptSubRes.json.result !== null
+      ? Boolean((scriptSubRes.json.result as { enabled?: boolean }).enabled)
+      : false;
+
+  const settings = settingsRes.json.result as {
+    bindings?: unknown;
+    compatibility_date?: string;
+    usage_model?: string;
+  } | undefined;
+  const { vars, secret_names } = parseBindings(settings?.bindings);
+
+  return {
+    name: scriptName,
+    url: buildWorkersDevUrl(scriptName, accountSubdomain, subdomainEnabled),
+    subdomain_enabled: subdomainEnabled,
+    vars,
+    secret_names,
+    compatibility_date: settings?.compatibility_date ?? null,
+    usage_model: settings?.usage_model ?? null,
+  };
+}
+
+/** 列出账号下已部署的 Worker 脚本（CF API） */
+export async function listCfDeployedWorkers(hasApiToken: boolean): Promise<{
+  ok: boolean;
+  account_subdomain: string | null;
+  scripts: CfDeployedWorker[];
+  error?: string;
+}> {
+  if (!hasApiToken) {
+    return {
+      ok: false,
+      account_subdomain: null,
+      scripts: [],
+      error: "未配置 CF_API_TOKEN",
+    };
+  }
+
+  const [accountSubdomain, listRes] = await Promise.all([
+    fetchAccountSubdomain(),
+    cfApi("GET", "/workers/scripts"),
+  ]);
+
+  if (!listRes.json.success) {
+    const msg =
+      (listRes.json.errors as Array<{ message?: string }> | undefined)?.[0]?.message ??
+      `Worker 列表 HTTP ${listRes.status}`;
+    return { ok: false, account_subdomain: accountSubdomain, scripts: [], error: msg };
+  }
+
+  const names = normalizeScriptNames(listRes.json.result);
+  const settled = await Promise.all(
+    names.map((name) => fetchScriptDeployMeta(name, accountSubdomain)),
+  );
+  const scripts = settled.filter((s): s is CfDeployedWorker => s !== null);
+
+  return { ok: true, account_subdomain: accountSubdomain, scripts };
+}
+
+export function findCfWorkerByName(
+  scripts: CfDeployedWorker[],
+  scriptName: string | null,
+): CfDeployedWorker | null {
+  if (!scriptName) return null;
+  return scripts.find((s) => s.name === scriptName) ?? null;
+}
+
+/** 从 Cloudflare API 解析已部署 Worker 的 workers.dev URL 与 [vars] 明文绑定 */
+export async function resolveWorkerFromCf(
+  scriptName: string,
+  hasApiToken: boolean,
+): Promise<CfWorkerResolveResult> {
+  const empty: CfWorkerResolveResult = {
+    ok: false,
+    script_name: scriptName,
+    account_subdomain: null,
+    subdomain_enabled: false,
+    url: null,
+    vars: {},
+    secret_names: [],
+  };
+
+  if (!hasApiToken || !scriptName) {
+    return { ...empty, error: hasApiToken ? "缺少 worker 脚本名" : "未配置 CF_API_TOKEN" };
+  }
+
+  const [subRes, settingsRes, scriptSubRes] = await Promise.all([
+    cfApi("GET", "/workers/subdomain"),
+    cfApi("GET", `/workers/scripts/${encodeURIComponent(scriptName)}/settings`),
+    cfApi("GET", `/workers/scripts/${encodeURIComponent(scriptName)}/subdomain`),
+  ]);
+
+  if (!settingsRes.json.success) {
+    const msg =
+      (settingsRes.json.errors as Array<{ message?: string }> | undefined)?.[0]?.message ??
+      `Worker settings HTTP ${settingsRes.status}`;
+    return { ...empty, error: msg };
+  }
+
+  const accountSubdomain =
+    subRes.json.success && typeof subRes.json.result === "object" && subRes.json.result !== null
+      ? ((subRes.json.result as { subdomain?: string }).subdomain ?? null)
+      : null;
+
+  const subdomainEnabled =
+    scriptSubRes.json.success &&
+    typeof scriptSubRes.json.result === "object" &&
+    scriptSubRes.json.result !== null
+      ? Boolean((scriptSubRes.json.result as { enabled?: boolean }).enabled)
+      : false;
+
+  const settings = settingsRes.json.result as { bindings?: unknown } | undefined;
+  const { vars, secret_names } = parseBindings(settings?.bindings);
+
+  const url = buildWorkersDevUrl(scriptName, accountSubdomain, subdomainEnabled);
+
+  return {
+    ok: true,
+    script_name: scriptName,
+    account_subdomain: accountSubdomain,
+    subdomain_enabled: subdomainEnabled,
+    url,
+    vars,
+    secret_names,
+  };
+}
+
+/** 合并 CF 部署 vars 与本地 wrangler.toml（CF 优先） */
+export function mergeWorkerVars(
+  cfVars: Record<string, string>,
+  wranglerVars: Record<string, string>,
+): { vars: Record<string, string>; source: "cf" | "wrangler" | "merged" } {
+  if (Object.keys(cfVars).length === 0) {
+    return { vars: { ...wranglerVars }, source: "wrangler" };
+  }
+  const merged = { ...wranglerVars, ...cfVars };
+  const source =
+    Object.keys(wranglerVars).length === 0
+      ? "cf"
+      : Object.keys(cfVars).some((k) => wranglerVars[k] !== cfVars[k])
+        ? "merged"
+        : "cf";
+  return { vars: merged, source };
+}

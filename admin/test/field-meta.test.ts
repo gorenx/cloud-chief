@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { configMeta, gatewayContextMeta, routingFieldsMeta } from "../src/field-meta";
+import { configMeta, gatewayContextMeta, routingFieldsMeta, patchWorkerRuntimeMeta } from "../src/field-meta";
 
 describe("field-meta", () => {
   it("configMeta marks data sources", () => {
@@ -28,5 +28,15 @@ describe("field-meta", () => {
     const r = routingFieldsMeta();
     expect(r.gateway.source).toBe("cf");
     expect(r["routing.model"].source).toBe("catalog");
+  });
+
+  it("patchWorkerRuntimeMeta marks CF worker url and vars", () => {
+    const m = patchWorkerRuntimeMeta(configMeta(), {
+      url_source: "cf",
+      vars_source: "cf",
+      script_name: "qwen-gateway-proxy",
+    });
+    expect(m.fields["worker.url"].source).toBe("cf");
+    expect(m.fields["worker_routing.default_model"].source).toBe("cf");
   });
 });

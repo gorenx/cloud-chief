@@ -150,6 +150,58 @@ export function configMeta(): ResponseMeta {
   };
 }
 
+const WORKER_ROUTING_CF_KEYS = [
+  "worker_routing.account_id",
+  "worker_routing.gateway",
+  "worker_routing.provider_slug",
+  "worker_routing.default_model",
+] as const;
+
+/** 按 Worker 运行时来源覆盖 _meta（CF 部署优先） */
+export function patchWorkerRuntimeMeta(
+  meta: ResponseMeta,
+  runtime: {
+    url_source: "cf" | "env" | "wrangler" | "default";
+    vars_source: "cf" | "wrangler" | "merged";
+    script_name: string | null;
+  },
+): ResponseMeta {
+  const fields = { ...meta.fields };
+
+  if (runtime.url_source === "cf") {
+    fields["worker.url"] = {
+      source: "cf",
+      hint: runtime.script_name
+        ? `workers.dev（${runtime.script_name}）`
+        : "CF Workers API 解析",
+    };
+  } else if (runtime.url_source === "env") {
+    fields["worker.url"] = { source: "env", key: "WORKER_URL", hint: "本地回环覆盖" };
+  }
+
+  if (runtime.vars_source === "cf" || runtime.vars_source === "merged") {
+    fields["worker.supabase_url"] = {
+      source: "cf",
+      key: "SUPABASE_URL",
+      hint: "Worker plain_text 绑定（CF API）",
+    };
+    for (const key of WORKER_ROUTING_CF_KEYS) {
+      const short = key.replace("worker_routing.", "").toUpperCase();
+      if (short === "ACCOUNT_ID") {
+        fields[key] = { source: "cf", key: "CF_ACCOUNT_ID", hint: "Worker plain_text 绑定" };
+      } else if (short === "GATEWAY") {
+        fields[key] = { source: "cf", key: "CF_GATEWAY_ID", hint: "Worker plain_text 绑定" };
+      } else if (short === "PROVIDER_SLUG") {
+        fields[key] = { source: "cf", key: "PROVIDER_SLUG", hint: "Worker plain_text 绑定" };
+      } else if (short === "DEFAULT_MODEL") {
+        fields[key] = { source: "cf", key: "DEFAULT_MODEL", hint: "Worker plain_text 绑定" };
+      }
+    }
+  }
+
+  return { fields };
+}
+
 export function gatewayContextMeta(gatewayId: string): ResponseMeta {
   return {
     fields: {
