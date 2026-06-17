@@ -7,6 +7,8 @@ TypeScript + Hono 后端 + Vite + React 管理界面，用于：
 - 一键部署 `../worker`（边缘代理）并设置其 secret（调用本机 wrangler）。
 - Playground 聊天调试（直连 AI Gateway，无需部署 Worker）。
 
+**设计文档**（信息架构、技术架构、数据来源、API）：见 [docs/](./docs/README.md)。
+
 ## 技术栈
 
 **后端**
@@ -50,11 +52,23 @@ admin/
 
 ## 开发
 
+**一键脚本（推荐）：**
+
 ```bash
 cd admin
-npm install          # 安装后端依赖
-cd web && npm install && cd ..   # 安装前端依赖
-npm run dev          # 并行启动 Hono :8787 + Vite :5173
+chmod +x run.sh
+./run.sh          # 检查 .env → 安装依赖 → 启动开发模式
+./run.sh start    # 构建并生产启动（:8787 托管 SPA）
+```
+
+从仓库根目录也可：`./admin.sh` 或 `./admin.sh start`。
+
+手动步骤（已安装 pnpm 时优先 pnpm，否则自动用 npm）：
+
+```bash
+cd admin
+pnpm install         # 或 npm run install:all
+pnpm dev             # 或 npm run dev
 ```
 
 浏览器访问 **http://127.0.0.1:5173**（Vite 代理 API 到 8787）。
@@ -62,8 +76,8 @@ npm run dev          # 并行启动 Hono :8787 + Vite :5173
 单独启动：
 
 ```bash
-npm run dev:api      # 仅 Hono
-npm run dev:web      # 仅 Vite
+pnpm dev:api         # 仅 Hono
+pnpm dev:web         # 仅 Vite
 ```
 
 在 **设置** 页填入与 `.env` 一致的 `ADMIN_TOKEN`。
@@ -72,10 +86,14 @@ npm run dev:web      # 仅 Vite
 
 ```bash
 cd admin
-npm install
-cd web && npm install && cd ..
-npm run build        # 构建 web/dist + tsc
-npm start            # Hono :8787 托管 SPA + API
+./run.sh start       # 自动构建 web/dist 并启动 Hono
+```
+
+或手动：
+
+```bash
+cd admin
+pnpm install && pnpm build && pnpm start
 ```
 
 运维清单：

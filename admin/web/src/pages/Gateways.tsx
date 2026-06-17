@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Chip } from "@/components/ui/Chip";
 import { GatewayDetailPanel } from "@/components/GatewayDetailPanel";
+import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 
@@ -75,12 +76,22 @@ export function GatewaysPage() {
   }
 
   const gateways = stateQ.data?.gateways ?? [];
+  const defaultGw = stateQ.data?.defaults.gateway;
+
+  useEffect(() => {
+    if (!gwId && defaultGw) setGwId(defaultGw);
+  }, [defaultGw, gwId]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">网关 Gateways</h1>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          第 1 步：创建网关实例，作为 AI 流量的入口 ID
+        </p>
       </div>
+
+      <GatewaySetupFlow current="gateway" collapsible />
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-3">

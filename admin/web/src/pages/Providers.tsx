@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
@@ -7,6 +7,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Chip } from "@/components/ui/Chip";
+import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { Link } from "react-router-dom";
 
 export function ProvidersPage() {
@@ -65,12 +66,23 @@ export function ProvidersPage() {
 
   const list = stateQ.data?.providers ?? [];
 
+  useEffect(() => {
+    const d = stateQ.data?.defaults;
+    if (!d) return;
+    if (!slug && d.provider_slug) setSlug(d.provider_slug);
+    if (!baseUrl && d.base_url) setBaseUrl(d.base_url);
+  }, [stateQ.data?.defaults, slug, baseUrl]);
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">自定义提供商</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">base_url 只填根域名，不带路径</p>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">
+          第 2 步：注册上游（如阿里云 MaaS），slug 会出现在 URL 的 custom- 后面
+        </p>
       </div>
+
+      <GatewaySetupFlow current="provider" collapsible />
 
       <Card>
         <CardTitle>提供商列表</CardTitle>
@@ -116,6 +128,9 @@ export function ProvidersPage() {
 
       <Card>
         <CardTitle>创建 / 更新</CardTitle>
+        <p className="mb-3 text-xs text-[var(--color-muted)]">
+          base_url 只填根域名，不带路径
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs text-[var(--color-muted)]">slug</label>

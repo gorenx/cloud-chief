@@ -4,6 +4,7 @@ import { fetchState, fetchGatewayContext, fetchWorkerStatus } from "@/lib/api";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { ModelDetailCard } from "@/components/ModelDetailCard";
+import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { Link } from "react-router-dom";
 
 export function DashboardPage() {
@@ -114,6 +115,8 @@ export function DashboardPage() {
           </p>
         </div>
       )}
+
+      <GatewaySetupFlow />
     </div>
   );
 }

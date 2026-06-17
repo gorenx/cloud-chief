@@ -21,6 +21,7 @@ https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/resp
 | `.env.example` | 配置模板，复制为 `.env` 后填写（admin 服务复用它） |
 | `setup.sh` | （可选，CLI）创建/更新自定义提供商并确保网关存在 |
 | `test.sh` | （可选，CLI）用 curl 验证链路 |
+| `admin.sh` / `admin/run.sh` | 一键安装依赖、开发或生产启动配置后台 |
 
 两条调用路径：
 
@@ -30,11 +31,11 @@ https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/resp
 ## 可视化配置后台（推荐）
 
 ```bash
-cd admin
-npm install
-npm start
-# 打开 http://127.0.0.1:8787/config.html ，右上角填入 ADMIN_TOKEN
+./admin.sh           # 或 cd admin && ./run.sh
+# 浏览器打开 http://127.0.0.1:5173 ，在「设置」页填入 ADMIN_TOKEN
 ```
+
+生产 / 内网：`./admin.sh start` → http://127.0.0.1:8787
 
 后台可以做：
 
@@ -54,7 +55,7 @@ npm start
 
 ## 前置条件
 
-- Node.js 18+（`admin/` 与 `worker/` 均为 TS 工程，需 `npm install`）
+- Node.js 18+；推荐安装 pnpm（`admin/` 未装 pnpm 时脚本会回退 npm）
 - `curl`、`python3`（运行可选 CLI 脚本）
 - 一个 Cloudflare 账号，以及权限为 **AI Gateway - Edit** 的 API Token
 - 阿里云 DashScope / 百炼 的 API Key
@@ -92,9 +93,8 @@ https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>/custom-qwen-maas/
 ### 4. 启动配置后台 / 聊天页面
 
 ```bash
-cd admin && npm install && npm start
-# 聊天界面: http://127.0.0.1:8787/
-# 配置后台: http://127.0.0.1:8787/config.html
+./admin.sh              # 开发：http://127.0.0.1:5173
+./admin.sh start        # 生产：http://127.0.0.1:8787
 ```
 
 ## 直接用 OpenAI SDK 调用（可选）
