@@ -44,6 +44,9 @@ Playground 与公开配置。无需 ADMIN_TOKEN。
 | `models` | ModelMeta[] | `model-catalog.ts` |
 | `routing` | RoutingInfo | `buildRouting()` |
 | `routing_preview` | string | `routing.invoke_url`（兼容字段） |
+| `worker` | WorkerDebugInfo | Worker 运行时（URL、vars 来源、has_anon_key 等；**不含**测试邮箱） |
+| `worker_routing` | WorkerRoutingInfo | wrangler `[vars]` 路由链 |
+| `catalog_synced` | string[]? | 本次自动写入 `MODEL_CATALOG` 的 id |
 | `_meta` | ResponseMeta | 各字段数据来源，见下 |
 
 **`_meta.fields` 常用键**
@@ -92,11 +95,21 @@ Playground 与公开配置。无需 ADMIN_TOKEN。
 
 ### `GET /api/worker-chat/health`
 
-探测 Worker `/health`（目标 `env.WORKER_URL`）。
+探测 Worker `/health`。
+
+**Query**：`target=local`（默认，`:8788`）或 `target=online`（workers.dev）。
 
 ```json
-{ "ok": true, "status": 200, "body": "ok" }
+{
+  "ok": true,
+  "status": 200,
+  "body": "ok",
+  "worker_url": "http://127.0.0.1:8788",
+  "target": "local"
+}
 ```
+
+失败时 `ok: false`，`error` 为中文说明（含连接超时、未启动等）。
 
 ---
 
@@ -108,22 +121,26 @@ Worker 调试元数据（与 `GET /config` 的 `worker` 字段同源）。
 
 ### `POST /api/worker-chat`
 
-Playground **经 Worker** 模式：Admin 代持 Supabase JWT，代理到 Worker `POST /v1/responses`（或 chat）。
+Playground **经 Worker** 模式：Admin 代持 Supabase JWT，代理到 Worker。
 
 **请求体**
 
 ```json
 {
-  "model": "可选，默认 wrangler DEFAULT_MODEL 或 env.MODEL",
+  "model": "可选",
   "messages": [],
-  "access_token": "可选；留空则用 env SUPABASE_* 换 token",
-  "endpoint": "responses | chat，默认 responses"
+  "access_token": "可选；留空则用 body email/password 或 env 测试账号代登录",
+  "email": "可选",
+  "password": "可选",
+  "endpoint": "responses | chat，默认 responses",
+  "use_worker_config": true,
+  "worker_target": "local | online，默认 local"
 }
 ```
 
-**前置**：`worker/wrangler.toml [vars].SUPABASE_URL`；`access_token` 或 `SUPABASE_ANON_KEY` + `SUPABASE_TEST_EMAIL` + `SUPABASE_TEST_PASSWORD`。
+**前置**：`worker/wrangler.toml [vars].SUPABASE_URL`；JWT 来源三选一：`access_token`、请求体测试账号、或 env `SUPABASE_ANON_KEY` + `SUPABASE_TEST_*`。
 
-**上游**：`{WORKER_URL}/v1/responses`；鉴权 `Authorization: Bearer <supabase access_token>`。
+**上游**：`{picked_worker_url}/v1/responses`；鉴权 `Authorization: Bearer <supabase access_token>`。Admin 上游超时 15s。
 
 **调用方**：`PlaygroundPage` 经 Worker 模式 `fetch("/api/worker-chat")`
 
@@ -351,6 +368,81 @@ SSE 流：`wrangler deploy` 实时输出。
 - 错误：`event: error`
 
 **调用方**：`WorkerPage` + `useSSEStream`
+
+---
+
+### `GET /admin/worker/dev/status?dir=`
+
+本地 `wrangler dev` 进程与健康探测。
+
+```json
+{ "running": false, "pid": null, "healthy": true, "worker_dir": "/abs/path/worker" }
+```
+
+---
+
+### `POST /admin/worker/dev/start?dir=`
+
+若 `:8788` 未响应则 spawn `npx wrangler dev`（最多等待 30s）。已运行则 `already_running: true`。
+
+```json
+{ "ok": true, "already_running": false }
+```
+
+**调用方**：Playground 顶栏「启动本地 Worker」
+
+---
+
+## 管理端点 — Supabase (`/admin/supabase`)
+
+均需 ADMIN_TOKEN。OAuth 回调 `GET /admin/supabase/oauth/callback` 为公开（cookie 存 token）。
+
+**前提**：`SUPABASE_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI`；`ADMIN_BIND` 为 `127.0.0.1` 或 `localhost`；开发时用 `http://localhost:5173` 打开前端。
+
+### `POST /admin/supabase/connect`
+
+返回 Supabase 授权 URL（PKCE）；浏览器跳转完成 OAuth。
+
+### `GET /admin/supabase/status`
+
+```json
+{
+  "oauth_configured": true,
+  "connected": true,
+  "account": { "primary_email": null, "projects_count": 3, "test_email": "user@example.com" },
+  "local_test": { "email": "user@example.com", "configured": true },
+  "local_only": true,
+  "oauth_apps_url": "https://supabase.com/dashboard/org/_/apps"
+}
+```
+
+不调用 Supabase `/v1/profile`（OAuth token 不支持）；`account.projects_count` 来自 Management API。
+
+### `GET /admin/supabase/projects`
+
+```json
+{ "projects": [{ "id": "...", "ref": "abcd", "name": "My Project" }] }
+```
+
+### `POST /admin/supabase/apply`
+
+```json
+{ "ref": "abcd1234" }
+```
+
+写入 `admin/.env` 的 `SUPABASE_ANON_KEY` 与 `worker/wrangler.toml` 的 `SUPABASE_URL`；热重载 env。
+
+### `POST /admin/supabase/test-credentials`
+
+```json
+{ "email": "user@example.com", "password": "..." }
+```
+
+写入 `SUPABASE_TEST_EMAIL` / `SUPABASE_TEST_PASSWORD` 到 `admin/.env`。
+
+### `POST /admin/supabase/disconnect`
+
+清除本地 OAuth token 文件。
 
 ---
 

@@ -13,7 +13,7 @@
 
 ## 一句话定位
 
-Admin 是**本地/内网运维控制台**：用 Hono 代理 Cloudflare AI Gateway 管理 API，用 React SPA 做可视化；Playground 直连网关调试聊天；Worker 页通过本机 `wrangler` 部署边缘代理。
+Admin 是**本地/内网运维控制台**：用 Hono 代理 Cloudflare AI Gateway 管理 API，用 React SPA 做可视化；Playground 支持直连网关或经 Worker 调试；Worker 页通过本机 `wrangler` 部署边缘代理。
 
 ## 核心概念
 
@@ -26,12 +26,20 @@ admin/.env ───┘         │
                         │
                         ▼
               Playground / Worker / 外部客户端
+                        │
+         ┌──────────────┴──────────────┐
+         ▼                             ▼
+   /api/chat（直连）            /api/worker-chat（经 Worker）
+         │                             │
+         └──────────┬──────────────────┘
+                    ▼
+              AI Gateway → 阿里云 MaaS
 ```
 
 - **路由默认**：网关与 `provider_slug` / `base_url` 从 **CF API** 解析；`path` 为代码常量；`MODEL` 来自 `admin/.env`。
 - **资源真身**：网关、提供商、BYOK 密钥的权威数据在 **Cloudflare**；Admin 只做 CRUD 代理与聚合展示。
 - **模型目录**：`model-catalog.ts` 是本地维护的 Qwen 元数据，与 CF 无关。
-- **生产聊天**：应走已部署的 **Worker**；Playground 的 `/api/chat` 是本地调试捷径。
+- **生产聊天**：应走已部署的 **Worker**；Playground 的 `/api/chat` 是直连网关的本地捷径，`/api/worker-chat` 模拟生产验签路径。
 
 ## 相关代码入口
 

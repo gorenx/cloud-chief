@@ -83,11 +83,13 @@ npx wrangler secret put DASHSCOPE_API_KEY   # sk- 开头的阿里云 DashScope K
 
 ```bash
 cp .dev.vars.example .dev.vars   # 填本地用的密钥
-npm run dev                      # 本地起服务，默认 http://localhost:8787
+npm run dev                      # 本地起服务，默认 http://127.0.0.1:8788（见 wrangler.toml [dev]）
 npm run typecheck                # tsc 类型检查
 npm test                         # vitest 在 workerd 里跑测试
 npm run deploy                   # 部署，得到 https://qwen-gateway-proxy.<子域>.workers.dev
 ```
+
+本地开发时 Admin Playground 可通过 `WORKER_URL=http://127.0.0.1:8788` 或顶栏「启动本地 Worker」对接本服务。
 
 ## 四、应用怎么调用
 

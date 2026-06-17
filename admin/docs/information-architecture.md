@@ -54,16 +54,35 @@ erDiagram
 
 ### 聊天调试 (`/playground`)
 
-**目的**：本地快速验证模型与网关，**无需** ADMIN_TOKEN（但聊天需要 `.env` 里 `DASHSCOPE_API_KEY`）。
+**目的**：本地快速验证模型与网关；支持**直连 Gateway**与**经 Worker**两种路径。
 
 | 操作 | API | 说明 |
 |------|-----|------|
-| 加载网关/模型列表 | `GET /config` | 公开；初始选中 `config.gateway`、`config.model` |
-| 发送消息 | `POST /api/chat` | SSE 流式；可覆盖 `gateway`、`model` |
+| 加载配置 | `GET /config` | 公开；网关/模型下拉、worker 运行时、`worker_routing` |
+| 直连聊天 | `POST /api/chat` | SSE；需 `DASHSCOPE_API_KEY` |
+| 经 Worker 聊天 | `POST /api/worker-chat` | SSE；需 Worker `SUPABASE_URL` + JWT（测试账号或粘贴 token） |
+| Worker 健康检查 | `GET /api/worker-chat/health?target=local\|online` | 探测本地 `:8788` 或线上 workers.dev |
+| 启动本地 Worker | `POST /admin/worker/dev/start` | 需 ADMIN_TOKEN；spawn `wrangler dev` |
+| Supabase 配置 | `/admin/supabase/*` | OAuth → 选项目 → 保存测试账号（见下） |
 
-侧栏展示：`routing_preview`（默认网关时直接用）、`ModelDetailCard`（来自 `config.models`）。
+**顶栏控件（经 Worker 时第二行）**
 
-**与 Worker 无关**：流量 Admin → AI Gateway → MaaS，不经过边缘 Worker。
+| 控件 | 作用 |
+|------|------|
+| 本地 / 线上 Worker | `worker_target`：`:8788` 或 CF 解析的 workers.dev |
+| Worker 配置 / 调试界面 | 网关与模型取自 wrangler `[vars]` 或界面 CF 默认 |
+| 启动本地 Worker | 本地未就绪时一键 `wrangler dev` |
+
+**侧栏（经 Worker）**
+
+1. Worker 目标与健康检查（置顶）
+2. 数据来源摘要
+3. Supabase 配置向导（① OAuth ② 应用项目 ③ 测试账号）
+4. 路由链（Worker vars 或 CF 对照）
+
+**Supabase 向导前提**：`admin/.env` 配置 `SUPABASE_OAUTH_*`；`ADMIN_BIND` 为回环；浏览器用 `http://localhost:5173` 打开（与 `ADMIN_WEB_ORIGIN` 一致）。测试邮箱/密码仅通过 `GET /admin/supabase/status` 返回，**不在**公开 `GET /config` 中暴露。
+
+**与生产路径对齐**：经 Worker 时 Admin 代持 Supabase JWT 转发到 Worker，再经 AI Gateway 到 MaaS。
 
 ---
 
@@ -121,8 +140,9 @@ Cloudflare 内置 `default` 网关会显示 `default` 标签，但**默认选中
 | 操作 | API |
 |------|-----|
 | 选项目 | `GET /admin/worker/workers` |
-| 状态 | `GET /admin/worker/status?dir=` |
+| 状态 | `GET /admin/worker/status?dir=`（含 CF 已部署 vars 对照） |
 | 生产 secret 名 | `GET /admin/worker/secrets?dir=` |
+| CF 已部署列表 | `GET /admin/worker/cf-deployed` |
 | 改 `[vars]` | `PUT /admin/worker/config?dir=` |
 | 写本地 `.dev.vars` | `PUT /admin/worker/devvars?dir=` |
 | 推生产 secret | `POST /admin/worker/secret?dir=` |
@@ -148,8 +168,8 @@ Cloudflare 内置 `default` 网关会显示 `default` 标签，但**默认选中
 3. 概览确认 state 无 gateways_error
 4. 若无网关/提供商 → 网关页 / 提供商页创建（或运行仓库根 setup.sh）
 5. （可选）BYOK 页绑定 DashScope 密钥；若仅本地调试，在 `.env` 配置 `DASHSCOPE_API_KEY` 即可跳过
-6. Playground 验证聊天
-7. Worker 页部署边缘代理
+6. Playground 验证聊天（直连或经 Worker）
+7. Worker 页部署边缘代理；Playground 可一键本地 `wrangler dev`
 ```
 
 ### 排查 401 / 路由错误
@@ -174,7 +194,7 @@ Playground → 换网关下拉对比
 | 页面 | 需 ADMIN_TOKEN | 主要端点 |
 |------|----------------|----------|
 | 概览 | 是 | `/admin/state`, `/admin/gateways/:id/context`, `/admin/worker/status` |
-| 聊天调试 | 否 | `/config`, `/api/chat` |
+| 聊天调试 | 部分 | `/config`, `/api/chat`, `/api/worker-chat`；Supabase/启动 dev 需令牌 |
 | 网关 | 是 | `/admin/state`, `/admin/gateways/*` |
 | 提供商 | 是 | `/admin/state`, `/admin/providers` |
 | BYOK 密钥 | 是 | `/admin/state`, `/admin/keys`, `/admin/gateways/:id/context` |

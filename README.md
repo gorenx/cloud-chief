@@ -31,7 +31,7 @@ https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/resp
 
 ```bash
 ./admin.sh           # 或 cd admin && ./run.sh
-# 浏览器打开 http://127.0.0.1:5173 ，在「设置」页填入 ADMIN_TOKEN
+# 浏览器打开 http://localhost:5173 ，在「设置」页填入 ADMIN_TOKEN
 ```
 
 生产 / 内网：`./admin.sh start` → http://127.0.0.1:8787
@@ -41,7 +41,8 @@ https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/resp
 - **网关 Gateways**：查看列表、一键开关 `authentication`、创建命名网关。
 - **自定义提供商 Custom Providers**：查看 / 新建 / 删除（base_url 只填根域名）。
 - **BYOK 存储密钥**：选网关后查看 / 新建 / 删除 provider 密钥（直接填 DashScope Key）。
-- **Worker 部署**：查看 wrangler 状态、编辑 `wrangler.toml` 的 `[vars]` 环境变量、设置 secret、一键 `wrangler deploy`（实时日志）。
+- **聊天调试 Playground**：直连 Gateway 或经 Worker（本地 `:8788` / 线上 workers.dev）；Supabase OAuth 向导配置项目与测试账号。
+- **Worker 部署**：查看 wrangler 状态、对比 CF 已部署 vars、编辑 `wrangler.toml`、设置 secret、一键 `wrangler deploy`（实时日志）。
 
 > ⚠️ **服务已加鉴权**：所有 `/admin/*` 接口需要 `.env` 里的 `ADMIN_TOKEN`，服务默认只绑 `127.0.0.1`。
 >
@@ -92,9 +93,16 @@ https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>/custom-qwen-maas/
 ### 4. 启动配置后台 / 聊天页面
 
 ```bash
-./admin.sh              # 开发：http://127.0.0.1:5173
+./admin.sh              # 开发：http://localhost:5173
 ./admin.sh start        # 生产：http://127.0.0.1:8787
 ```
+
+**Playground 经 Worker 调试**（可选）：
+
+1. `admin/.env` 配置 `SUPABASE_OAUTH_*`（Organization OAuth App）与 `ADMIN_TOKEN`
+2. Playground 切到「经 Worker」→ 侧栏完成 Supabase 向导（或手动配置 `SUPABASE_*` + `worker/wrangler.toml`）
+3. 顶栏选「本地 Worker」，点击「启动本地 Worker」或于 `worker/` 执行 `pnpm dev`（默认 `:8788`）
+4. `GET /health` 通过后发送消息
 
 ## 直接用 OpenAI SDK 调用（可选）
 

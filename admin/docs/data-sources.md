@@ -127,7 +127,7 @@ https://gateway.ai.cloudflare.com/v1/{CF_ACCOUNT_ID}/{gatewayId}/custom-{PROVIDE
 
 ---
 
-### Playground 聊天
+### Playground 聊天（直连 Gateway）
 
 | 数据                | 来源                                                 |
 | ------------------- | ---------------------------------------------------- |
@@ -138,6 +138,23 @@ https://gateway.ai.cloudflare.com/v1/{CF_ACCOUNT_ID}/{gatewayId}/custom-{PROVIDE
 | 覆盖网关/提供商     | 请求体 `gateway`、`provider_slug`                    |
 
 前置条件：`PROVIDER_SLUG` 与 `DASHSCOPE_API_KEY` 必须在 env 中配置。
+
+---
+
+### Playground 聊天（经 Worker）
+
+| 数据 | 来源 |
+| ---- | ---- |
+| Worker URL（展示） | `worker-runtime.ts`：本地 `WORKER_URL` 或 `:8788`；线上 CF workers.dev |
+| Worker vars | CF 部署 vars 与 `wrangler.toml` 合并 |
+| `worker_target` | 请求体 / 健康检查 query：`local` \| `online` |
+| Supabase JWT | 请求体 `access_token`，或 `SUPABASE_ANON_KEY` + 测试账号代登录 |
+| 测试账号邮箱 | **仅** `GET /admin/supabase/status` → `local_test.email`（不在 `/config` 公开） |
+| 模型 / 网关锁定 | 「Worker 配置」模式用 wrangler `[vars]`；「调试界面」用 CF/env 默认 |
+
+流量：浏览器 → `POST /api/worker-chat` → Worker `/v1/responses` → AI Gateway。
+
+Supabase 项目 URL / anon key：OAuth `POST /admin/supabase/apply` 写入 `admin/.env` 与 `worker/wrangler.toml`。
 
 ---
 
@@ -154,6 +171,9 @@ https://gateway.ai.cloudflare.com/v1/{CF_ACCOUNT_ID}/{gatewayId}/custom-{PROVIDE
 | 写入 `[vars]`                   | 本地改 `wrangler.toml`                                    | `PUT /admin/worker/config`  |
 | 写入本地 secret                 | 本地改 `.dev.vars`                                        | `PUT /admin/worker/devvars` |
 | 推生产 secret                   | stdin → `wrangler secret put`                             | `POST /admin/worker/secret` |
+| 本地 dev 进程                   | `worker-dev-process.ts` spawn `wrangler dev`              | `POST /admin/worker/dev/start` |
+| 本地 dev 健康                   | `GET {local}/health`                                      | `GET /admin/worker/dev/status` |
+| CF 已部署 Worker vars           | `cf-worker-resolve.ts`                                    | `GET /admin/worker/cf-deployed`、status 内 `cf_match` |
 
 子进程环境注入 `CLOUDFLARE_API_TOKEN`（若配置）；与 `CF_API_TOKEN` **不是同一个 token**。
 
@@ -205,6 +225,6 @@ https://gateway.ai.cloudflare.com/v1/{CF_ACCOUNT_ID}/{gatewayId}/custom-{PROVIDE
 | ---------------------------- | ----------------------------------------------- |
 | 默认网关来自 CF `is_default` | 来自 `CF_GATEWAY_ID` env                        |
 | 模型列表来自 CF              | 来自本地 `model-catalog.ts`                     |
-| Playground 走 Worker         | 直连 AI Gateway，仅本地调试                     |
+| Playground 只走 Worker         | 可选经 Worker：`/api/worker-chat`；直连仍用 `/api/chat` |
 | `CF_API_TOKEN` 能部署 Worker | 需要 `CLOUDFLARE_API_TOKEN` 或 `wrangler login` |
 | BYOK 密钥存在 Admin 数据库   | 存在 Cloudflare Secrets Store，Admin 无持久化   |

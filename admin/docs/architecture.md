@@ -11,8 +11,9 @@
 ┌───────────────────────────▼─────────────────────────────────┐
 │  Hono API 服务 (Node.js)                                     │
 │  admin/src — :8787                                           │
-│  ├─ 公开：/health /config /api/chat                          │
+│  ├─ 公开：/health /config /api/chat /api/worker-chat          │
 │  ├─ 管理：/admin/*        (ADMIN_TOKEN)                      │
+│  ├─ Supabase：/admin/supabase/* (ADMIN_TOKEN + OAuth cookie) │
 │  └─ 部署：/admin/worker/* (ADMIN_TOKEN + wrangler 子进程)    │
 └───────┬─────────────┬──────────────┬────────────────────────┘
         │             │              │
@@ -57,8 +58,12 @@ Vite 将 `/admin`、`/api`、`/config`、`/health` 代理到 `127.0.0.1:8787`（
 | 路由聚合 | `routing.ts` | 合成 `invoke_url`、读 worker `DEFAULT_MODEL` |
 | 模型目录 | `model-catalog.ts` | 本地 Qwen 元数据 |
 | 资源管理 | `routes/admin.ts` | 网关 / 提供商 / BYOK |
-| 聊天代理 | `routes/chat.ts` | Playground → AI Gateway |
-| Worker 部署 | `routes/deploy.ts` | wrangler 子进程、本地 toml/devvars |
+| 聊天代理 | `routes/chat.ts` | Playground 直连 → AI Gateway |
+| Worker 聊天代理 | `routes/worker-chat.ts` | Playground 经 Worker；`worker_target` 本地/线上 |
+| Worker 运行时 | `worker-runtime.ts` | 合并 CF 部署 vars + wrangler.toml；解析 workers.dev URL |
+| Worker 本地 dev | `worker-dev-process.ts` | spawn `wrangler dev`、健康探测 |
+| Supabase OAuth | `routes/supabase-connect.ts` | PKCE、项目列表、写入 env/wrangler |
+| Worker 部署 | `routes/deploy.ts` | wrangler 子进程、本地 toml/devvars、dev/start |
 
 ## 前端模块
 
@@ -101,17 +106,18 @@ Hono ──CLOUDFLARE_API_TOKEN 或 OAuth──► npx wrangler deploy/secret
 ## 与 Worker 的关系
 
 ```
-Playground (/api/chat)     生产流量
-       │                        │
-       ▼                        ▼
-  AI Gateway  ◄──────────  Worker (边缘)
-       │                        │
-       └──── 阿里云 MaaS ───────┘
+Playground 直连 (/api/chat)     Playground 经 Worker (/api/worker-chat)     生产流量
+       │                                │                                      │
+       ▼                                ▼                                      ▼
+  AI Gateway  ◄──────────────── Worker (本地 :8788 / 线上 workers.dev) ◄── 应用
+       │                                │
+       └──── 阿里云 MaaS ───────────────┘
 ```
 
-- **Playground**：浏览器 → Admin Hono → Cloudflare AI Gateway → 自定义提供商。不经过 Worker。
-- **Worker**：边缘 JWT 鉴权、限流、代理到同一 AI Gateway URL。配置在 `../worker/wrangler.toml`。
-- **Admin Worker 页**：读写本地 worker 目录，调用 `wrangler deploy`，不修改 CF 网关资源本身。
+- **Playground 直连**：浏览器 → Admin Hono → Cloudflare AI Gateway → 自定义提供商。不经过 Worker。
+- **Playground 经 Worker**：浏览器 → Admin（代持 Supabase JWT）→ Worker → AI Gateway。顶栏可切换本地/线上 Worker，并可一键 `wrangler dev`。
+- **Worker 生产**：边缘 JWT 鉴权、限流、代理到同一 AI Gateway URL。配置在 `../worker/wrangler.toml`。
+- **Admin Worker 页**：读写本地 worker 目录，对比 CF 已部署 vars，调用 `wrangler deploy`。
 
 ## Monorepo 与依赖
 
