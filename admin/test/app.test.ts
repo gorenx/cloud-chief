@@ -84,6 +84,7 @@ describe("public config", () => {
         gateway: string;
         gateways: string[];
         models: unknown[];
+        routing: { invoke_url: string; path: string; provider_slug: string };
         routing_preview: string;
         base_url: string;
         path: string;
@@ -96,6 +97,8 @@ describe("public config", () => {
       expect(Array.isArray(j.models)).toBe(true);
       expect(j.models.length).toBeGreaterThan(0);
       expect(typeof j.routing_preview).toBe("string");
+      expect(j.routing.invoke_url).toBe(j.routing_preview);
+      expect(typeof j.routing.path).toBe("string");
     } finally {
       globalThis.fetch = realFetch;
     }

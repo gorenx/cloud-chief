@@ -112,3 +112,14 @@ export function resolveSetupCurrent(
       : null;
   return currentProp ?? auto ?? "provider";
 }
+
+/** 概览等无 pageStep 时，默认选中的流程步骤 */
+export function defaultSelectedStep(
+  pageStep: SetupStep | undefined,
+  status: SetupStatus,
+): SetupStep {
+  if (pageStep) return pageStep;
+  if (!status.gatewayDone) return "gateway";
+  if (!status.providerDone) return "provider";
+  return "byok";
+}

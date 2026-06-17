@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   SetupStepCallGuide,
   type SetupCallGuideOverrides,
@@ -10,6 +10,7 @@ import { SetupFlowUrlPreview } from "@/components/setup-flow/SetupFlowUrlPreview
 import { useSetupFlowData } from "@/hooks/useSetupFlowData";
 import {
   SETUP_STEPS,
+  defaultSelectedStep,
   nextSetupAction,
   resolveSetupCurrent,
   type SetupStep,
@@ -33,17 +34,34 @@ export function GatewaySetupFlow({
   const { stateQ, ctxQ, status } = useSetupFlowData();
 
   const current = resolveSetupCurrent(pageStep, status);
+  const [selectedStep, setSelectedStep] = useState<SetupStep>(() =>
+    defaultSelectedStep(pageStep, status),
+  );
+
+  useEffect(() => {
+    if (pageStep) setSelectedStep(pageStep);
+  }, [pageStep]);
+
   const coreDone = status.gatewayDone && status.providerDone;
   const action = nextSetupAction(status, current);
   const currentIdx = SETUP_STEPS.findIndex((s) => s.id === current);
   const d = stateQ.data?.defaults;
+  const usePageGuide = pageStep === "byok" && selectedStep === "byok";
 
   const guide = {
-    gatewayId: callGuide?.gatewayId ?? d?.gateway ?? "",
-    slug: callGuide?.providerSlug ?? d?.provider_slug ?? "",
-    model: callGuide?.model ?? d?.model ?? "qwen3-max",
-    byok: callGuide?.byokConfigured ?? status.byokDone,
-    auth: callGuide?.gatewayAuthenticated ?? ctxQ.data?.gateway?.authentication,
+    gatewayId:
+      (usePageGuide && callGuide?.gatewayId) || d?.gateway || "",
+    slug:
+      (usePageGuide && callGuide?.providerSlug) || d?.provider_slug || "",
+    model:
+      (usePageGuide && callGuide?.model) || d?.model || "qwen3-max",
+    byok:
+      selectedStep === "byok"
+        ? (callGuide?.byokConfigured ?? status.byokDone)
+        : status.byokDone,
+    auth:
+      (usePageGuide && callGuide?.gatewayAuthenticated) ??
+      ctxQ.data?.gateway?.authentication,
   };
 
   return (
@@ -52,21 +70,26 @@ export function GatewaySetupFlow({
         collapsible={collapsible}
         open={open}
         onToggle={() => setOpen((v) => !v)}
-        currentStep={pageStep}
+        currentStep={selectedStep}
         status={status}
       />
 
       {(!collapsible || open) && (
         <div className="space-y-3 p-4 pt-3">
-          <SetupFlowStepNav status={status} pageStep={pageStep} current={current} />
+          <SetupFlowStepNav
+            status={status}
+            pageStep={pageStep}
+            selectedStep={selectedStep}
+            onSelect={setSelectedStep}
+          />
           <SetupFlowUrlPreview
             accountId={stateQ.data?.account_id ?? ""}
             status={status}
           />
 
-          {pageStep && d && (
+          {d && (
             <SetupStepCallGuide
-              step={pageStep}
+              step={selectedStep}
               accountId={stateQ.data?.account_id ?? ""}
               gatewayId={guide.gatewayId}
               providerSlug={guide.slug}
@@ -83,6 +106,7 @@ export function GatewaySetupFlow({
             currentIdx={currentIdx}
             status={status}
             coreDone={coreDone}
+            pageStep={pageStep}
           />
         </div>
       )}

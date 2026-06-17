@@ -72,6 +72,7 @@ export interface PublicConfig {
   base_url: string;
   path: string;
   models: ModelMeta[];
+  routing: RoutingInfo;
   routing_preview: string;
 }
 

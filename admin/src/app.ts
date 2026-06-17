@@ -51,6 +51,7 @@ export function createApp(): Hono {
       base_url: env.PROVIDER_BASE_URL,
       path: env.PROVIDER_PATH,
       models: listModels(),
+      routing,
       routing_preview: routing.invoke_url,
     });
   });

@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { fetchPublicConfig } from "@/lib/api";
-import { Card } from "@/components/ui/Card";
+import { fetchGatewayContext, fetchPublicConfig } from "@/lib/api";
+import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { ModelDetailCard } from "@/components/ModelDetailCard";
-import { InvokeUrlCopy } from "@/components/InvokeUrlCopy";
+import { PlaygroundRoutingSidebar } from "@/components/PlaygroundRoutingSidebar";
 import type { ModelMeta, PublicConfig } from "@/types";
+import { playgroundRouting } from "@/lib/routing";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -16,6 +16,7 @@ interface Message {
 }
 
 export function PlaygroundPage() {
+  const { token } = useAdminToken();
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [gateway, setGateway] = useState("");
   const [model, setModel] = useState("");
@@ -35,6 +36,16 @@ export function PlaygroundPage() {
     },
   });
 
+  const gatewayCtxQ = useQuery({
+    queryKey: ["gateway-context", token, gateway],
+    queryFn: async () => {
+      const r = await fetchGatewayContext(token, gateway);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    enabled: Boolean(token && gateway),
+  });
+
   useEffect(() => {
     if (configQ.data) {
       setConfig(configQ.data);
@@ -46,19 +57,7 @@ export function PlaygroundPage() {
   const modelMeta: ModelMeta | null =
     config?.models.find((m) => m.id === model) ?? null;
 
-  const displayUrl = (() => {
-    if (!config || !gateway) return "";
-    if (config.routing_preview && gateway === config.gateway) {
-      return config.routing_preview;
-    }
-    if (config.routing_preview) {
-      return config.routing_preview.replace(
-        /\/([^/]+)\/custom-/,
-        `/${gateway}/custom-`,
-      );
-    }
-    return "";
-  })();
+  const routing = config ? playgroundRouting(config, gateway, model) : null;
 
   async function send() {
     const text = input.trim();
@@ -239,16 +238,15 @@ export function PlaygroundPage() {
           </div>
         </div>
 
-        {sidebarOpen && (
-          <div className="w-80 shrink-0 space-y-4 overflow-y-auto">
-            <Card className="p-4">
-              <div className="mb-2 text-xs font-medium text-[var(--color-muted)]">invoke_url</div>
-              <InvokeUrlCopy url={displayUrl} />
-            </Card>
-            <ModelDetailCard
-              modelId={model}
+        {sidebarOpen && routing && (
+          <div className="w-80 shrink-0 overflow-y-auto">
+            <PlaygroundRoutingSidebar
+              routing={routing}
               modelMeta={modelMeta}
-              compact
+              gateway={gateway}
+              gatewayContext={gatewayCtxQ.data ?? null}
+              gatewayContextLoading={gatewayCtxQ.isLoading}
+              hasAdminToken={Boolean(token)}
             />
           </div>
         )}
