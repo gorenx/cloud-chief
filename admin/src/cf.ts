@@ -1,6 +1,8 @@
 import { env } from "./env";
 
-const CF_BASE = `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}`;
+function cfBase(): string {
+  return `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}`;
+}
 
 export interface CfResult {
   status: number;
@@ -19,7 +21,7 @@ export async function cfApi(
   body?: unknown,
 ): Promise<CfResult> {
   try {
-    const r = await fetch(CF_BASE + apiPath, {
+    const r = await fetch(cfBase() + apiPath, {
       method,
       headers: {
         Authorization: `Bearer ${env.CF_API_TOKEN}`,

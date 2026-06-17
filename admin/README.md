@@ -43,7 +43,7 @@ admin/
 
 ## 配置
 
-**仅读取 `admin/.env`**（复制 `admin/.env.example`）。不加载仓库根 `.env`。
+**仅读取 `admin/.env`**（复制 `admin/.env.example`）。进程启动时加载；运行中修改文件会**自动热重载**（`PORT` / `ADMIN_BIND` 变更仍需重启才改监听地址）。
 
 | 范围 | 配置文件 |
 |------|----------|
