@@ -9,7 +9,7 @@ const workerDir = path.resolve(adminRoot, "../worker");
 describe("readWranglerToml", () => {
   it("reads name and SUPABASE_URL from worker wrangler.toml", () => {
     const { name, vars } = readWranglerToml(workerDir);
-    expect(name).toBe("qwen-gateway-proxy");
+    expect(name).toBe("ai-gateway-proxy");
     expect(vars.SUPABASE_URL).toMatch(/^https:\/\//);
     expect(vars.DEFAULT_MODEL).toBeTruthy();
   });

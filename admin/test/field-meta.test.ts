@@ -34,7 +34,7 @@ describe("field-meta", () => {
     const m = patchWorkerRuntimeMeta(configMeta(), {
       url_source: "cf",
       vars_source: "cf",
-      script_name: "qwen-gateway-proxy",
+      script_name: "ai-gateway-proxy",
     });
     expect(m.fields["worker.url"].source).toBe("cf");
     expect(m.fields["worker_routing.default_model"].source).toBe("cf");

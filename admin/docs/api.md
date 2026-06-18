@@ -302,7 +302,7 @@ Upsert 网关。
   "worker_dir": "string",
   "worker_dir_rel": "string",
   "worker_dir_exists": true,
-  "worker_name": "qwen-gateway-proxy",
+  "worker_name": "ai-gateway-proxy",
   "vars": { "CF_GATEWAY_ID": "...", "DEFAULT_MODEL": "..." },
   "secrets": ["CF_AIG_TOKEN", "DASHSCOPE_API_KEY"],
   "dev_vars": {},

@@ -8,8 +8,8 @@ import {
 
 describe("cf-worker-resolve", () => {
   it("buildWorkersDevUrl composes workers.dev URL", () => {
-    expect(buildWorkersDevUrl("qwen-gateway-proxy", "my-sub", true)).toBe(
-      "https://qwen-gateway-proxy.my-sub.workers.dev",
+    expect(buildWorkersDevUrl("ai-gateway-proxy", "my-sub", true)).toBe(
+      "https://ai-gateway-proxy.my-sub.workers.dev",
     );
     expect(buildWorkersDevUrl("x", "my-sub", false)).toBeNull();
   });
@@ -26,7 +26,7 @@ describe("cf-worker-resolve", () => {
   it("findCfWorkerByName locates script in list", () => {
     const scripts = [
       {
-        name: "qwen-gateway-proxy",
+        name: "ai-gateway-proxy",
         url: null,
         subdomain_enabled: true,
         vars: {},
@@ -35,7 +35,7 @@ describe("cf-worker-resolve", () => {
         usage_model: null,
       },
     ];
-    expect(findCfWorkerByName(scripts, "qwen-gateway-proxy")?.name).toBe("qwen-gateway-proxy");
+    expect(findCfWorkerByName(scripts, "ai-gateway-proxy")?.name).toBe("ai-gateway-proxy");
     expect(findCfWorkerByName(scripts, "missing")).toBeNull();
   });
 

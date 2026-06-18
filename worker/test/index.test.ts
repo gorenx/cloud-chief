@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 
 const BASE = "https://proxy.test";
 
-describe("qwen-gateway-proxy", () => {
+describe("ai-gateway-proxy", () => {
   it("GET /health returns ok", async () => {
     const res = await SELF.fetch(`${BASE}/health`);
     expect(res.status).toBe(200);

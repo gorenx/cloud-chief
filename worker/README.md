@@ -1,4 +1,4 @@
-# qwen-gateway-proxy（Cloudflare Worker）
+# ai-gateway-proxy（Cloudflare Worker）
 
 边缘代理：应用带 **Supabase access_token** 调用本 Worker，Worker 校验通过后，用自己持有的
 **网关令牌 + DashScope Key** 转发到 Cloudflare AI Gateway，再到阿里云 MaaS。密钥永远不落到应用侧。
@@ -86,8 +86,38 @@ cp .dev.vars.example .dev.vars   # 填本地用的密钥
 npm run dev                      # 本地起服务，默认 http://127.0.0.1:8788（见 wrangler.toml [dev]）
 npm run typecheck                # tsc 类型检查
 npm test                         # vitest 在 workerd 里跑测试
-npm run deploy                   # 部署，得到 https://qwen-gateway-proxy.<子域>.workers.dev
+npm run deploy                   # 部署，得到 https://ai-gateway-proxy.<子域>.workers.dev
 ```
+
+### GitHub / Workers Builds（monorepo）
+
+本仓库含 `admin/` 与 `worker/`。连接 Cloudflare GitHub 后，建议限制 Worker 仅在 `worker/` 变更时构建：
+
+| 设置项 | 值 |
+|--------|-----|
+| Root directory | `worker` |
+| Build command | `npm ci` |
+| Deploy command | `npx wrangler deploy` |
+| Build watch paths — Include | `worker/*` |
+| Build watch paths — Exclude | （留空） |
+
+配置已写入 `cloudflare-builds.json`。
+
+**推荐：Dashboard 手动配置**（无需 API Token）  
+Workers & Pages → `ai-gateway-proxy` → Settings → Build，按上表填写 Root directory / Build command / Deploy command，再在 **Build watch paths** 填 Include `worker/*`。
+
+**可选：脚本同步**（需用户级 API Token，见 [My Profile → API Tokens](https://dash.cloudflare.com/profile/api-tokens)）：
+
+| 权限 | 级别 |
+|------|------|
+| Workers CI | Edit |
+| Workers Scripts | Read |
+
+```bash
+CLOUDFLARE_API_TOKEN=xxx ./scripts/configure-cloudflare-builds.sh
+```
+
+> Cloudflare 文档有时写作「Workers Builds Configuration」，Dashboard 里实际显示为 **Workers CI**。须用用户 Token，账户级 Token 会报 Invalid token。
 
 本地开发时 Admin Playground 可通过 `WORKER_URL=http://127.0.0.1:8788` 或顶栏「启动本地 Worker」对接本服务。
 
@@ -102,7 +132,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const { data: { session } } = await supabase.auth.getSession();
 const accessToken = session.access_token;
 
-const resp = await fetch("https://qwen-gateway-proxy.<子域>.workers.dev/v1/responses", {
+const resp = await fetch("https://ai-gateway-proxy.<子域>.workers.dev/v1/responses", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -121,7 +151,7 @@ const resp = await fetch("https://qwen-gateway-proxy.<子域>.workers.dev/v1/res
 
 ```bash
 TOKEN="<粘贴一个有效的 Supabase access_token>"
-curl -N -X POST https://qwen-gateway-proxy.<子域>.workers.dev/v1/responses \
+curl -N -X POST https://ai-gateway-proxy.<子域>.workers.dev/v1/responses \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"model":"qwen3-max","input":[{"role":"user","content":"你好"}],"stream":true}'
