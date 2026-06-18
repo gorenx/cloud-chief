@@ -16,6 +16,7 @@ export function WorkerProjectPanel({
   onSelectDir,
   onCfScriptNameChange,
   onRefresh,
+  embedded,
 }: {
   workersQ: UseQueryResult<WorkerList>;
   cfDeployedQ: UseQueryResult<CfDeployedList>;
@@ -26,15 +27,25 @@ export function WorkerProjectPanel({
   onSelectDir: (dir: string) => void;
   onCfScriptNameChange: (name: string) => void;
   onRefresh: () => void;
+  embedded?: boolean;
 }) {
-  return (
-    <Card>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <CardTitle desc="本地目录与 Cloudflare 已部署脚本对照">Worker 项目</CardTitle>
-        <Button variant="ghost" size="sm" onClick={onRefresh}>
-          刷新列表
-        </Button>
-      </div>
+  const content = (
+    <>
+      {!embedded && (
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <CardTitle desc="本地目录与 Cloudflare 已部署脚本对照">Worker 项目</CardTitle>
+          <Button variant="ghost" size="sm" onClick={onRefresh}>
+            刷新列表
+          </Button>
+        </div>
+      )}
+      {embedded && (
+        <div className="mb-4 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={onRefresh}>
+            刷新列表
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <LocalWorkerPanel
@@ -53,8 +64,11 @@ export function WorkerProjectPanel({
       </div>
 
       {status && <WorkerStatusBar status={status} />}
-    </Card>
+    </>
   );
+
+  if (embedded) return content;
+  return <Card>{content}</Card>;
 }
 
 function WorkerStatusBar({ status }: { status: WorkerStatus }) {

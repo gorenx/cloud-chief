@@ -1,17 +1,49 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useWorkerPage } from "@/hooks/useWorkerPage";
-import { WorkerCiCard } from "@/components/worker/WorkerCiCard";
-import { WorkerDeployCard } from "@/components/worker/WorkerDeployCard";
-import { WorkerOnlineSecretsCard } from "@/components/worker/WorkerOnlineSecretsCard";
-import { WorkerOnlineVarsCard } from "@/components/worker/WorkerOnlineVarsCard";
-import { WorkerProjectPanel } from "@/components/worker/WorkerProjectPanel";
-import { WorkerSecretsCard } from "@/components/worker/WorkerSecretsCard";
-import { WorkerVarsCard } from "@/components/worker/WorkerVarsCard";
+import { useWorkerSetupFlowStatus } from "@/hooks/useWorkerSetupFlowStatus";
+import { WorkerSetupFlow } from "@/components/worker/WorkerSetupFlow";
+import { WorkerSetupWorkspace } from "@/components/worker/WorkerSetupWorkspace";
+import { WorkerStepContent } from "@/components/worker/WorkerStepContent";
+import { WorkerStepPanelHeader } from "@/components/worker/WorkerStepPanel";
+import type { WorkerViewMode } from "@/components/worker/WorkerSetupStepSidebar";
+import {
+  WORKER_SETUP_STEPS,
+  resolveWorkerSetupCurrent,
+  type WorkerSetupStep,
+} from "@/lib/worker-setup-flow";
 
 export function WorkerPage() {
   const { token } = useAdminToken();
   const page = useWorkerPage(token);
+  const [activeStep, setActiveStep] = useState<WorkerViewMode>("project");
+  const [activeInit, setActiveInit] = useState(false);
+
+  const varsRecord = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const { k, v } of page.vars) {
+      if (k.trim()) out[k.trim()] = v;
+    }
+    return out;
+  }, [page.vars]);
+
+  const { flowStatus } = useWorkerSetupFlowStatus({
+    token: token ?? "",
+    workerDir: page.workerDir,
+    status: page.statusQ.data,
+    vars: varsRecord,
+    secrets: page.secrets,
+    prodSet: page.prodSet,
+    deployedScriptNames: page.deployedScriptNames,
+    matchedOnline: page.matchedOnline,
+  });
+
+  useEffect(() => {
+    if (activeInit || !page.workerDir) return;
+    setActiveStep(resolveWorkerSetupCurrent(flowStatus));
+    setActiveInit(true);
+  }, [activeInit, page.workerDir, flowStatus]);
 
   const cfError =
     page.cfDeployedQ.data && !page.cfDeployedQ.data.ok
@@ -19,6 +51,19 @@ export function WorkerPage() {
       : page.cfDeployedQ.isError
         ? String(page.cfDeployedQ.error)
         : null;
+
+  const stepDef =
+    activeStep !== "all" ? WORKER_SETUP_STEPS.find((s) => s.id === activeStep) : null;
+
+  const rightHeader =
+    activeStep === "all" ? (
+      <div>
+        <h3 className="text-sm font-semibold leading-tight">全部步骤</h3>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">纵向浏览各步骤配置</p>
+      </div>
+    ) : (
+      stepDef && <WorkerStepPanelHeader step={stepDef} />
+    );
 
   if (!token) {
     return (
@@ -29,7 +74,7 @@ export function WorkerPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">Worker 部署</h1>
         <p className="mt-1 text-sm text-[var(--color-muted)]">
@@ -37,64 +82,47 @@ export function WorkerPage() {
         </p>
       </div>
 
-      <WorkerProjectPanel
-        workersQ={page.workersQ}
-        cfDeployedQ={page.cfDeployedQ}
-        workerDir={page.workerDir}
-        deployedScriptNames={page.deployedScriptNames}
-        cfScriptName={page.cfScriptName}
-        status={page.statusQ.data}
-        onSelectDir={page.setWorkerDir}
-        onCfScriptNameChange={page.setCfScriptName}
-        onRefresh={page.refreshLists}
+      <WorkerSetupFlow
+        flowStatus={flowStatus}
+        activeStep={activeStep}
+        onGoToStep={setActiveStep}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <WorkerVarsCard
-          vars={page.vars}
-          onChange={page.setVars}
-          onSave={() => page.varsSave.mutate()}
-          save={page.varsSave}
-        />
-        <WorkerOnlineVarsCard
-          script={page.onlineScript}
-          localVars={page.vars}
-          matched={page.matchedOnline}
-          loading={page.cfDeployedQ.isLoading}
-          error={cfError}
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <WorkerSecretsCard
-          secrets={page.secrets}
-          localSet={page.localSet}
-          prodSet={page.prodSet}
-          onChange={page.setSecrets}
-          onSaveDevVars={() => page.devVarsSave.mutate()}
-          onPushSecrets={() => page.secretsPush.mutate()}
-          devVarsSave={page.devVarsSave}
-          secretsPush={page.secretsPush}
-        />
-        <WorkerOnlineSecretsCard
-          script={page.onlineScript}
-          prodSet={page.prodSet}
-          loading={page.cfDeployedQ.isLoading}
-          error={cfError}
-        />
-      </div>
-
-      <WorkerCiCard
-        token={token}
-        workerDir={page.workerDir}
-        wranglerName={page.statusQ.data?.worker_name ?? null}
-      />
-
-      <WorkerDeployCard
-        deploy={page.deploy}
-        onDeploy={page.startDeploy}
-        onRefresh={page.refreshStatus}
-      />
+      <WorkerSetupWorkspace
+        status={flowStatus}
+        activeStep={activeStep}
+        onSelect={setActiveStep}
+        onShowAll={() => setActiveStep("all")}
+        rightHeader={rightHeader}
+      >
+        {activeStep === "all" ? (
+          <div className="space-y-8">
+            {WORKER_SETUP_STEPS.map((def) => (
+              <section key={def.id}>
+                <div className="mb-4">
+                  <WorkerStepPanelHeader step={def} />
+                </div>
+                <WorkerStepContent
+                  step={def.id}
+                  token={token}
+                  page={page}
+                  cfError={cfError}
+                />
+              </section>
+            ))}
+          </div>
+        ) : (
+          stepDef && (
+            <WorkerStepContent
+              step={activeStep as WorkerSetupStep}
+              token={token}
+              page={page}
+              cfError={cfError}
+              embedded
+            />
+          )
+        )}
+      </WorkerSetupWorkspace>
     </div>
   );
 }

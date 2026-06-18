@@ -6,14 +6,16 @@ export function WorkerDeployCard({
   deploy,
   onDeploy,
   onRefresh,
+  embedded,
 }: {
   deploy: ReturnType<typeof useSSEStream>;
   onDeploy: () => void;
   onRefresh: () => void;
+  embedded?: boolean;
 }) {
-  return (
-    <Card>
-      <div className="flex gap-2">
+  const body = (
+    <>
+      <div className="flex flex-wrap gap-2">
         <Button disabled={deploy.running} onClick={onDeploy}>
           部署 Worker
         </Button>
@@ -26,6 +28,9 @@ export function WorkerDeployCard({
           {deploy.lines.join("\n")}
         </pre>
       )}
-    </Card>
+    </>
   );
+
+  if (embedded) return body;
+  return <Card>{body}</Card>;
 }
