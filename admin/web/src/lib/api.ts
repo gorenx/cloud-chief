@@ -235,23 +235,64 @@ export interface SupabaseTableRlsStatus {
   policy_count: number;
 }
 
+export interface SupabaseMigrationDirCandidate {
+  path: string;
+  count: number;
+}
+
+export interface SupabaseMigrationDirs {
+  current: string;
+  candidates: SupabaseMigrationDirCandidate[];
+}
+
 export interface SupabaseMigrationStatus {
   migrations: SupabaseMigrationRow[];
   tables: SupabaseTableRlsStatus[];
   pending_count: number;
+  migrations_dir?: string;
 }
 
-export async function fetchSupabaseLocalMigrations(token: string) {
-  return adminFetch<{ migrations: SupabaseLocalMigration[] }>(
+export interface SupabaseMigrationBrowse {
+  path: string;
+  parent: string | null;
+  migration_count: number;
+  entries: Array<{ name: string; path: string; has_children: boolean }>;
+}
+
+export async function fetchSupabaseMigrationBrowse(token: string, path = "") {
+  const q = path ? `?path=${encodeURIComponent(path)}` : "";
+  return adminFetch<SupabaseMigrationBrowse>(token, "GET", `/admin/supabase/migrations/browse${q}`);
+}
+
+export async function fetchSupabaseMigrationDirs(token: string) {
+  return adminFetch<SupabaseMigrationDirs>(token, "GET", "/admin/supabase/migrations/dirs");
+}
+
+export async function saveSupabaseMigrationDir(token: string, dir: string) {
+  return adminFetch<{ ok: boolean; dir: string }>(
     token,
-    "GET",
-    "/admin/supabase/migrations/local",
+    "POST",
+    "/admin/supabase/migrations/dir",
+    { dir },
   );
 }
 
-export async function fetchSupabaseMigrationStatus(token: string, ref: string) {
+function migrationDirQuery(dir?: string): string {
+  return dir ? `&dir=${encodeURIComponent(dir)}` : "";
+}
+
+export async function fetchSupabaseLocalMigrations(token: string, dir?: string) {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<{ migrations: SupabaseLocalMigration[]; migrations_dir: string }>(
+    token,
+    "GET",
+    `/admin/supabase/migrations/local${q}`,
+  );
+}
+
+export async function fetchSupabaseMigrationStatus(token: string, ref: string, dir?: string) {
   const res = await fetch(
-    `/admin/supabase/migrations/status?ref=${encodeURIComponent(ref)}`,
+    `/admin/supabase/migrations/status?ref=${encodeURIComponent(ref)}${migrationDirQuery(dir)}`,
     { headers: authHeaders(token) },
   );
   const j = await parseJson<
@@ -271,11 +312,12 @@ export async function fetchSupabaseMigrationStatus(token: string, ref: string) {
 export async function applySupabaseMigration(
   token: string,
   ref: string,
-  opts: { version?: string; applyAll?: boolean },
+  opts: { version?: string; applyAll?: boolean; dir?: string },
 ) {
-  const body = opts.applyAll
+  const base = opts.applyAll
     ? { ref, apply_all: true }
     : { ref, version: opts.version };
+  const body = opts.dir ? { ...base, dir: opts.dir } : base;
   return adminFetch<{
     ok: boolean;
     applied: string[];

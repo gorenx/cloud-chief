@@ -23,6 +23,8 @@ const schema = z.object({
   CF_WORKER_BUILDER: z.string().default(""),
   WORKER_DIR: z.string().default("../worker"),
   WORKER_ROOT: z.string().default(".."),
+  /** 相对 WORKER_ROOT 的 Supabase SQL 迁移目录 */
+  SUPABASE_MIGRATIONS_DIR: z.string().default("supabase/migrations"),
   WORKER_URL: z.string().default("http://127.0.0.1:8788"),
   SUPABASE_ANON_KEY: z.string().default(""),
   SUPABASE_TEST_EMAIL: z.string().default(""),

@@ -1,13 +1,18 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { workerRoot } from "./env";
+import { env, workerRoot } from "./env";
 import {
   applyDatabaseMigration,
   listDatabaseMigrations,
   runProjectDatabaseQuery,
 } from "./supabase-management";
 
-export const supabaseMigrationsDir = path.join(workerRoot, "supabase", "migrations");
+export const DEFAULT_MIGRATIONS_REL_DIR = "supabase/migrations";
+
+export function defaultMigrationsDir(): string {
+  return path.join(workerRoot, DEFAULT_MIGRATIONS_REL_DIR);
+}
 
 export interface LocalMigration {
   version: string;
@@ -27,12 +32,141 @@ export interface TableRlsStatus {
   policy_count: number;
 }
 
+export interface MigrationDirCandidate {
+  path: string;
+  count: number;
+}
+
+export interface BrowseDirEntry {
+  name: string;
+  path: string;
+  has_children: boolean;
+}
+
+/** @deprecated legacy relative paths in .env */
+export function normalizeMigrationsRelDir(rel: string): string {
+  return rel.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
+}
+
+export function resolveMigrationsDir(input?: string | null): string | null {
+  const raw = (input?.trim() || env.SUPABASE_MIGRATIONS_DIR?.trim() || "").replace(/\\/g, "/");
+  if (!raw || raw.includes("\0")) return null;
+
+  if (path.isAbsolute(raw)) {
+    return path.normalize(raw);
+  }
+
+  const rel = normalizeMigrationsRelDir(raw);
+  if (!rel || rel.includes("..")) return null;
+  return path.resolve(workerRoot, rel);
+}
+
+export function getConfiguredMigrationsDir(): string {
+  return resolveMigrationsDir() ?? defaultMigrationsDir();
+}
+
+function resolveBrowseDir(input?: string | null): string | null {
+  if (input?.trim()) {
+    const resolved = resolveMigrationsDir(input);
+    if (!resolved) return null;
+    try {
+      if (!fs.statSync(resolved).isDirectory()) return null;
+    } catch {
+      return null;
+    }
+    return resolved;
+  }
+
+  const configured = getConfiguredMigrationsDir();
+  try {
+    if (fs.statSync(configured).isDirectory()) return configured;
+  } catch {
+    /* fall through */
+  }
+
+  const home = os.homedir();
+  try {
+    if (fs.statSync(home).isDirectory()) return home;
+  } catch {
+    return null;
+  }
+  return home;
+}
+
+function migrationsDirOrError(dirInput?: string | null):
+  | { ok: true; dir: string; path: string }
+  | { ok: false; error: string } {
+  if (dirInput?.trim()) {
+    const dir = resolveMigrationsDir(dirInput.trim());
+    if (!dir) return { ok: false, error: `无效的迁移目录: ${dirInput.trim()}` };
+    return { ok: true, dir, path: dir };
+  }
+  const dir = getConfiguredMigrationsDir();
+  return { ok: true, dir, path: dir };
+}
+
+export function browseMigrationsDir(input?: string | null):
+  | { ok: true; path: string; parent: string | null; migration_count: number; entries: BrowseDirEntry[] }
+  | { ok: false; error: string } {
+  const abs = resolveBrowseDir(input);
+  if (!abs) return { ok: false, error: "目录不可读" };
+
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(abs, { withFileTypes: true });
+  } catch {
+    return { ok: false, error: "目录不可读" };
+  }
+
+  const dirs = entries
+    .filter((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules")
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const browseEntries: BrowseDirEntry[] = [];
+  for (const d of dirs) {
+    const childAbs = path.join(abs, d.name);
+    let has_children = false;
+    try {
+      has_children = fs
+        .readdirSync(childAbs, { withFileTypes: true })
+        .some((e) => e.isDirectory() && !e.name.startsWith(".") && e.name !== "node_modules");
+    } catch {
+      has_children = false;
+    }
+    browseEntries.push({ name: d.name, path: childAbs, has_children });
+  }
+
+  const parentPath = path.dirname(abs);
+  const parent = parentPath !== abs ? parentPath : null;
+
+  return {
+    ok: true,
+    path: abs,
+    parent,
+    migration_count: listLocalMigrations(abs).length,
+    entries: browseEntries,
+  };
+}
+
+export function listMigrationDirCandidates(): MigrationDirCandidate[] {
+  const seen = new Set<string>();
+  const out: MigrationDirCandidate[] = [];
+
+  for (const candidate of [getConfiguredMigrationsDir(), defaultMigrationsDir()]) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    out.push({ path: candidate, count: listLocalMigrations(candidate).length });
+  }
+
+  return out.sort((a, b) => a.path.localeCompare(b.path));
+}
+
 export function parseMigrationFilename(filename: string): string | null {
   if (!/^\d+_.+\.sql$/i.test(filename)) return null;
   return filename.replace(/\.sql$/i, "");
 }
 
-export function listLocalMigrations(dir = supabaseMigrationsDir): LocalMigration[] {
+export function listLocalMigrations(dir: string): LocalMigration[] {
   if (!fs.existsSync(dir)) return [];
   const files = fs
     .readdirSync(dir)
@@ -118,16 +252,23 @@ export async function fetchTableRlsStatus(
   return { ok: true, tables };
 }
 
-export async function getMigrationStatus(ref: string): Promise<
+export async function getMigrationStatus(
+  ref: string,
+  migrationsDir?: string | null,
+): Promise<
   | {
       ok: true;
       migrations: MigrationRow[];
       tables: TableRlsStatus[];
       pending_count: number;
+      migrations_dir: string;
     }
   | { ok: false; error: string; needs_db_scope?: boolean }
 > {
-  const local = listLocalMigrations();
+  const picked = migrationsDirOrError(migrationsDir);
+  if (!picked.ok) return picked;
+
+  const local = listLocalMigrations(picked.dir);
   const remote = await listRemoteMigrationVersions(ref);
   if (!remote.ok) return remote;
 
@@ -140,14 +281,19 @@ export async function getMigrationStatus(ref: string): Promise<
     migrations,
     tables: tables.tables,
     pending_count: migrations.filter((m) => !m.applied).length,
+    migrations_dir: picked.path,
   };
 }
 
 export async function applyLocalMigration(
   ref: string,
   version: string,
+  migrationsDir?: string | null,
 ): Promise<{ ok: true; version: string } | { ok: false; error: string; needs_db_scope?: boolean }> {
-  const local = listLocalMigrations().find((m) => m.version === version);
+  const picked = migrationsDirOrError(migrationsDir);
+  if (!picked.ok) return picked;
+
+  const local = listLocalMigrations(picked.dir).find((m) => m.version === version);
   if (!local) return { ok: false, error: `未找到本地迁移 ${version}` };
 
   const applied = await applyDatabaseMigration(ref, local.version, local.sql);
@@ -156,18 +302,19 @@ export async function applyLocalMigration(
 
 export async function applyPendingMigrations(
   ref: string,
+  migrationsDir?: string | null,
 ): Promise<
   | { ok: true; applied: string[] }
   | { ok: false; error: string; needs_db_scope?: boolean; partial?: string[] }
 > {
-  const status = await getMigrationStatus(ref);
+  const status = await getMigrationStatus(ref, migrationsDir);
   if (!status.ok) return status;
 
   const pending = status.migrations.filter((m) => !m.applied).map((m) => m.version);
   const applied: string[] = [];
 
   for (const version of pending) {
-    const r = await applyLocalMigration(ref, version);
+    const r = await applyLocalMigration(ref, version, migrationsDir);
     if (!r.ok) {
       return { ok: false, error: r.error, needs_db_scope: r.needs_db_scope, partial: applied };
     }

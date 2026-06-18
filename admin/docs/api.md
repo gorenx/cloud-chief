@@ -444,17 +444,49 @@ SSE 流：`wrangler deploy` 实时输出。
 
 清除本地 OAuth token 文件。
 
-### `GET /admin/supabase/migrations/local`
+### `GET /admin/supabase/migrations/browse?path=`
 
-列出仓库 `supabase/migrations/*.sql`（不含 SQL 正文）。
+浏览本机目录（用于目录选择弹窗）。`path` 为空时从已配置目录或用户主目录开始。仅 `ADMIN_BIND=127.0.0.1`（或 `localhost`）时可用。
 
 ```json
-{ "migrations": [{ "version": "001_profiles", "filename": "001_profiles.sql" }] }
+{
+  "path": "/Users/me/Projects/cloud-chief/supabase/migrations",
+  "parent": "/Users/me/Projects/cloud-chief/supabase",
+  "migration_count": 1,
+  "entries": [{ "name": "archive", "path": "/Users/me/Projects/cloud-chief/supabase/migrations/archive", "has_children": false }]
+}
+```
+
+### `GET /admin/supabase/migrations/dirs`
+
+返回当前配置的迁移目录及常用候选（绝对路径）。
+
+```json
+{
+  "current": "/Users/me/Projects/cloud-chief/supabase/migrations",
+  "candidates": [{ "path": "/Users/me/Projects/cloud-chief/supabase/migrations", "count": 1 }]
+}
+```
+
+### `POST /admin/supabase/migrations/dir`
+
+保存迁移目录到 `admin/.env` 的 `SUPABASE_MIGRATIONS_DIR`（绝对路径；相对路径仍兼容，会解析为 `WORKER_ROOT` 下路径）。仅 `ADMIN_BIND=127.0.0.1`（或 `localhost`）时可用。
+
+```json
+{ "dir": "/Users/me/Projects/cloud-chief/supabase/migrations" }
+```
+
+### `GET /admin/supabase/migrations/local`
+
+列出所选目录下的 `*.sql`（不含 SQL 正文）。可选 `?dir=` 覆盖当前配置。
+
+```json
+{ "migrations": [{ "version": "001_profiles", "filename": "001_profiles.sql" }], "migrations_dir": "/Users/me/Projects/cloud-chief/supabase/migrations" }
 ```
 
 ### `GET /admin/supabase/migrations/status?ref=abcd1234`
 
-对比本地迁移与远程已应用记录，并查询 `public` 表 RLS 状态。缺少 Database scope 时 `403` + `needs_db_scope: true`。
+对比本地迁移与远程已应用记录，并查询 `public` 表 RLS 状态。可选 `?dir=`。缺少 Database scope 时 `403` + `needs_db_scope: true`。
 
 ```json
 {
@@ -469,7 +501,7 @@ SSE 流：`wrangler deploy` 实时输出。
 应用单条或全部待执行迁移。
 
 ```json
-{ "ref": "abcd1234", "version": "001_profiles" }
+{ "ref": "abcd1234", "version": "001_profiles", "dir": "supabase/migrations" }
 ```
 
 或

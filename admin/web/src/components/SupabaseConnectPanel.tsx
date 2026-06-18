@@ -8,6 +8,7 @@ import { useLocale } from "@/contexts/LocaleContext";
 import {
   applySupabaseProject,
   disconnectSupabase,
+  fetchSupabaseMigrationDirs,
   fetchSupabaseMigrationStatus,
   fetchSupabaseProjects,
   fetchSupabaseStatus,
@@ -107,14 +108,28 @@ export function SupabaseConnectPanel({
     return { name: ref, ref };
   }, [supabaseUrl, projectsQ.data]);
 
-  const migrationsQ = useQuery({
-    queryKey: ["supabase-migrations", token, appliedProject?.ref],
+  const migrationDirsQ = useQuery({
+    queryKey: ["supabase-migration-dirs", token],
     queryFn: async () => {
-      const r = await fetchSupabaseMigrationStatus(token, appliedProject!.ref);
+      const r = await fetchSupabaseMigrationDirs(token);
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    enabled: Boolean(token && appliedProject?.ref && hasAnonKey),
+    enabled: Boolean(token),
+  });
+
+  const migrationsQ = useQuery({
+    queryKey: ["supabase-migrations", token, appliedProject?.ref, migrationDirsQ.data?.current],
+    queryFn: async () => {
+      const r = await fetchSupabaseMigrationStatus(
+        token,
+        appliedProject!.ref,
+        migrationDirsQ.data!.current,
+      );
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    enabled: Boolean(token && appliedProject?.ref && hasAnonKey && migrationDirsQ.data?.current),
     retry: false,
   });
 

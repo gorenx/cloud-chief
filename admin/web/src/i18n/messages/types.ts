@@ -345,6 +345,18 @@ export interface Messages {
     toastDisconnected: string;
     step4Title: string;
     step4Desc: string;
+    migrationsDirLabel: string;
+    migrationsDirPick: string;
+    migrationsDirHint: string;
+    migrationsDirCurrent: string;
+    migrationsDirPickerTitle: string;
+    migrationsDirPickerSelect: string;
+    migrationsDirPickerParent: string;
+    migrationsDirPickerRoot: string;
+    migrationsDirPickerEmpty: string;
+    migrationsDirPickerCancel: string;
+    migrationsDirPickerCount: string;
+    toastMigrationDirSaved: string;
     needsDbScope: string;
     migrationsLoading: string;
     noLocalMigrations: string;

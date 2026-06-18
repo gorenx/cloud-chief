@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import fs from "node:fs";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { adminAuth } from "../auth";
 import { env, reloadEnv, setEnvFileValue, workerDir } from "../env";
@@ -23,8 +24,12 @@ import {
 import {
   applyLocalMigration,
   applyPendingMigrations,
+  browseMigrationsDir,
+  getConfiguredMigrationsDir,
   getMigrationStatus,
   listLocalMigrations,
+  listMigrationDirCandidates,
+  resolveMigrationsDir,
 } from "../supabase-schema";
 import { writeWranglerVars } from "../wrangler-toml-write";
 
@@ -45,6 +50,13 @@ function oauthConfigured(): boolean {
 function assertLocalBind(): string | null {
   if (env.ADMIN_BIND !== "127.0.0.1" && env.ADMIN_BIND !== "localhost") {
     return "Supabase OAuth 仅允许 ADMIN_BIND=127.0.0.1（或 localhost）时使用";
+  }
+  return null;
+}
+
+function assertLocalFsAccess(): string | null {
+  if (env.ADMIN_BIND !== "127.0.0.1" && env.ADMIN_BIND !== "localhost") {
+    return "目录浏览仅允许 ADMIN_BIND=127.0.0.1（或 localhost）时使用";
   }
   return null;
 }
@@ -258,19 +270,72 @@ supabaseConnect.post("/disconnect", adminAuth, (c) => {
   return c.json({ ok: true });
 });
 
+supabaseConnect.get("/migrations/browse", adminAuth, (c) => {
+  const bindErr = assertLocalFsAccess();
+  if (bindErr) return c.json({ error: bindErr }, 403);
+
+  const browsePath = c.req.query("path")?.trim() || undefined;
+  const result = browseMigrationsDir(browsePath);
+  if (!result.ok) return c.json({ error: result.error }, 400);
+  return c.json(result);
+});
+
+supabaseConnect.get("/migrations/dirs", adminAuth, (c) => {
+  return c.json({
+    current: getConfiguredMigrationsDir(),
+    candidates: listMigrationDirCandidates(),
+  });
+});
+
+supabaseConnect.post("/migrations/dir", adminAuth, async (c) => {
+  const bindErr = assertLocalFsAccess();
+  if (bindErr) return c.json({ error: bindErr }, 403);
+
+  const body = (await c.req.json().catch(() => ({}))) as { dir?: string };
+  const raw = body.dir?.trim();
+  if (!raw) return c.json({ error: "缺少 dir" }, 400);
+
+  const resolved = resolveMigrationsDir(raw);
+  if (!resolved) {
+    return c.json({ error: "无效的迁移目录" }, 400);
+  }
+
+  try {
+    if (!fs.statSync(resolved).isDirectory()) {
+      return c.json({ error: "路径不是目录" }, 400);
+    }
+  } catch {
+    return c.json({ error: "目录不可读" }, 400);
+  }
+
+  if (!setEnvFileValue("SUPABASE_MIGRATIONS_DIR", resolved)) {
+    return c.json({ error: "写入 admin/.env SUPABASE_MIGRATIONS_DIR 失败" }, 500);
+  }
+  reloadEnv({ quiet: false });
+
+  return c.json({ ok: true, dir: resolved });
+});
+
 supabaseConnect.get("/migrations/local", adminAuth, (c) => {
-  const migrations = listLocalMigrations().map((m) => ({
+  const dir = c.req.query("dir")?.trim();
+  const picked = dir ? resolveMigrationsDir(dir) : getConfiguredMigrationsDir();
+  if (!picked) return c.json({ error: "无效的迁移目录" }, 400);
+
+  const migrations = listLocalMigrations(picked).map((m) => ({
     version: m.version,
     filename: m.filename,
   }));
-  return c.json({ migrations });
+  return c.json({
+    migrations,
+    migrations_dir: picked,
+  });
 });
 
 supabaseConnect.get("/migrations/status", adminAuth, async (c) => {
   const ref = c.req.query("ref")?.trim();
   if (!ref) return c.json({ error: "缺少 ref" }, 400);
 
-  const status = await getMigrationStatus(ref);
+  const status = await getMigrationStatus(ref, c.req.query("dir")?.trim() || null);
   if (!status.ok) {
     return c.json(
       { error: status.error, needs_db_scope: status.needs_db_scope ?? false },
@@ -285,12 +350,14 @@ supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
     ref?: string;
     version?: string;
     apply_all?: boolean;
+    dir?: string;
   };
   const ref = body.ref?.trim();
   if (!ref) return c.json({ error: "缺少 ref" }, 400);
+  const migrationsDir = body.dir?.trim() || null;
 
   if (body.apply_all) {
-    const r = await applyPendingMigrations(ref);
+    const r = await applyPendingMigrations(ref, migrationsDir);
     if (!r.ok) {
       return c.json(
         {
@@ -307,7 +374,7 @@ supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
   const version = body.version?.trim();
   if (!version) return c.json({ error: "缺少 version 或 apply_all" }, 400);
 
-  const r = await applyLocalMigration(ref, version);
+  const r = await applyLocalMigration(ref, version, migrationsDir);
   if (!r.ok) {
     return c.json(
       { error: r.error, needs_db_scope: r.needs_db_scope ?? false },

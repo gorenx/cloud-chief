@@ -6,6 +6,11 @@ import {
   mergeMigrationStatus,
   parseMigrationFilename,
   listLocalMigrations,
+  normalizeMigrationsRelDir,
+  resolveMigrationsDir,
+  browseMigrationsDir,
+  listMigrationDirCandidates,
+  defaultMigrationsDir,
 } from "../src/supabase-schema";
 
 describe("supabase-schema", () => {
@@ -45,5 +50,51 @@ describe("supabase-schema", () => {
       { version: "001_a", filename: "001_a.sql", applied: true },
       { version: "002_b", filename: "002_b.sql", applied: false },
     ]);
+  });
+
+  it("normalizeMigrationsRelDir trims slashes", () => {
+    expect(normalizeMigrationsRelDir("/supabase/migrations/")).toBe("supabase/migrations");
+  });
+
+  it("resolveMigrationsDir rejects path traversal in relative paths", () => {
+    expect(resolveMigrationsDir("../secret")).toBeNull();
+    expect(resolveMigrationsDir("supabase/../../etc")).toBeNull();
+  });
+
+  it("resolveMigrationsDir accepts absolute paths", () => {
+    expect(resolveMigrationsDir(tmpDir)).toBe(path.normalize(tmpDir));
+  });
+
+  it("resolveMigrationsDir accepts repo default migrations dir", () => {
+    const resolved = resolveMigrationsDir("supabase/migrations");
+    expect(resolved).toBeTruthy();
+    expect(fs.existsSync(resolved!)).toBe(true);
+  });
+
+  it("listMigrationDirCandidates includes default migrations dir", () => {
+    const defaultDir = defaultMigrationsDir();
+    const found = listMigrationDirCandidates().some((c) => c.path === defaultDir);
+    expect(found).toBe(true);
+  });
+
+  it("browseMigrationsDir returns absolute paths", () => {
+    const result = browseMigrationsDir();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(path.isAbsolute(result.path)).toBe(true);
+    for (const entry of result.entries) {
+      expect(path.isAbsolute(entry.path)).toBe(true);
+    }
+  });
+
+  it("browseMigrationsDir navigates with absolute path", () => {
+    const migrationsDir = resolveMigrationsDir("supabase/migrations");
+    expect(migrationsDir).toBeTruthy();
+    const result = browseMigrationsDir(migrationsDir!);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.path).toBe(migrationsDir);
+    expect(result.parent).toBeTruthy();
+    expect(path.isAbsolute(result.parent!)).toBe(true);
   });
 });
