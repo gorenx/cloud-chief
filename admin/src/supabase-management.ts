@@ -285,3 +285,101 @@ export async function fetchProjectConfig(
     },
   };
 }
+
+export interface RemoteMigrationRow {
+  version?: string;
+  name?: string;
+  inserted_at?: string;
+}
+
+function databasePermissionHint(status: number, msg: string): boolean {
+  return status === 403 || /scope|permission|unauthorized|forbidden/i.test(msg);
+}
+
+export async function listDatabaseMigrations(
+  ref: string,
+): Promise<
+  | { ok: true; migrations: RemoteMigrationRow[] }
+  | { ok: false; error: string; needs_db_scope?: boolean }
+> {
+  const token = await getValidManagementToken();
+  if (!token.ok) return token;
+
+  const res = await managementFetch<RemoteMigrationRow[]>(
+    `/projects/${encodeURIComponent(ref)}/database/migrations`,
+    token.accessToken,
+  );
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: res.error,
+      needs_db_scope: databasePermissionHint(res.status, res.error),
+    };
+  }
+  return { ok: true, migrations: Array.isArray(res.data) ? res.data : [] };
+}
+
+export async function applyDatabaseMigration(
+  ref: string,
+  name: string,
+  query: string,
+): Promise<{ ok: true } | { ok: false; error: string; needs_db_scope?: boolean }> {
+  const token = await getValidManagementToken();
+  if (!token.ok) return token;
+
+  const mig = await managementFetch<unknown>(
+    `/projects/${encodeURIComponent(ref)}/database/migrations`,
+    token.accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, query }),
+    },
+  );
+  if (mig.ok) return { ok: true };
+
+  const queryRes = await managementFetch<unknown>(
+    `/projects/${encodeURIComponent(ref)}/database/query`,
+    token.accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    },
+  );
+  if (queryRes.ok) return { ok: true };
+
+  const err = queryRes.error || mig.error;
+  return {
+    ok: false,
+    error: err,
+    needs_db_scope: databasePermissionHint(queryRes.status, err) || databasePermissionHint(mig.status, mig.error),
+  };
+}
+
+export async function runProjectDatabaseQuery(
+  ref: string,
+  query: string,
+  opts?: { readOnly?: boolean },
+): Promise<{ ok: true; result: unknown } | { ok: false; error: string; needs_db_scope?: boolean }> {
+  const token = await getValidManagementToken();
+  if (!token.ok) return token;
+
+  const path = opts?.readOnly
+    ? `/projects/${encodeURIComponent(ref)}/database/query/read-only`
+    : `/projects/${encodeURIComponent(ref)}/database/query`;
+
+  const res = await managementFetch<unknown>(path, token.accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: res.error,
+      needs_db_scope: databasePermissionHint(res.status, res.error),
+    };
+  }
+  return { ok: true, result: res.data };
+}

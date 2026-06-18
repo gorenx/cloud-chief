@@ -8,6 +8,7 @@ import { useLocale } from "@/contexts/LocaleContext";
 import {
   applySupabaseProject,
   disconnectSupabase,
+  fetchSupabaseMigrationStatus,
   fetchSupabaseProjects,
   fetchSupabaseStatus,
   saveSupabaseTestCredentials,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { SourceBadge } from "./SourceBadge";
+import { SupabaseSchemaSection } from "./SupabaseSchemaSection";
 import type { FieldMetaEntry } from "@/types";
 
 function StepBadge({
@@ -95,6 +97,27 @@ export function SupabaseConnectPanel({
     enabled: Boolean(token && statusQ.data?.connected),
   });
 
+  const appliedProject = useMemo(() => {
+    const projects = projectsQ.data ?? [];
+    if (!supabaseUrl) return null;
+    const ref = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+    if (!ref) return null;
+    const fromList = projects.find((p) => p.ref === ref);
+    if (fromList) return { name: fromList.name, ref: fromList.ref };
+    return { name: ref, ref };
+  }, [supabaseUrl, projectsQ.data]);
+
+  const migrationsQ = useQuery({
+    queryKey: ["supabase-migrations", token, appliedProject?.ref],
+    queryFn: async () => {
+      const r = await fetchSupabaseMigrationStatus(token, appliedProject!.ref);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    enabled: Boolean(token && appliedProject?.ref && hasAnonKey),
+    retry: false,
+  });
+
   const connectM = useMutation({
     mutationFn: async () => {
       const r = await startSupabaseConnect(token);
@@ -164,14 +187,6 @@ export function SupabaseConnectPanel({
 
   const status = statusQ.data;
   const projects = projectsQ.data ?? [];
-  const appliedProject = useMemo(() => {
-    if (!supabaseUrl) return null;
-    const ref = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
-    if (!ref) return null;
-    const fromList = projects.find((p) => p.ref === ref);
-    if (fromList) return { name: fromList.name, ref: fromList.ref };
-    return { name: ref, ref };
-  }, [supabaseUrl, projects]);
   const resolvedTestEmail =
     testEmail.trim() ||
     status?.local_test?.email ||
@@ -181,6 +196,12 @@ export function SupabaseConnectPanel({
   const stepConnect = Boolean(status?.connected);
   const stepApply = hasAnonKey && Boolean(supabaseUrl);
   const stepTest = hasTestCredentials;
+  const migrationStatus = migrationsQ.data;
+  const stepSchema =
+    stepApply &&
+    Boolean(migrationStatus) &&
+    migrationStatus!.pending_count === 0 &&
+    migrationStatus!.migrations.length > 0;
   const showTestStep = stepApply && !stepTest && (awaitingTestAccount || hasAnonKey);
   const configComplete = stepApply && stepTest;
   const hasSessionAuth =
@@ -217,6 +238,12 @@ export function SupabaseConnectPanel({
         />
         <StepBadge n={2} label={t("supabase.step2Label")} active={!stepApply} done={stepApply} />
         <StepBadge n={3} label={t("supabase.step3Label")} active={showTestStep} done={stepTest} />
+        <StepBadge
+          n={4}
+          label={t("supabase.step4Label")}
+          active={stepApply && !stepSchema}
+          done={stepSchema}
+        />
       </div>
 
       {(status?.connected && status.account) || showTestAccountInfo || appliedProject || supabaseUrl ? (
@@ -335,6 +362,10 @@ export function SupabaseConnectPanel({
             {t("supabase.disconnect")}
           </Button>
         </div>
+      )}
+
+      {stepApply && appliedProject?.ref && (
+        <SupabaseSchemaSection token={token} projectRef={appliedProject.ref} />
       )}
 
       {showAuthSection && (

@@ -10,6 +10,7 @@ import { GatewaysPage } from "@/pages/Gateways";
 import { ProvidersPage } from "@/pages/Providers";
 import { KeysPage } from "@/pages/Keys";
 import { WorkerPage } from "@/pages/Worker";
+import { SupabasePage } from "@/pages/Supabase";
 import { SettingsPage } from "@/pages/Settings";
 
 const queryClient = new QueryClient({
@@ -32,6 +33,7 @@ export function App() {
               <Route path="providers" element={<ProvidersPage />} />
               <Route path="keys" element={<KeysPage />} />
               <Route path="worker" element={<WorkerPage />} />
+              <Route path="supabase" element={<SupabasePage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
           </Routes>

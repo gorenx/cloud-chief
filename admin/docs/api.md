@@ -397,7 +397,7 @@ SSE 流：`wrangler deploy` 实时输出。
 
 均需 ADMIN_TOKEN。OAuth 回调 `GET /admin/supabase/oauth/callback` 为公开（cookie 存 token）。
 
-**前提**：`SUPABASE_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI`；`ADMIN_BIND` 为 `127.0.0.1` 或 `localhost`；开发时用 `http://localhost:5173` 打开前端。
+**前提**：`SUPABASE_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI`；OAuth App 须勾选 **Projects Read** 与 **Database Read/Write**（迁移步骤需要）；`ADMIN_BIND` 为 `127.0.0.1` 或 `localhost`；开发时用 `http://localhost:5173` 打开前端。
 
 ### `POST /admin/supabase/connect`
 
@@ -443,6 +443,42 @@ SSE 流：`wrangler deploy` 实时输出。
 ### `POST /admin/supabase/disconnect`
 
 清除本地 OAuth token 文件。
+
+### `GET /admin/supabase/migrations/local`
+
+列出仓库 `supabase/migrations/*.sql`（不含 SQL 正文）。
+
+```json
+{ "migrations": [{ "version": "001_profiles", "filename": "001_profiles.sql" }] }
+```
+
+### `GET /admin/supabase/migrations/status?ref=abcd1234`
+
+对比本地迁移与远程已应用记录，并查询 `public` 表 RLS 状态。缺少 Database scope 时 `403` + `needs_db_scope: true`。
+
+```json
+{
+  "migrations": [{ "version": "001_profiles", "filename": "001_profiles.sql", "applied": false }],
+  "tables": [{ "name": "profiles", "rls_enabled": true, "policy_count": 4 }],
+  "pending_count": 1
+}
+```
+
+### `POST /admin/supabase/migrations/apply`
+
+应用单条或全部待执行迁移。
+
+```json
+{ "ref": "abcd1234", "version": "001_profiles" }
+```
+
+或
+
+```json
+{ "ref": "abcd1234", "apply_all": true }
+```
+
+响应：`{ "ok": true, "applied": ["001_profiles"] }`；部分失败时含 `partial` 数组。
 
 ---
 

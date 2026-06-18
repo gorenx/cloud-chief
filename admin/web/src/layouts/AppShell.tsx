@@ -6,6 +6,7 @@ import {
   Boxes,
   KeyRound,
   Rocket,
+  Database,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const NAV_ITEMS: { to: string; labelKey: MessageKey; icon: typeof LayoutDashboar
   { to: "/providers", labelKey: "nav.providers", icon: Boxes },
   { to: "/keys", labelKey: "nav.keys", icon: KeyRound },
   { to: "/worker", labelKey: "nav.worker", icon: Rocket },
+  { to: "/supabase", labelKey: "nav.supabase", icon: Database },
   { to: "/settings", labelKey: "nav.settings", icon: Settings },
 ];
 

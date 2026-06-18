@@ -218,6 +218,72 @@ export async function disconnectSupabase(token: string) {
   return adminFetch<{ ok: boolean }>(token, "POST", "/admin/supabase/disconnect");
 }
 
+export interface SupabaseLocalMigration {
+  version: string;
+  filename: string;
+}
+
+export interface SupabaseMigrationRow {
+  version: string;
+  filename: string;
+  applied: boolean;
+}
+
+export interface SupabaseTableRlsStatus {
+  name: string;
+  rls_enabled: boolean;
+  policy_count: number;
+}
+
+export interface SupabaseMigrationStatus {
+  migrations: SupabaseMigrationRow[];
+  tables: SupabaseTableRlsStatus[];
+  pending_count: number;
+}
+
+export async function fetchSupabaseLocalMigrations(token: string) {
+  return adminFetch<{ migrations: SupabaseLocalMigration[] }>(
+    token,
+    "GET",
+    "/admin/supabase/migrations/local",
+  );
+}
+
+export async function fetchSupabaseMigrationStatus(token: string, ref: string) {
+  const res = await fetch(
+    `/admin/supabase/migrations/status?ref=${encodeURIComponent(ref)}`,
+    { headers: authHeaders(token) },
+  );
+  const j = await parseJson<
+    SupabaseMigrationStatus & { error?: string; needs_db_scope?: boolean }
+  >(res);
+  if (!res.ok) {
+    return {
+      ok: false as const,
+      status: res.status,
+      error: errText(j),
+      needs_db_scope: Boolean(j?.needs_db_scope),
+    };
+  }
+  return { ok: true as const, data: j as SupabaseMigrationStatus };
+}
+
+export async function applySupabaseMigration(
+  token: string,
+  ref: string,
+  opts: { version?: string; applyAll?: boolean },
+) {
+  const body = opts.applyAll
+    ? { ref, apply_all: true }
+    : { ref, version: opts.version };
+  return adminFetch<{
+    ok: boolean;
+    applied: string[];
+    needs_db_scope?: boolean;
+    partial?: string[];
+  }>(token, "POST", "/admin/supabase/migrations/apply", body);
+}
+
 export async function fetchWorkerDevStatus(token: string, dir?: string) {
   const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
   return adminFetch<{ running: boolean; pid: number | null; healthy: boolean }>(

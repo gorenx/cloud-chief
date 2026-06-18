@@ -4,12 +4,20 @@ import { Button } from "@/components/ui/Button";
 import { SelectWithSourceBadge } from "@/components/SourceBadge";
 import { WorkerConfigSourceToggle } from "@/components/WorkerConfigSourceToggle";
 import { WorkerTargetToggle } from "@/components/WorkerTargetToggle";
-import type { CallMode, PlaygroundSessionFlags, WorkerConfigSource, WorkerTarget } from "@/lib/playground-session";
+import type {
+  CallMode,
+  PlaygroundSessionFlags,
+  WorkerConfigSource,
+  WorkerTarget,
+} from "@/lib/playground-session";
 import type { PlaygroundDataView } from "@/lib/playground-sources";
 import type { FieldMetaEntry, PublicConfig } from "@/types";
 import { cn } from "@/lib/utils";
 
-function gatewayOptions(gateways: string[] | undefined, effectiveGateway: string): string[] {
+function gatewayOptions(
+  gateways: string[] | undefined,
+  effectiveGateway: string,
+): string[] {
   const base = gateways ?? [];
   if (!effectiveGateway || base.includes(effectiveGateway)) return base;
   return [effectiveGateway, ...base];
@@ -75,7 +83,9 @@ export function PlaygroundToolbar({
     <div className="mb-4 flex gap-4">
       <div className="min-w-0 flex-1 space-y-2">
         <div className="grid grid-cols-[auto_1fr] items-start gap-x-3">
-          <h1 className="pt-1 text-xl font-semibold">{t("playground.title")}</h1>
+          <h1 className="pt-1 text-xl font-semibold">
+            {t("playground.title")}
+          </h1>
 
           <div className={toolbarGrid}>
             <div className="flex w-fit justify-self-start rounded-lg border border-[var(--color-border)] p-0.5">
@@ -110,7 +120,11 @@ export function PlaygroundToolbar({
               value={effectiveGateway}
               onChange={(e) => onGatewayChange(e.target.value)}
               disabled={flags.gatewayLocked}
-              title={flags.gatewayLocked ? t("playground.gatewayLockedTitle") : undefined}
+              title={
+                flags.gatewayLocked
+                  ? t("playground.gatewayLockedTitle")
+                  : undefined
+              }
               className="min-w-0 w-full justify-self-stretch disabled:opacity-60"
             >
               {gatewayOpts.map((g) => (
@@ -125,7 +139,9 @@ export function PlaygroundToolbar({
               value={effectiveModel}
               onChange={(e) => onModelChange(e.target.value)}
               disabled={flags.modelLocked}
-              title={flags.modelLocked ? t("playground.modelLockedTitle") : undefined}
+              title={
+                flags.modelLocked ? t("playground.modelLockedTitle") : undefined
+              }
               className="min-w-0 w-full justify-self-stretch disabled:opacity-60"
             >
               {modelOptions.map((m) => (
@@ -150,7 +166,9 @@ export function PlaygroundToolbar({
                   <Button
                     size="sm"
                     className="justify-self-start"
-                    disabled={!hasAdminToken || startingLocalDev || localWorkerHealthy}
+                    disabled={
+                      !hasAdminToken || startingLocalDev || localWorkerHealthy
+                    }
                     onClick={onStartLocalDev}
                   >
                     {startingLocalDev
@@ -169,14 +187,20 @@ export function PlaygroundToolbar({
 
         {catalogSynced && catalogSynced.length > 0 && (
           <p className="text-xs text-teal-300/90">
-            {t("playground.catalogSynced", { models: catalogSynced.join(t("common.listSeparator")) })}
+            {t("playground.catalogSynced", {
+              models: catalogSynced.join(t("common.listSeparator")),
+            })}
           </p>
         )}
       </div>
 
       <div className="w-80 shrink-0">
         <Button variant="ghost" size="sm" onClick={onSidebarToggle}>
-          {sidebarOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {sidebarOpen ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
           {t("playground.routingDetails")}
         </Button>
       </div>

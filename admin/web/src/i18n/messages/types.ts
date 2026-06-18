@@ -90,6 +90,7 @@ export interface Messages {
     providers: string;
     keys: string;
     worker: string;
+    supabase: string;
     settings: string;
     tokenOn: string;
     tokenOff: string;
@@ -260,6 +261,10 @@ export interface Messages {
     onlineWorker: string;
     onlineWorkerTitle: string;
     onlineWorkerUnavailable: string;
+    switchToOnline: string;
+    switchToLocal: string;
+    workerTargetLocal: string;
+    workerTargetOnline: string;
     target: string;
     checking: string;
     healthCheck: string;
@@ -287,6 +292,10 @@ export interface Messages {
     missingConfig: string;
   };
   supabase: {
+    page: {
+      title: string;
+      desc: string;
+    };
     noAdminToken: string;
     oauthNotConfigured: string;
     wizardTitle: string;
@@ -296,6 +305,7 @@ export interface Messages {
     step1Label: string;
     step2Label: string;
     step3Label: string;
+    step4Label: string;
     accountInfo: string;
     platformConnected: string;
     projectUrl: string;
@@ -333,6 +343,22 @@ export interface Messages {
     toastStep2: string;
     toastStep3: string;
     toastDisconnected: string;
+    step4Title: string;
+    step4Desc: string;
+    needsDbScope: string;
+    migrationsLoading: string;
+    noLocalMigrations: string;
+    migrationApplied: string;
+    migrationPending: string;
+    applyMigration: string;
+    migrationApplying: string;
+    applyAllMigrations: string;
+    rlsStatusTitle: string;
+    rlsOn: string;
+    rlsOff: string;
+    policyCount: string;
+    toastMigrationApplied: string;
+    toastMigrationsApplied: string;
   };
   gatewayDetail: {
     statusTitle: string;

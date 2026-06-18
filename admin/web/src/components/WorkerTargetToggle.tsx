@@ -12,36 +12,52 @@ export function WorkerTargetToggle({
   onChange: (v: WorkerTarget) => void;
 }) {
   const t = useT();
+  const isLocal = value === "local";
+  const blocked = isLocal && !onlineAvailable;
+
+  function handleToggle() {
+    if (blocked) return;
+    onChange(isLocal ? "online" : "local");
+  }
 
   return (
-    <div className="flex w-fit justify-self-start rounded-lg border border-[var(--color-border)] p-0.5">
+    <div className="flex items-center gap-2">
       <button
         type="button"
+        role="switch"
+        aria-checked={!isLocal}
+        disabled={blocked}
+        title={
+          blocked
+            ? t("playground.onlineWorkerUnavailable")
+            : isLocal
+              ? t("playground.switchToOnline")
+              : t("playground.switchToLocal")
+        }
+        onClick={handleToggle}
         className={cn(
-          "rounded-md px-2.5 py-1 text-xs",
-          value === "local"
-            ? "bg-emerald-950/50 text-emerald-200"
-            : "text-[var(--color-muted)]",
+          "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors",
+          isLocal
+            ? "bg-[var(--color-border)]"
+            : "bg-[var(--color-accent)]/45",
+          blocked ? "cursor-not-allowed opacity-50" : "cursor-pointer",
         )}
-        onClick={() => onChange("local")}
       >
-        {t("playground.localWorker")}
+        <span
+          className={cn(
+            "pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
+            isLocal ? "translate-x-0" : "translate-x-5",
+          )}
+        />
       </button>
-      <button
-        type="button"
-        title={onlineAvailable ? t("playground.onlineWorkerTitle") : t("playground.onlineWorkerUnavailable")}
-        disabled={!onlineAvailable}
+      <span
         className={cn(
-          "rounded-md px-2.5 py-1 text-xs",
-          value === "online"
-            ? "bg-[var(--color-accent)]/20 text-[var(--color-text)]"
-            : "text-[var(--color-muted)]",
-          !onlineAvailable && "cursor-not-allowed opacity-40",
+          "text-xs font-medium",
+          isLocal ? "text-emerald-300" : "text-[var(--color-text)]",
         )}
-        onClick={() => onChange("online")}
       >
-        {t("playground.onlineWorker")}
-      </button>
+        {isLocal ? t("playground.workerTargetLocal") : t("playground.workerTargetOnline")}
+      </span>
     </div>
   );
 }

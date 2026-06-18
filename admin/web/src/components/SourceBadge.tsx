@@ -57,7 +57,9 @@ export function FieldLabel({
   if (!label && !meta) return null;
   return (
     <div className="flex items-center gap-1.5">
-      {label ? <span className="text-xs text-[var(--color-muted)]">{label}</span> : null}
+      {label ? (
+        <span className="text-xs text-[var(--color-muted)]">{label}</span>
+      ) : null}
       {meta ? <SourceBadge meta={meta} /> : null}
     </div>
   );

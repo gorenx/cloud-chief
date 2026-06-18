@@ -20,6 +20,12 @@ import {
   fetchProjectConfig,
   listSupabaseProjects,
 } from "../supabase-management";
+import {
+  applyLocalMigration,
+  applyPendingMigrations,
+  getMigrationStatus,
+  listLocalMigrations,
+} from "../supabase-schema";
 import { writeWranglerVars } from "../wrangler-toml-write";
 
 const OAUTH_API = "https://api.supabase.com/v1/oauth/authorize";
@@ -250,4 +256,63 @@ supabaseConnect.post("/test-credentials", adminAuth, async (c) => {
 supabaseConnect.post("/disconnect", adminAuth, (c) => {
   clearSupabaseOAuthTokens();
   return c.json({ ok: true });
+});
+
+supabaseConnect.get("/migrations/local", adminAuth, (c) => {
+  const migrations = listLocalMigrations().map((m) => ({
+    version: m.version,
+    filename: m.filename,
+  }));
+  return c.json({ migrations });
+});
+
+supabaseConnect.get("/migrations/status", adminAuth, async (c) => {
+  const ref = c.req.query("ref")?.trim();
+  if (!ref) return c.json({ error: "缺少 ref" }, 400);
+
+  const status = await getMigrationStatus(ref);
+  if (!status.ok) {
+    return c.json(
+      { error: status.error, needs_db_scope: status.needs_db_scope ?? false },
+      status.needs_db_scope ? 403 : 502,
+    );
+  }
+  return c.json(status);
+});
+
+supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    ref?: string;
+    version?: string;
+    apply_all?: boolean;
+  };
+  const ref = body.ref?.trim();
+  if (!ref) return c.json({ error: "缺少 ref" }, 400);
+
+  if (body.apply_all) {
+    const r = await applyPendingMigrations(ref);
+    if (!r.ok) {
+      return c.json(
+        {
+          error: r.error,
+          needs_db_scope: r.needs_db_scope ?? false,
+          partial: r.partial ?? [],
+        },
+        r.needs_db_scope ? 403 : 502,
+      );
+    }
+    return c.json({ ok: true, applied: r.applied });
+  }
+
+  const version = body.version?.trim();
+  if (!version) return c.json({ error: "缺少 version 或 apply_all" }, 400);
+
+  const r = await applyLocalMigration(ref, version);
+  if (!r.ok) {
+    return c.json(
+      { error: r.error, needs_db_scope: r.needs_db_scope ?? false },
+      r.needs_db_scope ? 403 : 502,
+    );
+  }
+  return c.json({ ok: true, applied: [r.version] });
 });
