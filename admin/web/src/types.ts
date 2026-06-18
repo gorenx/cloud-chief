@@ -178,3 +178,57 @@ export interface CfDeployedList {
   scripts: CfDeployedWorker[];
   error?: string;
 }
+
+export interface BuildRepoConnection {
+  repo_name: string | null;
+  provider_account_name: string | null;
+  provider_type: string | null;
+}
+
+export interface BuildTriggerInfo {
+  trigger_uuid: string;
+  trigger_name: string;
+  build_command: string;
+  deploy_command: string;
+  root_directory: string;
+  branch_includes: string[];
+  branch_excludes: string[];
+  path_includes: string[];
+  path_excludes: string[];
+  is_preview: boolean;
+  repo: BuildRepoConnection | null;
+}
+
+export interface BuildSummary {
+  build_uuid: string;
+  build_outcome: string | null;
+  created_on: string | null;
+  branch: string | null;
+  commit_hash: string | null;
+}
+
+export interface CloudflareBuildsConfig {
+  worker_name: string;
+  root_directory: string;
+  build_command: string;
+  deploy_command: string;
+  preview_deploy_command: string;
+  path_includes: string[];
+  path_excludes: string[];
+}
+
+export interface WorkerBuildsStatus {
+  ok: boolean;
+  error?: string;
+  token_configured: boolean;
+  account_id: string;
+  wrangler_name: string | null;
+  config: CloudflareBuildsConfig | null;
+  worker_tag: string | null;
+  cf_script_name: string | null;
+  name_mismatch: boolean;
+  dashboard_builds_url: string | null;
+  triggers: BuildTriggerInfo[];
+  recent_builds: BuildSummary[];
+  token_invalid?: boolean;
+}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { app } from "../src/app";
 import { env } from "../src/env";
-import { secretSet, gatewayUpsert, devVarsUpdate } from "../src/schemas";
+import { secretSet, gatewayUpsert, devVarsUpdate, workerBuilderTokenSet } from "../src/schemas";
 
 const TOKEN = "test-token";
 const authed = { "content-type": "application/json", authorization: `Bearer ${TOKEN}` };
@@ -21,6 +21,11 @@ describe("admin auth", () => {
 
   it("worker route is also guarded", async () => {
     const res = await app.request("/admin/worker/status");
+    expect(res.status).toBe(401);
+  });
+
+  it("worker builds route is also guarded", async () => {
+    const res = await app.request("/admin/worker/builds/status");
     expect(res.status).toBe(401);
   });
 });
@@ -61,6 +66,11 @@ describe("schemas", () => {
     expect(devVarsUpdate.safeParse({ secrets: { bad: "x" } }).success).toBe(false);
     expect(devVarsUpdate.safeParse({ secrets: { CF_AIG_TOKEN: "x" } }).success).toBe(true);
     expect(devVarsUpdate.safeParse({ secrets: { CF_AIG_TOKEN: "" } }).success).toBe(true);
+  });
+
+  it("workerBuilderTokenSet requires non-empty token", () => {
+    expect(workerBuilderTokenSet.safeParse({ token: "" }).success).toBe(false);
+    expect(workerBuilderTokenSet.safeParse({ token: "cf_token" }).success).toBe(true);
   });
 
   it("gatewayUpsert requires id", () => {

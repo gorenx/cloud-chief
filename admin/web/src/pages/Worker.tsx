@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useWorkerPage } from "@/hooks/useWorkerPage";
+import { WorkerCiCard } from "@/components/worker/WorkerCiCard";
 import { WorkerDeployCard } from "@/components/worker/WorkerDeployCard";
 import { WorkerOnlineSecretsCard } from "@/components/worker/WorkerOnlineSecretsCard";
 import { WorkerOnlineVarsCard } from "@/components/worker/WorkerOnlineVarsCard";
@@ -82,6 +83,12 @@ export function WorkerPage() {
           error={cfError}
         />
       </div>
+
+      <WorkerCiCard
+        token={token}
+        workerDir={page.workerDir}
+        wranglerName={page.statusQ.data?.worker_name ?? null}
+      />
 
       <WorkerDeployCard
         deploy={page.deploy}

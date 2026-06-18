@@ -19,6 +19,8 @@ const schema = z.object({
   ADMIN_BIND: z.string().default("127.0.0.1"),
   PORT: z.coerce.number().int().positive().default(8787),
   CLOUDFLARE_API_TOKEN: z.string().default(""),
+  /** Workers Builds / GitHub CI API（用户 Token，Workers CI Edit） */
+  CF_WORKER_BUILDER: z.string().default(""),
   WORKER_DIR: z.string().default("../worker"),
   WORKER_ROOT: z.string().default(".."),
   WORKER_URL: z.string().default("http://127.0.0.1:8788"),

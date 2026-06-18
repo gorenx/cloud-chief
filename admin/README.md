@@ -60,6 +60,7 @@ admin/
 - `SUPABASE_ANON_KEY` / `SUPABASE_TEST_*`：Playground **经 Worker** 时代登录获取 JWT（勿提交真实密码）。
 - `SUPABASE_OAUTH_*` / `ADMIN_WEB_ORIGIN`：Playground 侧栏 Supabase 平台 OAuth（Organization OAuth App，仅本地 `ADMIN_BIND` 回环时启用）。
 - `CLOUDFLARE_API_TOKEN`（可选）：部署 Worker 时注入给 wrangler 子进程。
+- `CF_WORKER_BUILDER`（可选）：Workers Builds / GitHub CI API（用户 Token，Workers CI Edit）；也可在 Worker 页内配置。
 
 ## 开发
 
@@ -132,6 +133,10 @@ pnpm install && pnpm build && pnpm start
 | `GET /admin/worker/status` | 令牌 | wrangler 状态 + `[vars]` + secrets 清单 |
 | `GET /admin/worker/secrets` | 令牌 | 生产 secret 名列表 |
 | `POST /admin/worker/deploy` | 令牌 | wrangler deploy（SSE 日志） |
+| `GET /admin/worker/builds/status` | 令牌 | Workers Builds / GitHub CI 状态 |
+| `POST /admin/worker/builds/sync` | 令牌 | 将 `cloudflare-builds.json` 同步到 CF trigger |
+| `POST /admin/worker/builds/trigger` | 令牌 | 手动触发 CI 构建（body 可选 `branch`） |
+| `PUT /admin/worker/builds/token` | 令牌 | 写入 `CF_WORKER_BUILDER` 到 admin/.env |
 | `POST /admin/worker/secret` | 令牌 | 推送生产 secret |
 | `PUT /admin/worker/config` | 令牌 | 更新 wrangler.toml `[vars]` |
 | `PUT /admin/worker/devvars` | 令牌 | 写入本地 `.dev.vars` |

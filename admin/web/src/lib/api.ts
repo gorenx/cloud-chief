@@ -5,6 +5,7 @@ import type {
   WorkerList,
   CfDeployedList,
   WorkerStatus,
+  WorkerBuildsStatus,
 } from "@/types";
 
 export function errText(j: unknown): string {
@@ -100,6 +101,39 @@ export async function fetchWorkerSecrets(token: string, dir?: string) {
 
 export async function fetchCfDeployedWorkers(token: string) {
   return adminFetch<CfDeployedList>(token, "GET", "/admin/worker/cf-deployed");
+}
+
+export async function fetchWorkerBuildsStatus(token: string, dir?: string) {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<WorkerBuildsStatus>(token, "GET", `/admin/worker/builds/status${q}`);
+}
+
+export async function syncWorkerBuildsConfig(token: string, dir?: string) {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<{ ok: true; updated: string[]; cf_script_name: string }>(
+    token,
+    "POST",
+    `/admin/worker/builds/sync${q}`,
+  );
+}
+
+export async function triggerWorkerBuild(token: string, dir?: string, branch = "main") {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<{ ok: true; build_uuid: string; trigger_name: string }>(
+    token,
+    "POST",
+    `/admin/worker/builds/trigger${q}`,
+    { branch },
+  );
+}
+
+export async function saveWorkerBuilderToken(adminToken: string, builderToken: string) {
+  return adminFetch<{ ok: true; token_configured: boolean }>(
+    adminToken,
+    "PUT",
+    "/admin/worker/builds/token",
+    { token: builderToken },
+  );
 }
 
 export interface SupabaseOAuthStatus {

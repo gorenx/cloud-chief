@@ -8,8 +8,8 @@
 # 注意：必须用「My Profile > API Tokens」创建的用户 Token，账户级 Token 不支持 Builds API。
 #
 # 用法：
-#   CLOUDFLARE_API_TOKEN=xxx ./scripts/configure-cloudflare-builds.sh
-#   CF_ACCOUNT_ID=xxx CLOUDFLARE_API_TOKEN=xxx ./scripts/configure-cloudflare-builds.sh
+#   CF_WORKER_BUILDER=xxx ./scripts/configure-cloudflare-builds.sh
+#   CF_ACCOUNT_ID=xxx CF_WORKER_BUILDER=xxx ./scripts/configure-cloudflare-builds.sh
 #
 # 也可在 Dashboard 手动配置（Settings > Build > Build watch paths）：
 #   Include paths: worker/*
@@ -21,10 +21,12 @@ WORKER_DIR="$(dirname "$HERE")"
 CONFIG_FILE="${CONFIG_FILE:-$WORKER_DIR/cloudflare-builds.json}"
 WRANGLER_TOML="$WORKER_DIR/wrangler.toml"
 
-if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-  echo "✘ 请设置 CLOUDFLARE_API_TOKEN（用户 Token，需 Workers CI Edit + Workers Scripts Read）" >&2
+if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] && [ -z "${CF_WORKER_BUILDER:-}" ]; then
+  echo "✘ 请设置 CF_WORKER_BUILDER 或 CLOUDFLARE_API_TOKEN（用户 Token，需 Workers CI Edit + Workers Scripts Read）" >&2
   exit 1
 fi
+
+CLOUDFLARE_API_TOKEN="${CF_WORKER_BUILDER:-${CLOUDFLARE_API_TOKEN:-}}"
 
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "✘ 找不到配置文件: $CONFIG_FILE" >&2

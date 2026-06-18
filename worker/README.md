@@ -114,7 +114,8 @@ Workers & Pages → `ai-gateway-proxy` → Settings → Build，按上表填写 
 | Workers Scripts | Read |
 
 ```bash
-CLOUDFLARE_API_TOKEN=xxx ./scripts/configure-cloudflare-builds.sh
+# admin/.env 中的 CF_WORKER_BUILDER，或临时：
+CF_WORKER_BUILDER=xxx ./scripts/configure-cloudflare-builds.sh
 ```
 
 > Cloudflare 文档有时写作「Workers Builds Configuration」，Dashboard 里实际显示为 **Workers CI**。须用用户 Token，账户级 Token 会报 Invalid token。

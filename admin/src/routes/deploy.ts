@@ -3,7 +3,7 @@ import { streamSSE } from "hono/streaming";
 import fs from "node:fs";
 import path from "node:path";
 import { adminAuth } from "../auth";
-import { env, workerDir, workerRoot } from "../env";
+import { env, workerDir, workerRoot, reloadEnv, setEnvFileValue } from "../env";
 import { runWrangler, spawnWrangler } from "../wrangler";
 import {
   getWorkerDevProcessStatus,
@@ -15,9 +15,16 @@ import {
   resolveWorkerFromCf,
 } from "../cf-worker-resolve";
 import {
+  getWorkerBuildsStatus,
+  syncWorkerBuildsConfig,
+  triggerWorkerBuild,
+  validateWorkerBuilderToken,
+} from "../cf-builds";
+import {
   secretSet,
   workerVarsUpdate,
   devVarsUpdate,
+  workerBuilderTokenSet,
   zodMessage,
 } from "../schemas";
 
@@ -348,6 +355,52 @@ deploy.post("/dev/start", async (c) => {
   const result = await startWorkerDev(dir);
   if (!result.ok) return c.json({ error: result.error }, 500);
   return c.json({ ok: true, already_running: result.already_running });
+});
+
+// Workers Builds（GitHub CI）：状态、同步 monorepo 配置、手动触发构建
+deploy.get("/builds/status", async (c) => {
+  const dir = resolveWorkerDir(c.req.query("dir"));
+  if (dir === null) return c.json({ error: "无效的 worker 目录" }, 400);
+  const toml = readToml(dir);
+  const worker_name = toml ? parseName(toml) : null;
+  const status = await getWorkerBuildsStatus(dir, worker_name);
+  return c.json(status, status.ok ? 200 : 200);
+});
+
+deploy.post("/builds/sync", async (c) => {
+  const dir = resolveWorkerDir(c.req.query("dir"));
+  if (dir === null) return c.json({ error: "无效的 worker 目录" }, 400);
+  const toml = readToml(dir);
+  const worker_name = toml ? parseName(toml) : null;
+  const result = await syncWorkerBuildsConfig(dir, worker_name);
+  if (!result.ok) return c.json({ ok: false, error: result.error }, 400);
+  return c.json(result);
+});
+
+deploy.post("/builds/trigger", async (c) => {
+  const dir = resolveWorkerDir(c.req.query("dir"));
+  if (dir === null) return c.json({ error: "无效的 worker 目录" }, 400);
+  const body = (await c.req.json().catch(() => ({}))) as { branch?: string };
+  const branch = typeof body.branch === "string" && body.branch.trim() ? body.branch.trim() : "main";
+  const toml = readToml(dir);
+  const worker_name = toml ? parseName(toml) : null;
+  const result = await triggerWorkerBuild(dir, worker_name, branch);
+  if (!result.ok) return c.json({ ok: false, error: result.error }, 400);
+  return c.json(result);
+});
+
+deploy.put("/builds/token", async (c) => {
+  const parsed = workerBuilderTokenSet.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: zodMessage(parsed.error) }, 400);
+
+  const check = await validateWorkerBuilderToken(parsed.data.token);
+  if (!check.ok) return c.json({ error: check.error }, 400);
+
+  if (!setEnvFileValue("CF_WORKER_BUILDER", parsed.data.token.trim())) {
+    return c.json({ error: "写入 admin/.env 失败" }, 500);
+  }
+  reloadEnv({ quiet: true });
+  return c.json({ ok: true, token_configured: true });
 });
 
 // 部署 Worker：SSE 实时回传 wrangler deploy 日志

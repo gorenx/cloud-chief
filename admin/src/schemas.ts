@@ -51,6 +51,10 @@ export const devVarsUpdate = z.object({
     .refine((v) => Object.keys(v).length > 0, "至少提供一个 secret"),
 });
 
+export const workerBuilderTokenSet = z.object({
+  token: z.string().min(1, "缺少 API Token"),
+});
+
 export function zodMessage(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join(".") || "body"}: ${i.message}`).join("; ");
 }
