@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Input } from "@/components/ui/Input";
@@ -22,7 +22,12 @@ export function WorkerSecretRow({
   onChange: (name: string, value: string) => void;
   onRemove?: () => void;
 }) {
-  const [val, setVal] = useState(value);
+  const [revealed, setRevealed] = useState(Boolean(value));
+
+  useEffect(() => {
+    if (value) setRevealed(true);
+  }, [value]);
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Input
@@ -30,17 +35,25 @@ export function WorkerSecretRow({
         value={name}
         readOnly={fixed}
         placeholder="Secret 名"
-        onChange={(e) => onChange(e.target.value, val)}
+        onChange={(e) => onChange(e.target.value, value)}
       />
       <Input
-        type="password"
+        className="min-w-[220px] flex-1 font-mono text-xs"
+        type={revealed ? "text" : "password"}
         placeholder={fixed ? "留空则不改动" : "值"}
-        value={val}
-        onChange={(e) => {
-          setVal(e.target.value);
-          onChange(name, e.target.value);
-        }}
+        value={value}
+        onChange={(e) => onChange(name, e.target.value)}
       />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="shrink-0 px-2"
+        onClick={() => setRevealed((v) => !v)}
+        aria-label={revealed ? "隐藏密钥" : "显示密钥"}
+      >
+        {revealed ? "隐藏" : "显示"}
+      </Button>
       <Chip variant={localOk ? "on" : "off"}>本地{localOk ? "✓" : "✗"}</Chip>
       {prodOk !== null && prodOk !== undefined && (
         <Chip variant={prodOk ? "on" : "off"}>生产{prodOk ? "✓" : "✗"}</Chip>
