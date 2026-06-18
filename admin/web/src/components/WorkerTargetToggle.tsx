@@ -1,3 +1,4 @@
+import { useT } from "@/contexts/LocaleContext";
 import { cn } from "@/lib/utils";
 import type { WorkerTarget } from "@/lib/playground-session";
 
@@ -10,6 +11,8 @@ export function WorkerTargetToggle({
   onlineAvailable: boolean;
   onChange: (v: WorkerTarget) => void;
 }) {
+  const t = useT();
+
   return (
     <div className="flex w-fit justify-self-start rounded-lg border border-[var(--color-border)] p-0.5">
       <button
@@ -22,15 +25,11 @@ export function WorkerTargetToggle({
         )}
         onClick={() => onChange("local")}
       >
-        本地 Worker
+        {t("playground.localWorker")}
       </button>
       <button
         type="button"
-        title={
-          onlineAvailable
-            ? "workers.dev 线上部署"
-            : "未解析到线上 Worker（需 CF_API_TOKEN 且已部署）"
-        }
+        title={onlineAvailable ? t("playground.onlineWorkerTitle") : t("playground.onlineWorkerUnavailable")}
         disabled={!onlineAvailable}
         className={cn(
           "rounded-md px-2.5 py-1 text-xs",
@@ -41,7 +40,7 @@ export function WorkerTargetToggle({
         )}
         onClick={() => onChange("online")}
       >
-        线上 Worker
+        {t("playground.onlineWorker")}
       </button>
     </div>
   );

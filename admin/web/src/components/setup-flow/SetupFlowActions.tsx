@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
-import { SETUP_STEPS, type SetupStatus, type SetupStep } from "@/lib/setup-flow";
+import { useT } from "@/contexts/LocaleContext";
+import { SETUP_STEPS, type SetupStatus, type SetupStep, type SetupActionKey } from "@/lib/setup-flow";
+
+const PLAYGROUND_ACTION: SetupActionKey = "goPlayground";
 
 export function SetupFlowActions({
   action,
@@ -9,28 +12,32 @@ export function SetupFlowActions({
   status,
   coreDone,
   pageStep,
+  formatAction,
 }: {
-  action: { text: string; to: string } | null;
+  action: { key: SetupActionKey; to: string } | null;
   current: SetupStep;
   currentIdx: number;
   status: SetupStatus;
   coreDone: boolean;
   pageStep?: SetupStep;
+  formatAction: (key: SetupActionKey) => string;
 }) {
+  const t = useT();
+
   return (
     <>
       {action && (
         <div className="flex flex-wrap items-center gap-2">
           {currentIdx < SETUP_STEPS.length - 1 &&
-            !action.text.includes("聊天") &&
+            action.key !== PLAYGROUND_ACTION &&
             !coreDone && (
-              <span className="text-xs text-[var(--color-muted)]">前置未完成 →</span>
+              <span className="text-xs text-[var(--color-muted)]">{t("common.prerequisite")}</span>
             )}
           <Link
             to={action.to}
             className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-accent)]/15 px-3 py-1.5 text-sm font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/25"
           >
-            {action.text}
+            {formatAction(action.key)}
             <ChevronRight className="h-4 w-4" />
           </Link>
           {coreDone && !status.byokDone && current !== "byok" && (
@@ -38,22 +45,17 @@ export function SetupFlowActions({
               to="/keys"
               className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-text)]"
             >
-              （可选）配置 BYOK
+              {t("setupFlow.optionalByok")}
             </Link>
           )}
         </div>
       )}
 
       {pageStep === "gateway" && !status.gatewayDone && (
-        <p className="text-xs text-[var(--color-muted)]">
-          在 Cloudflare 创建专属命名网关（如 <code className="mono">qwen-gw</code>），不要使用内置{" "}
-          <code className="mono">default</code> 网关。Admin 默认选中以 CF 列表为准。
-        </p>
+        <p className="text-xs text-[var(--color-muted)]">{t("setupFlow.hintGateway")}</p>
       )}
       {pageStep === "provider" && status.gatewayDone && !status.providerDone && (
-        <p className="text-xs text-[var(--color-muted)]">
-          在 Cloudflare 创建自定义提供商后，路由链中的 slug 与 base_url 将从 CF 实时读取。
-        </p>
+        <p className="text-xs text-[var(--color-muted)]">{t("setupFlow.hintProvider")}</p>
       )}
     </>
   );

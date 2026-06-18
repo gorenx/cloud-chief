@@ -1,4 +1,5 @@
 import type { FieldMetaEntry } from "@/types";
+import { useT } from "@/contexts/LocaleContext";
 import { FieldLabel } from "./SourceBadge";
 import { InvokeUrlCopy } from "./InvokeUrlCopy";
 import { Chip } from "./ui/Chip";
@@ -25,6 +26,7 @@ export function RoutingFieldList({
   fields: Record<string, FieldMetaEntry>;
   fieldPrefix: "routing" | "worker_routing";
 }) {
+  const t = useT();
   const upstreamBase = routing.base_url || routing.provider?.base_url || "";
 
   return (
@@ -72,7 +74,7 @@ export function RoutingFieldList({
         </div>
         <div>
           <FieldLabel
-            label="上游 base_url"
+            label={t("routing.baseUrlLabel")}
             meta={
               section === "cf"
                 ? fields["routing.base_url"]
@@ -84,7 +86,7 @@ export function RoutingFieldList({
         {routing.provider && (
           <div>
             <FieldLabel
-              label="CF 自定义提供商"
+              label={t("routing.cfProviderLabel")}
               meta={
                 section === "cf"
                   ? fields["routing.provider"]

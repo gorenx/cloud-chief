@@ -1,4 +1,5 @@
 import type { UseMutationResult } from "@tanstack/react-query";
+import { useT } from "@/contexts/LocaleContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { WorkerSecretRow } from "@/components/worker/WorkerSecretRow";
@@ -23,9 +24,10 @@ export function WorkerSecretsCard({
   devVarsSave: UseMutationResult<void, Error, void, unknown>;
   secretsPush: UseMutationResult<void, Error, void, unknown>;
 }) {
+  const t = useT();
   return (
     <Card>
-      <CardTitle desc="清单来自 .dev.vars.example">私密配置 · 本地</CardTitle>
+      <CardTitle desc={t("worker.card.secretsLocal.desc")}>{t("worker.card.secretsLocal.title")}</CardTitle>
       <div className="space-y-3">
         {secrets.map((row, i) => (
           <WorkerSecretRow
@@ -55,7 +57,7 @@ export function WorkerSecretsCard({
             onChange([...secrets, { name: "", value: "", fixed: false, optional: false }])
           }
         >
-          + 添加 secret
+          {t("btn.worker.addSecret")}
         </Button>
         <Button
           variant="ghost"
@@ -63,7 +65,7 @@ export function WorkerSecretsCard({
           onClick={onSaveDevVars}
           disabled={devVarsSave.isPending}
         >
-          保存到本地 .dev.vars
+          {t("btn.worker.saveDevVars")}
         </Button>
         <Button
           variant="ghost"
@@ -71,7 +73,7 @@ export function WorkerSecretsCard({
           onClick={onPushSecrets}
           disabled={secretsPush.isPending}
         >
-          推送到生产
+          {t("btn.worker.pushSecrets")}
         </Button>
       </div>
     </Card>

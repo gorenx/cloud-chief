@@ -11,13 +11,13 @@ export {
   workerStepDone,
   workerCoreDone,
   workerSetupProgress,
-  workerStepMeta,
-  workerSetupWarnings,
+  workerSetupWarningKeys,
   resolveWorkerSetupCurrent,
-  nextWorkerSetupAction,
+  nextWorkerSetupStep,
   type WorkerSetupStep,
   type WorkerSetupStepDef,
   type WorkerSetupStatus,
+  type WorkerSetupWarningKey,
   type DeriveWorkerSetupInput,
 } from "../../../src/worker-setup-flow";
 

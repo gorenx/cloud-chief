@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from "react";
 import { CircleHelp } from "lucide-react";
+import { useT } from "@/contexts/LocaleContext";
 import { cn } from "@/lib/utils";
 
 export function Hint({
@@ -12,6 +13,7 @@ export function Hint({
   children?: ReactNode;
   className?: string;
 }) {
+  const t = useT();
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
   const id = useId();
@@ -38,7 +40,7 @@ export function Hint({
     <button
       type="button"
       className="inline-flex shrink-0 rounded p-0.5 text-[var(--color-muted)] transition-colors hover:text-[var(--color-text)]"
-      aria-label="查看说明"
+      aria-label={t("ui.hintAria")}
       aria-expanded={open}
       aria-describedby={open ? id : undefined}
       onMouseEnter={() => setHovered(true)}

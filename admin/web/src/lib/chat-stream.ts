@@ -1,12 +1,25 @@
 /** 解析 Responses API SSE（response.output_text.delta） */
+import type { TranslateFn } from "../i18n";
+
+export class ChatStreamError extends Error {
+  constructor(
+    public status: number,
+    public body: unknown,
+  ) {
+    super("ChatStreamError");
+    this.name = "ChatStreamError";
+  }
+}
+
 export async function streamChatResponse(
   resp: Response,
   onDelta: (text: string) => void,
+  t: TranslateFn,
 ): Promise<string> {
   const ctype = resp.headers.get("content-type") ?? "";
   if (!resp.ok || !ctype.includes("text/event-stream")) {
     const j = await resp.json().catch(() => null);
-    throw new Error(`请求失败 (${resp.status}): ${JSON.stringify(j)}`);
+    throw new ChatStreamError(resp.status, j);
   }
 
   const reader = resp.body!.getReader();
@@ -36,5 +49,5 @@ export async function streamChatResponse(
       }
     }
   }
-  return acc || "(无内容返回)";
+  return acc || t("playground.noContent");
 }

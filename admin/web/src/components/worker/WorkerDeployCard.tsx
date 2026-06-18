@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/Card";
+import { useT } from "@/contexts/LocaleContext";
 import { Button } from "@/components/ui/Button";
 import type { useSSEStream } from "@/hooks/useSSEStream";
 
@@ -13,14 +14,15 @@ export function WorkerDeployCard({
   onRefresh: () => void;
   embedded?: boolean;
 }) {
+  const t = useT();
   const body = (
     <>
       <div className="flex flex-wrap gap-2">
         <Button disabled={deploy.running} onClick={onDeploy}>
-          部署 Worker
+          {t("btn.worker.deploy")}
         </Button>
         <Button variant="ghost" onClick={onRefresh}>
-          刷新状态
+          {t("btn.worker.refreshStatus")}
         </Button>
       </div>
       {deploy.lines.length > 0 && (

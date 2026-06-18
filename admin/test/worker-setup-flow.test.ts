@@ -5,7 +5,7 @@ import {
   resolveWorkerSetupCurrent,
   workerCoreDone,
   workerSetupProgress,
-  workerSetupWarnings,
+  workerSetupWarningKeys,
   workerStepDone,
 } from "../src/worker-setup-flow";
 
@@ -120,6 +120,6 @@ describe("worker-setup-flow", () => {
         recent_builds: [],
       },
     });
-    expect(workerSetupWarnings(s).some((w) => /GitHub CI/i.test(w))).toBe(true);
+    expect(workerSetupWarningKeys(s)).toContain("ciOptional");
   });
 });

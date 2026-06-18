@@ -1,18 +1,21 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
+import { useT } from "@/contexts/LocaleContext";
 import { Chip } from "@/components/ui/Chip";
 import { WorkerSetupFlowStepNav } from "@/components/worker/WorkerSetupFlowStepNav";
 import {
-  WORKER_SETUP_STEPS,
-  nextWorkerSetupAction,
-  resolveWorkerSetupCurrent,
   workerCoreDone,
   workerSetupProgress,
-  workerSetupWarnings,
   workerStepDone,
+  resolveWorkerSetupCurrent,
   type WorkerSetupStatus,
   type WorkerSetupStep,
 } from "@/lib/worker-setup-flow";
+import {
+  formatNextWorkerSetupAction,
+  formatWorkerSetupWarnings,
+  getLocalizedWorkerSteps,
+} from "@/i18n/worker-ui";
 import { cn } from "@/lib/utils";
 
 export function WorkerSetupFlow({
@@ -24,10 +27,12 @@ export function WorkerSetupFlow({
   activeStep: WorkerSetupStep | "all";
   onGoToStep: (step: WorkerSetupStep) => void;
 }) {
+  const t = useT();
+  const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
   const coreDone = workerCoreDone(flowStatus);
-  const action = nextWorkerSetupAction(flowStatus);
+  const action = formatNextWorkerSetupAction(t, flowStatus);
   const progress = workerSetupProgress(flowStatus);
-  const warnings = workerSetupWarnings(flowStatus);
+  const warnings = formatWorkerSetupWarnings(t, flowStatus);
   const navSelected =
     activeStep === "all" ? resolveWorkerSetupCurrent(flowStatus) : activeStep;
   const [open, setOpen] = useState(!coreDone);
@@ -56,15 +61,19 @@ export function WorkerSetupFlow({
           />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold">部署流程</h2>
+              <h2 className="text-sm font-semibold">{t("worker.flow.title")}</h2>
               <span className="text-xs text-[var(--color-muted)]">
-                必做 {progress.coreDone}/{progress.coreTotal} · 总进度 {progress.totalDone}/
-                {progress.totalSteps}
+                {t("worker.flow.progress", {
+                  coreDone: progress.coreDone,
+                  coreTotal: progress.coreTotal,
+                  totalDone: progress.totalDone,
+                  totalSteps: progress.totalSteps,
+                })}
               </span>
             </div>
             {!open && (
               <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-muted)]">
-                {WORKER_SETUP_STEPS.map((step) => {
+                {steps.map((step) => {
                   const done = workerStepDone(step.id, flowStatus);
                   return (
                     <span
@@ -84,9 +93,7 @@ export function WorkerSetupFlow({
               </p>
             )}
             {open && (
-              <p className="mt-0.5 text-xs text-[var(--color-muted)]">
-                项目 → Vars → Secrets 为必做；GitHub CI 可选。支持本机 wrangler 部署或 push 自动构建。
-              </p>
+              <p className="mt-0.5 text-xs text-[var(--color-muted)]">{t("worker.flow.subtitle")}</p>
             )}
             <div
               className="mt-2 h-1.5 max-w-xs overflow-hidden rounded-full bg-[var(--color-panel-elevated)]"
@@ -105,8 +112,9 @@ export function WorkerSetupFlow({
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {coreDone && (
             <span className="rounded-full bg-emerald-950/50 px-2.5 py-0.5 text-xs text-emerald-400">
-              必做步骤已完成
-              {flowStatus.deployDone ? " · 已部署" : ""}
+              {flowStatus.deployDone
+                ? t("worker.flow.coreDoneDeployed")
+                : t("worker.flow.coreDone")}
             </span>
           )}
           <button
@@ -114,7 +122,7 @@ export function WorkerSetupFlow({
             onClick={() => setOpen((v) => !v)}
             className="rounded-lg px-2 py-1 text-xs text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]"
           >
-            {open ? "收起" : "展开"}
+            {open ? t("btn.common.collapse") : t("btn.common.expand")}
           </button>
         </div>
       </div>
@@ -128,13 +136,18 @@ export function WorkerSetupFlow({
               </Chip>
             )}
             <Chip variant={flowStatus.deployDone ? "on" : "off"}>
-              {flowStatus.deployDone ? "已部署" : "未部署"}
+              {flowStatus.deployDone
+                ? t("worker.status.deployed")
+                : t("worker.status.notDeployed")}
             </Chip>
             <Chip variant={flowStatus.ciDone ? "on" : "off"}>
-              GitHub CI {flowStatus.ciDone ? "已就绪" : "未配置"}
+              GitHub CI{" "}
+              {flowStatus.ciDone
+                ? t("worker.status.ciReady")
+                : t("worker.status.ciNotConfigured")}
             </Chip>
             {flowStatus.secretsLocalDone && !flowStatus.secretsProdDone && (
-              <Chip variant="warn">生产 Secret 待推送</Chip>
+              <Chip variant="warn">{t("worker.status.prodSecretsPending")}</Chip>
             )}
           </div>
 
@@ -152,7 +165,7 @@ export function WorkerSetupFlow({
                 onClick={() => onGoToStep(action.step)}
                 className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
               >
-                前往
+                {t("btn.common.goTo")}
               </button>
             </div>
           )}
@@ -166,9 +179,7 @@ export function WorkerSetupFlow({
           )}
 
           {!action && coreDone && flowStatus.deployDone && flowStatus.ciDone && (
-            <p className="text-xs text-emerald-400">
-              全部步骤已完成。Worker 已部署，GitHub CI 已配置。
-            </p>
+            <p className="text-xs text-emerald-400">{t("worker.flow.allDone")}</p>
           )}
         </div>
       )}

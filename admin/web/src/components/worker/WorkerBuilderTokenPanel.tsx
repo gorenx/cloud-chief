@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useLocale } from "@/contexts/LocaleContext";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { saveWorkerBuilderToken } from "@/lib/api";
@@ -16,12 +17,11 @@ export function WorkerBuilderTokenPanel({
 }: {
   adminToken: string;
   configured: boolean;
-  /** Token 无效时展示原因 */
   invalidMessage?: string;
-  /** 始终展开表单（由父级「重新配置 Token」触发） */
   forceOpen?: boolean;
   onSaved?: () => void;
 }) {
+  const { t, displayError } = useLocale();
   const qc = useQueryClient();
   const needsReconfigure = Boolean(invalidMessage);
   const [open, setOpen] = useState(!configured || needsReconfigure || Boolean(forceOpen));
@@ -31,7 +31,7 @@ export function WorkerBuilderTokenPanel({
   const saveMut = useMutation({
     mutationFn: async () => {
       const value = draft.trim();
-      if (!value) throw new Error("请填写 API Token");
+      if (!value) throw new Error(t("worker.builder.fillToken"));
       const r = await saveWorkerBuilderToken(adminToken, value);
       if (!r.ok) throw new Error(r.error);
       return r.data;
@@ -41,20 +41,18 @@ export function WorkerBuilderTokenPanel({
       setRevealed(false);
       setOpen(false);
       onSaved?.();
-      toast.success("已保存 CF_WORKER_BUILDER 到 admin/.env");
+      toast.success(t("worker.toast.builderSaved"));
       void qc.invalidateQueries({ queryKey: ["worker-builds"] });
     },
-    onError: (e) => toast.error(String(e)),
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
   if (!open && !forceOpen && !needsReconfigure) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm text-[var(--color-muted)]">
-          <code>CF_WORKER_BUILDER</code> 已配置
-        </p>
+        <p className="text-sm text-[var(--color-muted)]">{t("worker.builder.configured")}</p>
         <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-          更换 Token
+          {t("btn.worker.replaceToken")}
         </Button>
       </div>
     );
@@ -64,12 +62,13 @@ export function WorkerBuilderTokenPanel({
     <div className="space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel-elevated)]/40 p-4">
       {needsReconfigure && (
         <div className="rounded-lg border border-[var(--color-warn)]/40 bg-[var(--color-warn)]/10 px-3 py-2 text-sm text-[var(--color-warn)]">
-          <p className="font-medium">CF_WORKER_BUILDER 无效，请重新配置</p>
+          <p className="font-medium">{t("worker.builder.invalidTitle")}</p>
           {invalidMessage && <p className="mt-1 text-xs opacity-90">{invalidMessage}</p>}
         </div>
       )}
       <p className="text-sm text-[var(--color-muted)]">
-        {needsReconfigure ? "请重新填写" : "配置"} <code>CF_WORKER_BUILDER</code>：须在{" "}
+        {needsReconfigure ? t("worker.builder.reconfigure") : t("worker.builder.configure")}{" "}
+        <code>CF_WORKER_BUILDER</code>:{" "}
         <a
           href={CF_TOKEN_DOCS}
           target="_blank"
@@ -78,8 +77,7 @@ export function WorkerBuilderTokenPanel({
         >
           My Profile → API Tokens
         </a>{" "}
-        创建<strong>用户 Token</strong>（不要用 Account API Tokens）。权限：Account → Workers CI
-        Edit、Workers Scripts Read。保存前会自动校验。
+        {t("worker.builder.promptIntro")} {t("worker.builder.promptPermissions")}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Input
@@ -87,7 +85,7 @@ export function WorkerBuilderTokenPanel({
           type={revealed ? "text" : "password"}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="粘贴新的 Cloudflare API Token"
+          placeholder={t("worker.builder.tokenPlaceholder")}
           autoComplete="off"
         />
         <Button
@@ -96,18 +94,20 @@ export function WorkerBuilderTokenPanel({
           size="sm"
           className="shrink-0 px-2"
           onClick={() => setRevealed((v) => !v)}
-          aria-label={revealed ? "隐藏 Token" : "显示 Token"}
+          aria-label={revealed ? t("aria.hideToken") : t("aria.showToken")}
         >
-          {revealed ? "隐藏" : "显示"}
+          {revealed ? t("btn.common.hide") : t("btn.common.show")}
         </Button>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={saveMut.isPending} onClick={() => saveMut.mutate()}>
-          {needsReconfigure || forceOpen ? "重新保存" : "保存到 admin/.env"}
+          {needsReconfigure || forceOpen
+            ? t("btn.worker.resaveBuilder")
+            : t("btn.worker.saveBuilderEnv")}
         </Button>
         {configured && !needsReconfigure && !forceOpen && (
           <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-            取消
+            {t("btn.common.cancel")}
           </Button>
         )}
         <a
@@ -116,7 +116,7 @@ export function WorkerBuilderTokenPanel({
           rel="noreferrer"
           className="inline-flex items-center px-2 text-xs text-[var(--color-accent)] hover:underline"
         >
-          创建 API Token
+          {t("btn.worker.createApiToken")}
         </a>
       </div>
     </div>

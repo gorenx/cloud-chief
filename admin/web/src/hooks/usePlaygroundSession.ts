@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { fetchGatewayContext, fetchPublicConfig, fetchSupabaseStatus, startWorkerDev } from "@/lib/api";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
+import { useLocale } from "@/contexts/LocaleContext";
 import type { WorkerConfigSource } from "@/lib/playground-session";
 import { playgroundRouting } from "@/lib/routing";
 import {
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 
 export function usePlaygroundSession() {
   const { token } = useAdminToken();
+  const { t, displayError } = useLocale();
   const [callMode, setCallMode] = useState<CallMode>("gateway");
   const [workerConfigSource, setWorkerConfigSource] =
     useState<WorkerConfigSource>("worker");
@@ -72,8 +74,9 @@ export function usePlaygroundSession() {
       resolvePlaygroundDataView(
         deriveSessionFlags(callMode, workerConfigSource),
         pickFields(config?._meta),
+        t,
       ),
-    [callMode, workerConfigSource, config?._meta],
+    [callMode, workerConfigSource, config?._meta, t],
   );
 
   useEffect(() => {
@@ -91,7 +94,7 @@ export function usePlaygroundSession() {
 
   useEffect(() => {
     if (config && !config.worker.online_available) {
-      setWorkerTarget((t) => (t === "online" ? "local" : t));
+      setWorkerTarget((prev) => (prev === "online" ? "local" : prev));
     }
   }, [config?.worker.online_available]);
 
@@ -120,11 +123,11 @@ export function usePlaygroundSession() {
     },
     onSuccess: (data) => {
       toast.success(
-        data.already_running ? "本地 Worker 已在运行" : "本地 Worker 已启动（:8788）",
+        data.already_running ? t("playground.workerAlreadyRunning") : t("playground.workerStarted"),
       );
       void checkWorkerHealth();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(displayError(e.message)),
   });
 
   async function checkWorkerHealth() {

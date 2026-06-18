@@ -1,3 +1,4 @@
+import { useT } from "@/contexts/LocaleContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { WorkerVarRow } from "@/components/worker/WorkerVarRow";
 import { buildOnlineVarRows, type WorkerVarRow as WorkerVarRowState } from "@/lib/worker-config";
@@ -16,17 +17,18 @@ export function WorkerOnlineVarsCard({
   loading?: boolean;
   error?: string | null;
 }) {
+  const t = useT();
   const rows = script
     ? buildOnlineVarRows(script.vars, localVars, matched)
     : [];
 
   return (
     <Card>
-      <CardTitle desc="CF API plain_text 绑定（只读）">环境变量 · 线上</CardTitle>
-      {loading && <p className="text-sm text-[var(--color-muted)]">加载中…</p>}
+      <CardTitle desc={t("worker.card.varsOnline.desc")}>{t("worker.card.varsOnline.title")}</CardTitle>
+      {loading && <p className="text-sm text-[var(--color-muted)]">{t("common.loading")}</p>}
       {error && <p className="text-sm text-amber-300">{error}</p>}
       {!loading && !error && !script && (
-        <p className="text-sm text-[var(--color-muted)]">请选择已部署的 Worker</p>
+        <p className="text-sm text-[var(--color-muted)]">{t("worker.params.selectDeployed")}</p>
       )}
       {script && (
         <>
@@ -53,7 +55,7 @@ export function WorkerOnlineVarsCard({
               ))}
             </div>
           ) : (
-            <p className="text-xs text-[var(--color-muted)]">暂无环境变量</p>
+            <p className="text-xs text-[var(--color-muted)]">{t("worker.params.noVars")}</p>
           )}
         </>
       )}

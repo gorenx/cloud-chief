@@ -1,14 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
+import { useLocale } from "@/contexts/LocaleContext";
 import { fetchState, fetchGatewayContext, fetchWorkerStatus } from "@/lib/api";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { ModelDetailCard } from "@/components/ModelDetailCard";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
-import { Link } from "react-router-dom";
+import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 
 export function DashboardPage() {
   const { token } = useAdminToken();
+  const { t, displayError } = useLocale();
 
   const stateQ = useQuery({
     queryKey: ["state", token],
@@ -44,9 +46,9 @@ export function DashboardPage() {
   if (!token) {
     return (
       <div>
-        <h1 className="text-xl font-semibold">概览</h1>
-        <p className="mt-4 text-sm text-[var(--color-muted)]">
-          请先在 <Link to="/settings" className="text-[var(--color-accent)]">设置</Link> 中配置 admin 令牌。
+        <h1 className="text-xl font-semibold">{t("dashboard.title")}</h1>
+        <p className="mt-4">
+          <NoTokenPrompt suffixKey="dashboard.noTokenSuffix" />
         </p>
       </div>
     );
@@ -57,38 +59,42 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">概览</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">环境就绪状态与默认路由</p>
+        <h1 className="text-xl font-semibold">{t("dashboard.title")}</h1>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("dashboard.desc")}</p>
       </div>
 
       {stateQ.isError && (
-        <p className="text-sm text-[var(--color-err)]">{String(stateQ.error)}</p>
+        <p className="text-sm text-[var(--color-err)]">
+          {displayError(stateQ.error instanceof Error ? stateQ.error.message : String(stateQ.error))}
+        </p>
       )}
 
       {s && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <div className="text-xs text-[var(--color-muted)]">Cloudflare API</div>
+            <div className="text-xs text-[var(--color-muted)]">{t("dashboard.cfApi")}</div>
             <div className="mt-2">
               <Chip variant={s.has_api_token ? "on" : "off"}>
-                {s.has_api_token ? "Token 已配置" : "未配置 CF_API_TOKEN"}
+                {s.has_api_token ? t("dashboard.tokenConfigured") : t("dashboard.tokenMissing")}
               </Chip>
             </div>
           </Card>
           <Card>
-            <div className="text-xs text-[var(--color-muted)]">网关</div>
+            <div className="text-xs text-[var(--color-muted)]">{t("dashboard.gateways")}</div>
             <div className="mt-2 text-2xl font-semibold">{s.gateways.length}</div>
           </Card>
           <Card>
-            <div className="text-xs text-[var(--color-muted)]">自定义提供商</div>
+            <div className="text-xs text-[var(--color-muted)]">{t("dashboard.providers")}</div>
             <div className="mt-2 text-2xl font-semibold">{s.providers.length}</div>
           </Card>
           <Card>
-            <div className="text-xs text-[var(--color-muted)]">Wrangler</div>
+            <div className="text-xs text-[var(--color-muted)]">{t("dashboard.wrangler")}</div>
             <div className="mt-2">
               {workerQ.data ? (
                 <Chip variant={workerQ.data.logged_in ? "on" : "off"}>
-                  {workerQ.data.logged_in ? "已登录" : "未登录"}
+                  {workerQ.data.logged_in
+                    ? t("worker.status.loggedIn")
+                    : t("worker.status.notLoggedIn")}
                 </Chip>
               ) : (
                 <span className="text-sm text-[var(--color-muted)]">—</span>
@@ -100,7 +106,7 @@ export function DashboardPage() {
 
       {ctxQ.data && (
         <div>
-          <CardTitle>默认网关 · 大模型路由</CardTitle>
+          <CardTitle>{t("dashboard.defaultRouting")}</CardTitle>
           <div className="mt-3 max-w-xl">
             <ModelDetailCard
               modelId={ctxQ.data.routing.model}
@@ -110,8 +116,10 @@ export function DashboardPage() {
             />
           </div>
           <p className="mt-2 text-xs text-[var(--color-muted)]">
-            账号 <code className="mono">{s?.account_id}</code> · 默认网关{" "}
-            <code className="mono">{s?.defaults.gateway}</code>
+            {t("dashboard.accountDefault", {
+              account: s?.account_id ?? "",
+              gateway: s?.defaults.gateway ?? "",
+            })}
           </p>
         </div>
       )}

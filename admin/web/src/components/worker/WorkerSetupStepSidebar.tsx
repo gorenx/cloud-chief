@@ -1,10 +1,8 @@
+import { useMemo } from "react";
+import { useT } from "@/contexts/LocaleContext";
 import { Check, LayoutList } from "lucide-react";
-import {
-  WORKER_SETUP_STEPS,
-  workerStepDone,
-  type WorkerSetupStatus,
-  type WorkerSetupStep,
-} from "@/lib/worker-setup-flow";
+import { workerStepDone, type WorkerSetupStatus, type WorkerSetupStep } from "@/lib/worker-setup-flow";
+import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
 import { cn } from "@/lib/utils";
 
 export type WorkerViewMode = WorkerSetupStep | "all";
@@ -16,6 +14,7 @@ export function WorkerSetupShowAllButton({
   active: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -28,7 +27,7 @@ export function WorkerSetupShowAllButton({
       )}
     >
       <LayoutList className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      显示全部
+      {t("btn.worker.showAll")}
     </button>
   );
 }
@@ -42,9 +41,12 @@ export function WorkerSetupStepList({
   activeStep: WorkerViewMode;
   onSelect: (step: WorkerSetupStep) => void;
 }) {
+  const t = useT();
+  const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
+
   return (
-    <nav className="flex flex-col gap-0.5" aria-label="部署步骤">
-      {WORKER_SETUP_STEPS.map((step) => {
+    <nav className="flex flex-col gap-0.5" aria-label={t("aria.deploySteps")}>
+      {steps.map((step) => {
         const done = workerStepDone(step.id, status);
         const warn = step.id === "ci" && status.ciWarn && !done;
         const selected = activeStep === step.id;
@@ -82,7 +84,7 @@ export function WorkerSetupStepList({
             <span className="min-w-0 flex-1 truncate">
               {step.label}
               {step.optional && (
-                <span className="ml-1 font-normal opacity-60">可选</span>
+                <span className="ml-1 font-normal opacity-60">{t("worker.status.optionalTag")}</span>
               )}
             </span>
           </button>

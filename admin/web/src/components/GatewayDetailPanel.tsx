@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useT } from "@/contexts/LocaleContext";
 import type { GatewayContext, FieldMetaEntry } from "@/types";
 import { Card, CardTitle } from "./ui/Card";
 import { ModelDetailCard } from "./ModelDetailCard";
@@ -8,13 +9,14 @@ import { SourceBadge } from "./SourceBadge";
 import { Chip } from "./ui/Chip";
 
 export function RoutingWarnings({ ctx }: { ctx: GatewayContext }) {
+  const t = useT();
   const warnings: string[] = [];
   const g = ctx.gateway;
   const r = ctx.routing;
 
-  if (!g) warnings.push("无法从 Cloudflare 读取该网关详情");
-  if (g && !g.authentication) warnings.push("网关鉴权未开启 — BYOK 场景建议开启 authentication");
-  if (!r.provider) warnings.push("CF 上暂无已启用的自定义提供商");
+  if (!g) warnings.push(t("gatewayDetail.warnNoGateway"));
+  if (g && !g.authentication) warnings.push(t("gatewayDetail.warnAuthOff"));
+  if (!r.provider) warnings.push(t("gatewayDetail.warnNoProvider"));
 
   if (warnings.length === 0) return null;
 
@@ -28,50 +30,48 @@ export function RoutingWarnings({ ctx }: { ctx: GatewayContext }) {
 }
 
 export function GatewayStatusCard({ ctx }: { ctx: GatewayContext }) {
+  const t = useT();
   const g = ctx.gateway;
   const fields = ctx._meta?.fields ?? {};
   return (
     <Card className="p-4">
-      <CardTitle>网关状态</CardTitle>
+      <CardTitle>{t("gatewayDetail.statusTitle")}</CardTitle>
       {g ? (
         <div className="space-y-2 text-sm">
           <div className="flex flex-wrap items-center gap-2">
             <code className="mono">{g.id}</code>
             <SourceBadge meta={fields["gateway.id"]} />
-            {g.is_default && <Chip>default</Chip>}
+            {g.is_default && <Chip>{t("common.defaultLabel")}</Chip>}
           </div>
           <div className="flex flex-wrap gap-2">
             <Chip variant={g.authentication ? "on" : "off"}>
-              鉴权 {g.authentication ? "已开启" : "已关闭"}
+              {t("gatewayDetail.authLabel")} {g.authentication ? t("common.authOn") : t("common.authOff")}
             </Chip>
             <SourceBadge meta={fields["gateway.authentication"]} />
             <Chip variant={g.collect_logs ? "on" : "off"}>
-              日志 {g.collect_logs ? "on" : "off"}
+              {t("gatewayDetail.logsLabel")} {g.collect_logs ? t("common.onLabel") : t("common.offLabel")}
             </Chip>
             <SourceBadge meta={fields["gateway.collect_logs"]} />
           </div>
         </div>
       ) : (
-        <p className="text-sm text-[var(--color-err)]">网关不存在或无法读取</p>
+        <p className="text-sm text-[var(--color-err)]">{t("gatewayDetail.notFound")}</p>
       )}
     </Card>
   );
 }
 
 export function AdminTokenHintCard() {
+  const t = useT();
   return (
     <Card className="p-4">
-      <CardTitle desc="用于调用 /admin 管理接口，与网关 BYOK 上游密钥无关">
-        需要 Admin Token
-      </CardTitle>
+      <CardTitle desc={t("gatewayDetail.adminTokenDesc")}>{t("gatewayDetail.adminTokenTitle")}</CardTitle>
       <p className="text-xs text-[var(--color-muted)]">
-        在{" "}
+        {t("common.noTokenPrefix")}{" "}
         <Link to="/settings" className="text-[var(--color-accent)] hover:underline">
-          设置
+          {t("common.settingsLink")}
         </Link>{" "}
-        中配置后，方可从 Cloudflare 拉取下方网关状态与 BYOK 密钥列表。
-        另：本页 <code className="mono">POST /api/chat</code> 固定使用 admin/.env{" "}
-        <code className="mono">DASHSCOPE_API_KEY</code>，与 BYOK 无关。
+        {t("common.noTokenSuffix")}
       </p>
     </Card>
   );
@@ -86,19 +86,20 @@ export function ByokKeysCard({
   loading?: boolean;
   fieldMeta?: FieldMetaEntry;
 }) {
+  const t = useT();
   return (
     <Card className="p-4">
       <div className="mb-4 flex items-center gap-2">
-        <span className="text-sm font-semibold text-[var(--color-text)]">BYOK 密钥</span>
+        <span className="text-sm font-semibold text-[var(--color-text)]">{t("gatewayDetail.byokTitle")}</span>
         {fieldMeta && <SourceBadge meta={fieldMeta} />}
       </div>
       {loading ? (
-        <p className="text-sm text-[var(--color-muted)]">加载中…</p>
+        <p className="text-sm text-[var(--color-muted)]">{t("common.loading")}</p>
       ) : !ctx || ctx.keys.length === 0 ? (
         ctx?.gateway?.authentication ? (
-          <p className="text-xs text-amber-200">⚠ 该网关暂无 BYOK 密钥</p>
+          <p className="text-xs text-amber-200">⚠ {t("gatewayDetail.byokWarn")}</p>
         ) : (
-          <p className="text-sm text-[var(--color-muted)]">暂无密钥</p>
+          <p className="text-sm text-[var(--color-muted)]">{t("gatewayDetail.byokEmpty")}</p>
         )
       ) : (
         <ul className="space-y-2">
@@ -109,7 +110,7 @@ export function ByokKeysCard({
             >
               <code className="mono">{k.provider_slug}</code>
               <span className="text-[var(--color-muted)]">{k.alias}</span>
-              {k.default_config && <Chip variant="on">默认</Chip>}
+              {k.default_config && <Chip variant="on">{t("keys.defaultChip")}</Chip>}
               {k.secret_preview && (
                 <span className="text-xs text-[var(--color-muted)]">{k.secret_preview}</span>
               )}
@@ -122,10 +123,12 @@ export function ByokKeysCard({
 }
 
 export function GatewayDetailPanel({ ctx, loading }: { ctx: GatewayContext | null; loading?: boolean }) {
+  const t = useT();
+
   if (loading) {
     return (
       <Card>
-        <p className="text-sm text-[var(--color-muted)]">加载中…</p>
+        <p className="text-sm text-[var(--color-muted)]">{t("common.loading")}</p>
       </Card>
     );
   }
@@ -143,9 +146,9 @@ export function GatewayDetailPanel({ ctx, loading }: { ctx: GatewayContext | nul
 
       <Card>
         <RoutingSectionHeader
-          title="路由链"
+          title={t("gatewayDetail.routingTitle")}
           badge="CF"
-          desc="网关与提供商从 CF API 实时解析"
+          desc={t("gatewayDetail.routingDesc")}
           className="mb-4"
         />
         <RoutingFieldList

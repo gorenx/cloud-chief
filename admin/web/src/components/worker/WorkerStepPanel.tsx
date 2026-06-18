@@ -1,7 +1,9 @@
-import type { WorkerSetupStepDef } from "@/lib/worker-setup-flow";
+import type { LocalizedWorkerStep } from "@/i18n/worker-ui";
+import { useT } from "@/contexts/LocaleContext";
 import { cn } from "@/lib/utils";
 
-export function WorkerStepPanelHeader({ step }: { step: WorkerSetupStepDef }) {
+export function WorkerStepPanelHeader({ step }: { step: LocalizedWorkerStep }) {
+  const t = useT();
   return (
     <div className="flex min-w-0 items-center gap-3">
       <span
@@ -16,7 +18,9 @@ export function WorkerStepPanelHeader({ step }: { step: WorkerSetupStepDef }) {
         <h3 className="text-sm font-semibold leading-tight">
           {step.label}
           {step.optional && (
-            <span className="ml-2 text-xs font-normal text-[var(--color-muted)]">可选</span>
+            <span className="ml-2 text-xs font-normal text-[var(--color-muted)]">
+              {t("worker.status.optionalTag")}
+            </span>
           )}
         </h3>
         <p className="mt-1 text-xs leading-snug text-[var(--color-muted)]">{step.summary}</p>

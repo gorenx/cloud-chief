@@ -1,4 +1,6 @@
+import type { TranslateFn } from "../i18n";
 import type { PlaygroundSessionFlags } from "./playground-session";
+import { getPlaygroundSourceLabels } from "../i18n/playground-ui";
 
 export type FieldSource = "env" | "cf" | "wrangler" | "catalog" | "derived";
 
@@ -45,7 +47,10 @@ function pick(fields: PlaygroundFields, key: string, fallback: FieldMetaSlice): 
 export function resolvePlaygroundDataView(
   flags: PlaygroundSessionFlags,
   fields: PlaygroundFields,
+  t: TranslateFn,
 ): PlaygroundDataView {
+  const labels = getPlaygroundSourceLabels(t);
+
   if (flags.isWorker && flags.useWorkerToml) {
     const gateway = pick(fields, "worker_routing.gateway", FALLBACK.wrangler);
     const model = pick(fields, "worker_routing.default_model", FALLBACK.wrangler);
@@ -62,9 +67,9 @@ export function resolvePlaygroundDataView(
         supabaseUrl: fields["worker.supabase_url"],
       },
       summary: [
-        { label: "网关", meta: gateway },
-        { label: "模型", meta: model },
-        { label: "鉴权", meta: request },
+        { label: labels.gateway, meta: gateway },
+        { label: labels.model, meta: model },
+        { label: labels.auth, meta: request },
       ],
     };
   }
@@ -84,9 +89,9 @@ export function resolvePlaygroundDataView(
         supabaseUrl: fields["worker.supabase_url"],
       },
       summary: [
-        { label: "模型", meta: model },
-        { label: "路由(对照)", meta: pick(fields, "gateway", FALLBACK.cf) },
-        { label: "鉴权", meta: request },
+        { label: labels.model, meta: model },
+        { label: labels.routingCompare, meta: pick(fields, "gateway", FALLBACK.cf) },
+        { label: labels.auth, meta: request },
       ],
     };
   }
@@ -103,9 +108,9 @@ export function resolvePlaygroundDataView(
       request,
     },
     summary: [
-      { label: "模型", meta: model },
-      { label: "路由", meta: pick(fields, "gateway", FALLBACK.cf) },
-      { label: "鉴权", meta: request },
+      { label: labels.model, meta: model },
+      { label: labels.routing, meta: pick(fields, "gateway", FALLBACK.cf) },
+      { label: labels.auth, meta: request },
     ],
   };
 }

@@ -1,21 +1,23 @@
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
+import { useT } from "@/contexts/LocaleContext";
+import { emptyChatHint } from "@/i18n/playground-ui";
 import { PlaygroundRoutingSidebar } from "@/components/PlaygroundRoutingSidebar";
 import { PlaygroundToolbar } from "@/components/PlaygroundToolbar";
 import { Button } from "@/components/ui/Button";
 import { usePlaygroundChat } from "@/hooks/usePlaygroundChat";
 import { usePlaygroundSession } from "@/hooks/usePlaygroundSession";
-import { emptyChatHint } from "@/lib/playground-session";
 import { cn } from "@/lib/utils";
 
 export function PlaygroundPage() {
+  const t = useT();
   const chatRef = useRef<HTMLDivElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const session = usePlaygroundSession();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { messages, input, setInput, sending, send } = usePlaygroundChat(chatRef);
+  const { messages, input, setInput, sending, send, errorPrefixes } = usePlaygroundChat(chatRef);
 
   const {
     token,
@@ -57,16 +59,16 @@ export function PlaygroundPage() {
     const supabase = searchParams.get("supabase");
     if (!supabase) return;
     if (supabase === "connected") {
-      toast.success("步骤 1 完成：请选择项目 → 应用配置 → 填写测试账号");
+      toast.success(t("playground.toastSupabaseStep1"));
       void refetchConfig();
     } else if (supabase === "error") {
-      const reason = searchParams.get("reason") ?? "未知错误";
-      toast.error(`Supabase 授权失败：${reason}`);
+      const reason = searchParams.get("reason") ?? t("common.unknownError");
+      toast.error(t("playground.toastSupabaseError", { reason }));
     }
     searchParams.delete("supabase");
     searchParams.delete("reason");
     setSearchParams(searchParams, { replace: true });
-  }, [searchParams, setSearchParams, refetchConfig]);
+  }, [searchParams, setSearchParams, refetchConfig, t]);
 
   function handleSend() {
     void send({
@@ -113,7 +115,7 @@ export function PlaygroundPage() {
           <div ref={chatRef} className="flex-1 overflow-y-auto p-4">
             {messages.length === 0 ? (
               <p className="text-center text-sm text-[var(--color-muted)]">
-                {emptyChatHint(flags)}
+                {emptyChatHint(t, flags)}
               </p>
             ) : (
               <div className="mx-auto max-w-2xl space-y-4">
@@ -131,7 +133,8 @@ export function PlaygroundPage() {
                         msg.role === "user"
                           ? "bg-[var(--color-accent)]/20 text-[var(--color-text)]"
                           : "bg-[var(--color-bg)] text-[var(--color-text)]",
-                        msg.content.startsWith("请求失败") || msg.content.startsWith("错误")
+                        msg.content.startsWith(errorPrefixes.requestFailedPrefix) ||
+                          msg.content.startsWith(errorPrefixes.errorPrefix)
                           ? "text-red-300"
                           : "",
                       )}
@@ -155,11 +158,11 @@ export function PlaygroundPage() {
                   }
                 }}
                 rows={1}
-                placeholder="发送消息…（Enter 发送，Shift+Enter 换行）"
+                placeholder={t("playground.sendPlaceholder")}
                 className="flex-1 resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)]"
               />
               <Button disabled={sending || !input.trim()} onClick={handleSend}>
-                发送
+                {t("playground.send")}
               </Button>
             </div>
           </div>

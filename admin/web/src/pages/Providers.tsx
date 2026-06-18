@@ -2,16 +2,18 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
+import { useLocale } from "@/contexts/LocaleContext";
 import { adminFetch, fetchState } from "@/lib/api";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Chip } from "@/components/ui/Chip";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
-import { Link } from "react-router-dom";
+import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 
 export function ProvidersPage() {
   const { token } = useAdminToken();
+  const { t, displayError } = useLocale();
   const qc = useQueryClient();
   const [slug, setSlug] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
@@ -36,12 +38,12 @@ export function ProvidersPage() {
       if (!r.ok) throw new Error(r.error);
     },
     onSuccess: () => {
-      toast.success("提供商已保存");
+      toast.success(t("providers.toastSaved"));
       setSlug("");
       setBaseUrl("");
       void qc.invalidateQueries({ queryKey: ["state"] });
     },
-    onError: (e) => toast.error(String(e)),
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
   const delMut = useMutation({
@@ -50,18 +52,14 @@ export function ProvidersPage() {
       if (!r.ok) throw new Error(r.error);
     },
     onSuccess: () => {
-      toast.success("已删除");
+      toast.success(t("providers.toastDeleted"));
       void qc.invalidateQueries({ queryKey: ["state"] });
     },
-    onError: (e) => toast.error(String(e)),
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
   if (!token) {
-    return (
-      <p className="text-sm text-[var(--color-muted)]">
-        请先在 <Link to="/settings" className="text-[var(--color-accent)]">设置</Link> 配置令牌。
-      </p>
-    );
+    return <NoTokenPrompt />;
   }
 
   const list = stateQ.data?.providers ?? [];
@@ -76,26 +74,24 @@ export function ProvidersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">自定义提供商</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          第 2 步：注册上游（如阿里云 MaaS），slug 会出现在 URL 的 custom- 后面
-        </p>
+        <h1 className="text-xl font-semibold">{t("providers.title")}</h1>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("providers.desc")}</p>
       </div>
 
       <GatewaySetupFlow current="provider" collapsible />
 
       <Card>
-        <CardTitle>提供商列表</CardTitle>
+        <CardTitle>{t("providers.list")}</CardTitle>
         {list.length === 0 ? (
-          <p className="text-sm text-[var(--color-muted)]">暂无提供商</p>
+          <p className="text-sm text-[var(--color-muted)]">{t("providers.empty")}</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-muted)]">
                 <th className="pb-2">slug</th>
                 <th className="pb-2">base_url</th>
-                <th className="pb-2">启用</th>
-                <th className="pb-2">操作</th>
+                <th className="pb-2">{t("providers.enabled")}</th>
+                <th className="pb-2">{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -106,17 +102,21 @@ export function ProvidersPage() {
                   </td>
                   <td className="py-3 text-[var(--color-muted)]">{p.base_url}</td>
                   <td className="py-3">
-                    <Chip variant={p.enable ? "on" : "off"}>{p.enable ? "是" : "否"}</Chip>
+                    <Chip variant={p.enable ? "on" : "off"}>
+                      {p.enable ? t("common.yes") : t("common.no")}
+                    </Chip>
                   </td>
                   <td className="py-3">
                     <Button
                       variant="danger"
                       size="sm"
                       onClick={() => {
-                        if (confirm(`确认删除提供商 ${p.slug}？`)) delMut.mutate(p.id);
+                        if (confirm(t("providers.confirmDelete", { slug: p.slug }))) {
+                          delMut.mutate(p.id);
+                        }
                       }}
                     >
-                      删除
+                      {t("common.delete")}
                     </Button>
                   </td>
                 </tr>
@@ -127,10 +127,8 @@ export function ProvidersPage() {
       </Card>
 
       <Card>
-        <CardTitle>创建 / 更新</CardTitle>
-        <p className="mb-3 text-xs text-[var(--color-muted)]">
-          base_url 只填根域名，不带路径
-        </p>
+        <CardTitle>{t("providers.createTitle")}</CardTitle>
+        <p className="mb-3 text-xs text-[var(--color-muted)]">{t("providers.baseUrlHint")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs text-[var(--color-muted)]">slug</label>
@@ -150,7 +148,7 @@ export function ProvidersPage() {
           disabled={!slug.trim() || !baseUrl.trim() || saveMut.isPending}
           onClick={() => saveMut.mutate()}
         >
-          创建 / 更新
+          {t("common.createUpdate")}
         </Button>
       </Card>
     </div>

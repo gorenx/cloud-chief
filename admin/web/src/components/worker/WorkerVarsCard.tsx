@@ -1,4 +1,5 @@
 import type { UseMutationResult } from "@tanstack/react-query";
+import { useT } from "@/contexts/LocaleContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { WorkerVarRow } from "@/components/worker/WorkerVarRow";
@@ -15,9 +16,10 @@ export function WorkerVarsCard({
   onSave: () => void;
   save: UseMutationResult<void, Error, void, unknown>;
 }) {
+  const t = useT();
   return (
     <Card>
-      <CardTitle desc="wrangler.toml [vars]">环境变量 · 本地</CardTitle>
+      <CardTitle desc={t("worker.card.varsLocal.desc")}>{t("worker.card.varsLocal.title")}</CardTitle>
       <div className="space-y-2">
         {vars.map((row, i) => (
           <WorkerVarRow
@@ -39,10 +41,10 @@ export function WorkerVarsCard({
           size="sm"
           onClick={() => onChange([...vars, { k: "", v: "" }])}
         >
-          + 添加变量
+          {t("btn.worker.addVar")}
         </Button>
         <Button variant="ghost" size="sm" onClick={onSave} disabled={save.isPending}>
-          保存变量
+          {t("btn.worker.saveVars")}
         </Button>
       </div>
     </Card>

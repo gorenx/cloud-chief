@@ -1,4 +1,5 @@
 import type { FieldMetaEntry } from "@/types";
+import { useT } from "@/contexts/LocaleContext";
 import { SourceBadge } from "./SourceBadge";
 import { Button } from "./ui/Button";
 import { cn } from "@/lib/utils";
@@ -22,13 +23,15 @@ export function WorkerChatNotice({
   healthResult: string | null;
   hasAdminToken?: boolean;
 }) {
+  const t = useT();
+
   return (
     <div className="min-w-0 space-y-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
       <div>
         <p className="text-[10px] text-[var(--color-muted)]">
-          目标：
+          {t("playground.target")}
           <span className="text-[var(--color-text)]">
-            {workerTarget === "local" ? "本地 Worker（:8788）" : "线上 Worker（workers.dev）"}
+            {workerTarget === "local" ? t("playground.localWorker") : t("playground.onlineWorker")}
           </span>
         </p>
         <div className="relative mt-1 min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
@@ -43,19 +46,17 @@ export function WorkerChatNotice({
           )}
         </div>
         {workerTarget === "local" && (
-          <p className="mt-1 text-[10px] text-[var(--color-muted)]">
-            本地需在 <code className="mono">worker/</code> 运行 wrangler dev；顶栏可启动或切换「线上 Worker」。
-          </p>
+          <p className="mt-1 text-[10px] text-[var(--color-muted)]">{t("playground.localDevHint")}</p>
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" disabled={healthChecking} onClick={onHealthCheck}>
-          {healthChecking ? "检查中…" : "GET /health"}
+          {healthChecking ? t("playground.checking") : t("playground.healthCheck")}
         </Button>
         {healthResult && <span className="text-xs text-[var(--color-muted)]">{healthResult}</span>}
       </div>
       {workerTarget === "local" && !hasAdminToken && (
-        <p className="text-[10px] text-amber-200">配置 ADMIN_TOKEN 后可在顶栏一键启动本地 Worker。</p>
+        <p className="text-[10px] text-amber-200">{t("playground.adminTokenHint")}</p>
       )}
     </div>
   );

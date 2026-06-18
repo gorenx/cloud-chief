@@ -7,6 +7,10 @@ import {
   type PlaygroundConfigSlice,
 } from "../web/src/lib/playground-session";
 import { resolvePlaygroundDataView } from "../web/src/lib/playground-sources";
+import { translate } from "../web/src/i18n";
+
+const t = (key: Parameters<typeof translate>[1], vars?: Parameters<typeof translate>[2]) =>
+  translate("zh", key, vars);
 
 const baseConfig: PlaygroundConfigSlice = {
   model: "qwen-plus",
@@ -28,6 +32,7 @@ describe("resolvePlaygroundDataView", () => {
     const view = resolvePlaygroundDataView(
       { isWorker: true, useWorkerToml: true, modelLocked: true, gatewayLocked: true },
       FIELDS,
+      t,
     );
     expect(view.routingSection).toBe("worker");
     expect(view.controls.model.source).toBe("wrangler");
@@ -39,6 +44,7 @@ describe("resolvePlaygroundDataView", () => {
     const view = resolvePlaygroundDataView(
       { isWorker: false, useWorkerToml: false, modelLocked: false, gatewayLocked: false },
       FIELDS,
+      t,
     );
     expect(view.controls.request.source).toBe("env");
     expect(view.controls.gateway?.source).toBe("cf");

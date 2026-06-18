@@ -7,9 +7,10 @@ import type {
   WorkerStatus,
   WorkerBuildsStatus,
 } from "@/types";
+import type { ApiI18nError } from "@/i18n/api-error";
 
 export function errText(j: unknown): string {
-  if (!j) return "未知错误";
+  if (!j) return "common.unknownError" satisfies ApiI18nError;
   if (typeof j === "object" && j !== null) {
     const o = j as Record<string, unknown>;
     if (typeof o.error === "string") return o.error;
@@ -73,7 +74,7 @@ export async function fetchGatewayContext(token: string, id: string) {
 export async function fetchPublicConfig() {
   const res = await fetch("/config");
   const j = await parseJson<PublicConfig>(res);
-  if (!res.ok || !j) return { ok: false as const, status: res.status, error: "无法读取配置" };
+  if (!res.ok || !j) return { ok: false as const, status: res.status, error: "common.configReadError" };
   return { ok: true as const, data: j };
 }
 

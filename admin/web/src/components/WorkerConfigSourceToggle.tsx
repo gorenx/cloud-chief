@@ -1,3 +1,4 @@
+import { useT } from "@/contexts/LocaleContext";
 import { cn } from "@/lib/utils";
 import type { WorkerConfigSource } from "@/lib/playground-session";
 
@@ -8,6 +9,8 @@ export function WorkerConfigSourceToggle({
   value: WorkerConfigSource;
   onChange: (v: WorkerConfigSource) => void;
 }) {
+  const t = useT();
+
   return (
     <div className="flex w-fit justify-self-start rounded-lg border border-[var(--color-border)] p-0.5">
       <button
@@ -20,7 +23,7 @@ export function WorkerConfigSourceToggle({
         )}
         onClick={() => onChange("worker")}
       >
-        Worker 配置
+        {t("playground.workerConfig")}
       </button>
       <button
         type="button"
@@ -32,7 +35,7 @@ export function WorkerConfigSourceToggle({
         )}
         onClick={() => onChange("ui")}
       >
-        调试界面
+        {t("playground.debugUi")}
       </button>
     </div>
   );

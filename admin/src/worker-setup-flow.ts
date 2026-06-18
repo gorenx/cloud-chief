@@ -254,18 +254,37 @@ export function workerStepMeta(step: WorkerSetupStep, status: WorkerSetupStatus)
   return "尚未部署到 Cloudflare";
 }
 
-export function workerSetupWarnings(status: WorkerSetupStatus): string[] {
-  const warnings: string[] = [];
+export function workerSetupWarningKeys(status: WorkerSetupStatus): WorkerSetupWarningKey[] {
+  const keys: WorkerSetupWarningKey[] = [];
   if (status.nameMismatch) {
-    warnings.push("wrangler.toml 与 Cloudflare CI 绑定的 Worker 名称不一致");
+    keys.push("nameMismatch");
   }
   if (status.secretsLocalDone && !status.secretsProdDone && status.missingProdSecrets.length > 0) {
-    warnings.push(`生产 Secret 待推送：${status.missingProdSecrets.join("、")}`);
+    keys.push("prodSecretsPending");
   }
   if (status.deployDone && !status.ciDone) {
-    warnings.push("可选：配置 GitHub CI 后，push worker/ 变更可自动构建部署");
+    keys.push("ciOptional");
   }
-  return warnings;
+  return keys;
+}
+
+export type WorkerSetupWarningKey = "nameMismatch" | "prodSecretsPending" | "ciOptional";
+
+export function nextWorkerSetupStep(status: WorkerSetupStatus): WorkerSetupStep | null {
+  if (!status.projectDone) return "project";
+  if (!status.varsDone) return "vars";
+  if (!status.secretsLocalDone) return "secrets";
+  if (!status.deployDone) return "deploy";
+  if (!status.ciDone) return "ci";
+  return null;
+}
+
+/** @deprecated Use nextWorkerSetupStep — kept for tests */
+export function nextWorkerSetupAction(
+  status: WorkerSetupStatus,
+): { step: WorkerSetupStep } | null {
+  const step = nextWorkerSetupStep(status);
+  return step ? { step } : null;
 }
 
 export function resolveWorkerSetupCurrent(status: WorkerSetupStatus): WorkerSetupStep {
@@ -274,25 +293,4 @@ export function resolveWorkerSetupCurrent(status: WorkerSetupStatus): WorkerSetu
   if (!status.secretsLocalDone) return "secrets";
   if (!status.deployDone) return "deploy";
   return "deploy";
-}
-
-export function nextWorkerSetupAction(
-  status: WorkerSetupStatus,
-): { text: string; step: WorkerSetupStep } | null {
-  if (!status.projectDone) {
-    return { text: "下一步：选择 Worker 项目", step: "project" };
-  }
-  if (!status.varsDone) {
-    return { text: "下一步：配置 Vars", step: "vars" };
-  }
-  if (!status.secretsLocalDone) {
-    return { text: "下一步：填写 Secrets", step: "secrets" };
-  }
-  if (!status.deployDone) {
-    return { text: "下一步：部署 Worker", step: "deploy" };
-  }
-  if (!status.ciDone) {
-    return { text: "可选：配置 GitHub CI 实现 push 自动部署", step: "ci" };
-  }
-  return null;
 }

@@ -1,3 +1,4 @@
+import { useT } from "@/contexts/LocaleContext";
 import { Chip } from "@/components/ui/Chip";
 
 export interface WorkerSecretSummary {
@@ -8,10 +9,10 @@ export interface WorkerSecretSummary {
 
 export function WorkerParamsSummary({
   vars = {},
-  varsLabel = "环境变量",
+  varsLabel,
   compareVars,
   secrets,
-  secretsLabel = "Secrets",
+  secretsLabel,
   runtime,
 }: {
   vars?: Record<string, string>;
@@ -21,6 +22,10 @@ export function WorkerParamsSummary({
   secretsLabel?: string;
   runtime?: Array<{ label: string; value: string }>;
 }) {
+  const t = useT();
+  const resolvedVarsLabel = varsLabel ?? t("worker.params.vars");
+  const resolvedSecretsLabel = secretsLabel ?? t("worker.params.secrets");
+
   const varEntries = Object.entries(vars).sort(([a], [b]) => a.localeCompare(b));
   const allVarKeys = compareVars
     ? [...new Set([...Object.keys(vars), ...Object.keys(compareVars)])].sort()
@@ -31,7 +36,7 @@ export function WorkerParamsSummary({
       {runtime && runtime.length > 0 && (
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-            运行配置
+            {t("worker.params.runtime")}
           </p>
           <ul className="mt-2 space-y-1">
             {runtime.map(({ label, value }) => (
@@ -50,7 +55,7 @@ export function WorkerParamsSummary({
       {(allVarKeys.length > 0 || varEntries.length > 0) && (
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-            {varsLabel}（{allVarKeys.length || varEntries.length}）
+            {resolvedVarsLabel}（{allVarKeys.length || varEntries.length}）
           </p>
           <ul className="mt-2 space-y-1">
             {(compareVars ? allVarKeys : varEntries.map(([k]) => k)).map((key) => {
@@ -74,9 +79,9 @@ export function WorkerParamsSummary({
                   <span className="mono min-w-0 flex-1 break-all text-[var(--color-text)]">
                     {value ?? <span className="text-[var(--color-muted)]">—</span>}
                   </span>
-                  {missing && <Chip variant="warn">仅本地</Chip>}
-                  {extra && <Chip variant="warn">仅线上</Chip>}
-                  {diff && <Chip variant="warn">值不一致</Chip>}
+                  {missing && <Chip variant="warn">{t("worker.params.localOnly")}</Chip>}
+                  {extra && <Chip variant="warn">{t("worker.params.onlineOnly")}</Chip>}
+                  {diff && <Chip variant="warn">{t("worker.params.valueMismatch")}</Chip>}
                 </li>
               );
             })}
@@ -87,7 +92,7 @@ export function WorkerParamsSummary({
       {secrets && secrets.length > 0 && (
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-            {secretsLabel}（{secrets.length}）
+            {resolvedSecretsLabel}（{secrets.length}）
           </p>
           <ul className="mt-2 space-y-1">
             {secrets.map((s) => (
@@ -98,13 +103,15 @@ export function WorkerParamsSummary({
                 <code className="mono font-medium text-[var(--color-text)]">{s.name}</code>
                 <span className="text-[var(--color-muted)]">••••••</span>
                 {s.optional && (
-                  <span className="text-[11px] text-[var(--color-muted)]">(可选)</span>
+                  <span className="text-[11px] text-[var(--color-muted)]">
+                    ({t("common.optional")})
+                  </span>
                 )}
                 <span className="ml-auto flex gap-1">
-                  {s.configured === true && <Chip variant="on">生产 ✓</Chip>}
-                  {s.configured === false && <Chip variant="off">生产 ✗</Chip>}
+                  {s.configured === true && <Chip variant="on">{t("worker.params.prodYes")}</Chip>}
+                  {s.configured === false && <Chip variant="off">{t("worker.params.prodNo")}</Chip>}
                   {s.configured === undefined && (
-                    <Chip variant="default">已绑定</Chip>
+                    <Chip variant="default">{t("worker.params.bound")}</Chip>
                   )}
                 </span>
               </li>
@@ -114,7 +121,7 @@ export function WorkerParamsSummary({
       )}
 
       {varEntries.length === 0 && (!secrets || secrets.length === 0) && !runtime?.length && (
-        <p className="text-xs text-[var(--color-muted)]">暂无参数配置</p>
+        <p className="text-xs text-[var(--color-muted)]">{t("worker.params.noParams")}</p>
       )}
     </div>
   );

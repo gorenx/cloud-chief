@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useLocale } from "@/contexts/LocaleContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
@@ -10,7 +11,8 @@ import {
   syncWorkerBuildsConfig,
   triggerWorkerBuild,
 } from "@/lib/api";
-import { shouldShowBuilderReconfigure, WORKER_CI_HINTS } from "@/lib/worker-builds";
+import { shouldShowBuilderReconfigure } from "@/lib/worker-builds";
+import { getWorkerCiHints, joinList } from "@/i18n/worker-ui";
 import { WorkerBuilderTokenPanel } from "@/components/worker/WorkerBuilderTokenPanel";
 import type { BuildTriggerInfo, WorkerBuildsStatus } from "@/types";
 
@@ -23,6 +25,8 @@ export function WorkerCiCard({
   workerDir: string;
   wranglerName: string | null;
 }) {
+  const { t, displayError } = useLocale();
+  const hints = useMemo(() => getWorkerCiHints(t), [t]);
   const qc = useQueryClient();
   const [reconfigureOpen, setReconfigureOpen] = useState(false);
 
@@ -43,11 +47,13 @@ export function WorkerCiCard({
       return r.data;
     },
     onSuccess: (data) => {
-      toast.success(`已同步 Builds 配置：${data.updated.join("、")}`);
+      toast.success(
+        t("worker.toast.syncBuilds", { fields: joinList(t, data.updated) }),
+      );
       void qc.invalidateQueries({ queryKey: ["worker-builds"] });
     },
     onError: (e) => {
-      toast.error(String(e));
+      toast.error(displayError(e instanceof Error ? e.message : String(e)));
       if (/invalid token|authentication error|鉴权失败/i.test(String(e))) {
         setReconfigureOpen(true);
         void qc.invalidateQueries({ queryKey: ["worker-builds"] });
@@ -62,11 +68,11 @@ export function WorkerCiCard({
       return r.data;
     },
     onSuccess: (data) => {
-      toast.success(`已触发构建（${data.trigger_name}）`);
+      toast.success(t("worker.toast.triggerBuild", { name: data.trigger_name }));
       void qc.invalidateQueries({ queryKey: ["worker-builds"] });
     },
     onError: (e) => {
-      toast.error(String(e));
+      toast.error(displayError(e instanceof Error ? e.message : String(e)));
       if (/invalid token|authentication error|鉴权失败/i.test(String(e))) {
         setReconfigureOpen(true);
         void qc.invalidateQueries({ queryKey: ["worker-builds"] });
@@ -75,7 +81,7 @@ export function WorkerCiCard({
   });
 
   const status = buildsQ.data;
-  const connected = Boolean(status?.triggers.some((t) => t.repo?.repo_name));
+  const connected = Boolean(status?.triggers.some((tr) => tr.repo?.repo_name));
   const showReconfigure =
     reconfigureOpen || Boolean(status && shouldShowBuilderReconfigure(status));
   const tokenInvalid = Boolean(
@@ -85,31 +91,35 @@ export function WorkerCiCard({
   return (
     <Card>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <CardTitle desc="Cloudflare Workers Builds · 推送 GitHub 自动部署">
+        <CardTitle desc={t("worker.card.ci.desc")}>
           <span className="inline-flex items-center gap-1.5">
-            GitHub / CI 构建
-            <Hint content={WORKER_CI_HINTS.section} />
+            {t("worker.card.ci.title")}
+            <Hint content={hints.section} />
           </span>
         </CardTitle>
         <div className="flex flex-wrap gap-2">
-          <Hint content={WORKER_CI_HINTS.reconfigureToken}>
+          <Hint content={hints.reconfigureToken}>
             <Button variant="ghost" size="sm" onClick={() => setReconfigureOpen(true)}>
-              重新配置 Token
+              {t("btn.worker.reconfigureToken")}
             </Button>
           </Hint>
-          <Hint content={WORKER_CI_HINTS.refresh}>
+          <Hint content={hints.refresh}>
             <Button variant="ghost" size="sm" onClick={() => void buildsQ.refetch()}>
-              刷新
+              {t("btn.common.refresh")}
             </Button>
           </Hint>
         </div>
       </div>
 
       {buildsQ.isLoading && (
-        <p className="text-sm text-[var(--color-muted)]">正在读取 Builds 状态…</p>
+        <p className="text-sm text-[var(--color-muted)]">{t("worker.ci.loading")}</p>
       )}
       {buildsQ.isError && (
-        <p className="text-sm text-[var(--color-warn)]">{String(buildsQ.error)}</p>
+        <p className="text-sm text-[var(--color-warn)]">
+          {displayError(
+            buildsQ.error instanceof Error ? buildsQ.error.message : String(buildsQ.error),
+          )}
+        </p>
       )}
 
       {showReconfigure && (
@@ -139,43 +149,39 @@ export function WorkerCiCard({
 
       <div className="mt-4 flex flex-wrap gap-2">
         {status?.dashboard_builds_url && (
-          <Hint content={WORKER_CI_HINTS.connectGithub}>
+          <Hint content={hints.connectGithub}>
             <a
               href={status.dashboard_builds_url}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-1.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-panel-elevated)]"
             >
-              在 Cloudflare 连接 GitHub
+              {t("btn.worker.connectGithub")}
             </a>
           </Hint>
         )}
-        <Hint content={WORKER_CI_HINTS.syncMonorepo}>
+        <Hint content={hints.syncMonorepo}>
           <Button
             variant="ghost"
             size="sm"
             disabled={!status?.ok || tokenInvalid || syncMut.isPending}
             onClick={() => syncMut.mutate()}
           >
-            应用 monorepo 配置
+            {t("btn.worker.syncMonorepo")}
           </Button>
         </Hint>
-        <Hint content={WORKER_CI_HINTS.triggerBuild}>
+        <Hint content={hints.triggerBuild}>
           <Button
             size="sm"
             disabled={!status?.ok || tokenInvalid || !connected || triggerMut.isPending}
             onClick={() => triggerMut.mutate()}
           >
-            触发 CI 构建
+            {t("btn.worker.triggerCi")}
           </Button>
         </Hint>
       </div>
 
-      <p className="mt-3 text-xs text-[var(--color-muted)]">
-        CI 使用 <code className="text-[11px]">CF_WORKER_BUILDER</code>（与 wrangler 用的{" "}
-        <code className="text-[11px]">CLOUDFLARE_API_TOKEN</code> 分开）。首次连接 GitHub 须在
-        Cloudflare Dashboard 完成 OAuth。
-      </p>
+      <p className="mt-3 text-xs text-[var(--color-muted)]">{t("worker.ci.tokenNote")}</p>
     </Card>
   );
 }
@@ -191,6 +197,8 @@ function BuildsBody({
   wranglerName: string | null;
   compact?: boolean;
 }) {
+  const t = useLocale().t;
+
   if (!status.ok) {
     return <p className="text-sm text-[var(--color-warn)]">{status.error}</p>;
   }
@@ -199,38 +207,41 @@ function BuildsBody({
     <div className={`space-y-4 text-sm ${compact ? "mt-4" : ""}`}>
       <div className="flex flex-wrap items-center gap-2">
         <Chip variant={connected ? "on" : "off"}>
-          GitHub {connected ? "已连接" : "未连接"}
+          GitHub{" "}
+          {connected ? t("worker.status.githubConnected") : t("worker.status.githubNotConnected")}
         </Chip>
         {status.cf_script_name && (
           <span className="text-[var(--color-muted)]">
-            CF Worker：<code>{status.cf_script_name}</code>
+            {t("worker.ci.cfWorker")}
+            <code>{status.cf_script_name}</code>
           </span>
         )}
       </div>
 
       {status.name_mismatch && wranglerName && (
         <p className="rounded-lg border border-[var(--color-warn)]/40 bg-[var(--color-warn)]/10 px-3 py-2 text-[var(--color-warn)]">
-          名称不一致：wrangler.toml 为 <code>{wranglerName}</code>，Cloudflare CI 绑定为{" "}
-          <code>{status.cf_script_name}</code>。请在 Dashboard 重命名 Worker 或改回 wrangler
-          名称，否则 CI 会覆盖部署名。
+          {t("worker.ci.nameMismatch", {
+            wrangler: wranglerName,
+            cf: status.cf_script_name ?? "",
+          })}
         </p>
       )}
 
       {status.triggers.length === 0 ? (
-        <p className="text-[var(--color-muted)]">
-          尚无 Builds trigger。点击「在 Cloudflare 连接 GitHub」完成仓库授权与首次配置。
-        </p>
+        <p className="text-[var(--color-muted)]">{t("worker.ci.noTriggers")}</p>
       ) : (
         <div className="space-y-3">
-          {status.triggers.map((t) => (
-            <TriggerBlock key={t.trigger_uuid} trigger={t} />
+          {status.triggers.map((tr) => (
+            <TriggerBlock key={tr.trigger_uuid} trigger={tr} />
           ))}
         </div>
       )}
 
       {status.recent_builds.length > 0 && (
         <div>
-          <p className="mb-2 text-xs font-medium text-[var(--color-muted)]">最近构建</p>
+          <p className="mb-2 text-xs font-medium text-[var(--color-muted)]">
+            {t("worker.ci.recentBuilds")}
+          </p>
           <ul className="space-y-1 text-xs text-[var(--color-muted)]">
             {status.recent_builds.map((b) => (
               <li key={b.build_uuid} className="font-mono">
@@ -246,6 +257,7 @@ function BuildsBody({
 }
 
 function TriggerBlock({ trigger }: { trigger: BuildTriggerInfo }) {
+  const t = useLocale().t;
   const repo = trigger.repo?.repo_name;
   const owner = trigger.repo?.provider_account_name;
   return (
@@ -253,30 +265,37 @@ function TriggerBlock({ trigger }: { trigger: BuildTriggerInfo }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{trigger.trigger_name}</span>
         <Chip variant={trigger.is_preview ? "off" : "on"}>
-          {trigger.is_preview ? "预览" : "生产"}
+          {trigger.is_preview ? t("worker.status.preview") : t("worker.status.production")}
         </Chip>
       </div>
       <dl className="mt-2 grid gap-1 text-xs text-[var(--color-muted)]">
         {repo && (
           <div>
-            仓库：{owner ? `${owner}/` : ""}
+            {t("worker.ci.repo")}
+            {owner ? `${owner}/` : ""}
             <code>{repo}</code>
           </div>
         )}
         <div>
-          分支：{trigger.branch_includes.join(", ") || "—"}
-          {trigger.branch_excludes.length > 0 && `（排除 ${trigger.branch_excludes.join(", ")}）`}
+          {t("worker.ci.branch")}
+          {trigger.branch_includes.join(", ") || "—"}
+          {trigger.branch_excludes.length > 0 &&
+            t("worker.ci.branchExclude", { branches: trigger.branch_excludes.join(", ") })}
         </div>
         <div>
-          Root：<code>{trigger.root_directory || "—"}</code> · Build：{" "}
+          {t("worker.ci.root")}
+          <code>{trigger.root_directory || "—"}</code> · {t("worker.ci.build")}
           <code>{trigger.build_command || "—"}</code>
         </div>
         <div>
-          Deploy：<code>{trigger.deploy_command || "—"}</code>
+          {t("worker.ci.deploy")}
+          <code>{trigger.deploy_command || "—"}</code>
         </div>
         <div>
-          Watch paths：include {trigger.path_includes.join(", ") || "—"}
-          {trigger.path_excludes.length > 0 && ` · exclude ${trigger.path_excludes.join(", ")}`}
+          {t("worker.ci.watchPaths")}
+          {trigger.path_includes.join(", ") || "—"}
+          {trigger.path_excludes.length > 0 &&
+            `${t("worker.ci.watchExclude")}${trigger.path_excludes.join(", ")}`}
         </div>
       </dl>
     </div>

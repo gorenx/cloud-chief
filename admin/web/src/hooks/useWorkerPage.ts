@@ -15,9 +15,11 @@ import {
   type WorkerVarRow,
 } from "@/lib/worker-config";
 import { useSSEStream } from "@/hooks/useSSEStream";
+import { useLocale } from "@/contexts/LocaleContext";
 import type { WorkerStatus } from "@/types";
 
 export function useWorkerPage(token: string) {
+  const { t, displayError } = useLocale();
   const qc = useQueryClient();
   const [workerDir, setWorkerDir] = useState("");
   const [vars, setVars] = useState<WorkerVarRow[]>([{ k: "", v: "" }]);
@@ -76,39 +78,39 @@ export function useWorkerPage(token: string) {
 
   const varsSave = useMutation({
     mutationFn: async () => {
-      const obj = buildVarsObject(vars);
+      const obj = buildVarsObject(vars, t);
       const r = await adminFetch(token, "PUT", `/admin/worker/config${wq}`, { vars: obj });
       if (!r.ok) throw new Error(r.error);
     },
     onSuccess: () => {
-      toast.success("已写入 wrangler.toml");
+      toast.success(t("worker.toast.varsSaved"));
       void qc.invalidateQueries({ queryKey: ["worker-status"] });
     },
-    onError: (e) => toast.error(String(e)),
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
   const devVarsSave = useMutation({
     mutationFn: async () => {
-      const obj = collectWorkerSecrets(secrets);
-      if (!obj || Object.keys(obj).length === 0) throw new Error("没有填写任何 secret 值");
+      const obj = collectWorkerSecrets(secrets, t);
+      if (!obj || Object.keys(obj).length === 0) throw new Error(t("worker.toast.noSecretValues"));
       const r = await adminFetch(token, "PUT", `/admin/worker/devvars${wq}`, { secrets: obj });
       if (!r.ok) throw new Error(r.error);
     },
-    onSuccess: () => toast.success("已写入本地 .dev.vars"),
-    onError: (e) => toast.error(String(e)),
+    onSuccess: () => toast.success(t("worker.toast.devVarsSaved")),
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
   const secretsPush = useMutation({
     mutationFn: async () => {
-      const obj = collectWorkerSecrets(secrets);
-      if (!obj || Object.keys(obj).length === 0) throw new Error("没有填写任何 secret 值");
+      const obj = collectWorkerSecrets(secrets, t);
+      if (!obj || Object.keys(obj).length === 0) throw new Error(t("worker.toast.noSecretValues"));
       for (const [name, value] of Object.entries(obj)) {
         const r = await adminFetch(token, "POST", `/admin/worker/secret${wq}`, { name, value });
-        if (!r.ok) throw new Error(`推送 ${name} 失败: ${r.error}`);
+        if (!r.ok) throw new Error(t("worker.toast.pushFailed", { name, error: r.error }));
       }
     },
-    onSuccess: () => toast.success("已推送到生产"),
-    onError: (e) => toast.error(String(e)),
+    onSuccess: () => toast.success(t("worker.toast.secretsPushed")),
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
   function refreshLists() {
@@ -128,7 +130,9 @@ export function useWorkerPage(token: string) {
       headers: { Authorization: `Bearer ${token}` },
       onEvent: (e) => {
         if (e.event === "done") {
-          toast.success(e.data === "0" ? "部署成功" : `退出码 ${e.data}`);
+          toast.success(
+            e.data === "0" ? t("worker.toast.deploySuccess") : t("worker.toast.deployExit", { code: e.data }),
+          );
           refreshStatus();
         }
         if (e.event === "error") toast.error(e.data);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocale } from "@/contexts/LocaleContext";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { Input } from "@/components/ui/Input";
@@ -22,6 +23,7 @@ export function WorkerSecretRow({
   onChange: (name: string, value: string) => void;
   onRemove?: () => void;
 }) {
+  const { t } = useLocale();
   const [revealed, setRevealed] = useState(Boolean(value));
 
   useEffect(() => {
@@ -34,13 +36,13 @@ export function WorkerSecretRow({
         className="max-w-[200px]"
         value={name}
         readOnly={fixed}
-        placeholder="Secret 名"
+        placeholder={t("worker.placeholder.secretName")}
         onChange={(e) => onChange(e.target.value, value)}
       />
       <Input
         className="min-w-[220px] flex-1 font-mono text-xs"
         type={revealed ? "text" : "password"}
-        placeholder={fixed ? "留空则不改动" : "值"}
+        placeholder={fixed ? t("worker.placeholder.secretEmpty") : t("worker.placeholder.secretValue")}
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
       />
@@ -50,15 +52,23 @@ export function WorkerSecretRow({
         size="sm"
         className="shrink-0 px-2"
         onClick={() => setRevealed((v) => !v)}
-        aria-label={revealed ? "隐藏密钥" : "显示密钥"}
+        aria-label={revealed ? t("aria.hideSecret") : t("aria.showSecret")}
       >
-        {revealed ? "隐藏" : "显示"}
+        {revealed ? t("btn.common.hide") : t("btn.common.show")}
       </Button>
-      <Chip variant={localOk ? "on" : "off"}>本地{localOk ? "✓" : "✗"}</Chip>
+      <Chip variant={localOk ? "on" : "off"}>
+        {localOk ? t("worker.secret.localYes") : t("worker.secret.localNo")}
+      </Chip>
       {prodOk !== null && prodOk !== undefined && (
-        <Chip variant={prodOk ? "on" : "off"}>生产{prodOk ? "✓" : "✗"}</Chip>
+        <Chip variant={prodOk ? "on" : "off"}>
+          {prodOk ? t("worker.secret.prodYes") : t("worker.secret.prodNo")}
+        </Chip>
       )}
-      {optional && <span className="text-[11px] text-[var(--color-muted)]">(可选)</span>}
+      {optional && (
+        <span className="text-[11px] text-[var(--color-muted)]">
+          ({t("common.optional")})
+        </span>
+      )}
       {!fixed && onRemove && (
         <Button variant="ghost" size="sm" onClick={onRemove}>
           ✕

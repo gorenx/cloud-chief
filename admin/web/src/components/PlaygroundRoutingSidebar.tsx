@@ -1,3 +1,4 @@
+import { useT } from "@/contexts/LocaleContext";
 import type { GatewayContext, ModelMeta, ResponseMeta, RoutingInfo, WorkerDebugInfo, WorkerRoutingInfo } from "@/types";
 import { pickFields } from "@/lib/field-meta";
 import type { PlaygroundDataView } from "@/lib/playground-sources";
@@ -61,6 +62,7 @@ export function PlaygroundRoutingSidebar({
   effectiveWorkerUrl: string;
   onConfigRefresh?: () => void;
 }) {
+  const t = useT();
   const routingFields = pickFields(configMeta);
   const { controls } = dataView;
   const showWorkerRouting = dataView.routingSection === "worker";
@@ -86,8 +88,8 @@ export function PlaygroundRoutingSidebar({
       </Card>
 
       <Card className="p-4">
-        <CardTitle desc={isWorker ? "经 Worker 边缘代理验签后转发" : "由 Admin 代理转发至 AI Gateway"}>
-          本页请求
+        <CardTitle desc={isWorker ? t("routing.requestDescWorker") : t("routing.requestDescGateway")}>
+          {t("routing.requestTitle")}
         </CardTitle>
         <div className="min-w-0 space-y-2 text-xs">
           <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
@@ -97,22 +99,23 @@ export function PlaygroundRoutingSidebar({
           </div>
           {!isWorker && (
             <p className="text-[var(--color-muted)]">
-              请求体含 <code className="mono">model</code>、<code className="mono">messages</code>
-              ，网关 <code className="mono">{gateway || "—"}</code>。
+              {t("routing.requestBody", { gateway: gateway || "—" })}
             </p>
           )}
           {isWorker && workerInfo ? (
             <>
               {workerInfo.cf_error && (
                 <p className="text-xs text-amber-200">
-                  CF Worker 解析：{workerInfo.cf_error}（已回退 wrangler.toml / .env）
+                  {t("routing.cfWorkerParse", { error: workerInfo.cf_error })}
                 </p>
               )}
               {workerInfo.vars_source && workerInfo.vars_source !== "wrangler" && (
                 <p className="text-[10px] text-[var(--color-muted)]">
-                  Worker vars 来源：
-                  {workerInfo.vars_source === "cf" ? "CF 部署" : "CF + wrangler 合并"}
-                  {workerInfo.url_source === "cf" ? ` · URL：${workerInfo.url}` : ""}
+                  {t("routing.varsSource")}
+                  {workerInfo.vars_source === "cf"
+                    ? t("routing.varsSourceCf")
+                    : t("routing.varsSourceMerged")}
+                  {workerInfo.url_source === "cf" ? ` · URL: ${workerInfo.url}` : ""}
                 </p>
               )}
               <SupabaseConnectPanel
@@ -138,14 +141,14 @@ export function PlaygroundRoutingSidebar({
       <Card className="p-4">
         <div className="mb-3 space-y-2">
           <RoutingSectionHeader
-            title="路由链"
+            title={t("routing.chainTitle")}
             badge={showWorkerRouting ? "Worker" : "CF"}
             desc={
               showWorkerRouting
                 ? "wrangler.toml [vars]"
                 : isWorker
-                  ? "调试界面 CF 对照（Worker 实际仍走 wrangler）"
-                  : "CF API 实时解析"
+                  ? t("routing.chainDescUi")
+                  : t("routing.chainDescCf")
             }
           />
           <RoutingSourceLegend showWorker={showWorkerRouting} />
@@ -210,7 +213,7 @@ export function PlaygroundRoutingSidebar({
         <>
           {gatewayContextLoading && (
             <Card className="p-4">
-              <p className="text-sm text-[var(--color-muted)]">加载网关状态…</p>
+              <p className="text-sm text-[var(--color-muted)]">{t("gatewayDetail.loadingGw")}</p>
             </Card>
           )}
           {gatewayContext && (

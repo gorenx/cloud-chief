@@ -1,3 +1,4 @@
+import { useT } from "@/contexts/LocaleContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { WorkerParamsSummary } from "@/components/worker/WorkerParamsSummary";
 import type { CfDeployedWorker } from "@/types";
@@ -13,6 +14,7 @@ export function WorkerOnlineSecretsCard({
   loading?: boolean;
   error?: string | null;
 }) {
+  const t = useT();
   const secrets = (script?.secret_names ?? []).map((name) => ({
     name,
     configured: prodSet ? prodSet.has(name) : undefined,
@@ -20,19 +22,24 @@ export function WorkerOnlineSecretsCard({
 
   return (
     <Card>
-      <CardTitle desc="CF secret_text 绑定（值不可读）">私密配置 · 线上</CardTitle>
-      {loading && <p className="text-sm text-[var(--color-muted)]">加载中…</p>}
+      <CardTitle desc={t("worker.card.secretsOnline.desc")}>
+        {t("worker.card.secretsOnline.title")}
+      </CardTitle>
+      {loading && <p className="text-sm text-[var(--color-muted)]">{t("common.loading")}</p>}
       {error && <p className="text-sm text-amber-300">{error}</p>}
       {!loading && !error && !script && (
-        <p className="text-sm text-[var(--color-muted)]">请选择已部署的 Worker</p>
+        <p className="text-sm text-[var(--color-muted)]">{t("worker.params.selectDeployed")}</p>
       )}
       {script && (
         <>
           <p className="mb-3 text-xs text-[var(--color-muted)]">
             script: <code className="mono">{script.name}</code>
-            {prodSet && " · ✓ 表示 wrangler 确认已存在于生产"}
+            {prodSet && t("worker.params.prodHint")}
           </p>
-          <WorkerParamsSummary secrets={secrets} secretsLabel="线上 Secrets" />
+          <WorkerParamsSummary
+            secrets={secrets}
+            secretsLabel={t("worker.params.secretsOnline")}
+          />
         </>
       )}
     </Card>

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
+import { useLocale } from "@/contexts/LocaleContext";
 import { adminFetch, fetchGatewayContext, fetchState } from "@/lib/api";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -9,11 +10,12 @@ import { Input } from "@/components/ui/Input";
 import { Chip } from "@/components/ui/Chip";
 import { GatewayDetailPanel } from "@/components/GatewayDetailPanel";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
+import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
 
 export function GatewaysPage() {
   const { token } = useAdminToken();
+  const { t, displayError } = useLocale();
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [gwId, setGwId] = useState("");
@@ -46,12 +48,12 @@ export function GatewaysPage() {
       return r.data;
     },
     onSuccess: () => {
-      toast.success("网关已保存");
+      toast.success(t("gateways.toastSaved"));
       setGwId("");
       void qc.invalidateQueries({ queryKey: ["state"] });
       void qc.invalidateQueries({ queryKey: ["gateway-context"] });
     },
-    onError: (e) => toast.error(String(e)),
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
   const toggleMut = useMutation({
@@ -60,19 +62,15 @@ export function GatewaysPage() {
       if (!r.ok) throw new Error(r.error);
     },
     onSuccess: () => {
-      toast.success("网关已更新");
+      toast.success(t("gateways.toastUpdated"));
       void qc.invalidateQueries({ queryKey: ["state"] });
       void qc.invalidateQueries({ queryKey: ["gateway-context"] });
     },
-    onError: (e) => toast.error(String(e)),
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
   if (!token) {
-    return (
-      <p className="text-sm text-[var(--color-muted)]">
-        请先在 <Link to="/settings" className="text-[var(--color-accent)]">设置</Link> 配置令牌。
-      </p>
-    );
+    return <NoTokenPrompt />;
   }
 
   const gateways = stateQ.data?.gateways ?? [];
@@ -85,10 +83,8 @@ export function GatewaysPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">网关 Gateways</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">
-          第 1 步：创建网关实例，作为 AI 流量的入口 ID
-        </p>
+        <h1 className="text-xl font-semibold">{t("gateways.title")}</h1>
+        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("gateways.desc")}</p>
       </div>
 
       <GatewaySetupFlow current="gateway" collapsible />
@@ -96,18 +92,18 @@ export function GatewaysPage() {
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-3">
           <Card>
-            <CardTitle>网关列表</CardTitle>
+            <CardTitle>{t("gateways.list")}</CardTitle>
             {gateways.length === 0 ? (
-              <p className="text-sm text-[var(--color-muted)]">暂无网关</p>
+              <p className="text-sm text-[var(--color-muted)]">{t("gateways.empty")}</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-muted)]">
                       <th className="pb-2 pr-3">ID</th>
-                      <th className="pb-2 pr-3">鉴权</th>
-                      <th className="pb-2 pr-3">日志</th>
-                      <th className="pb-2">操作</th>
+                      <th className="pb-2 pr-3">{t("gateways.auth")}</th>
+                      <th className="pb-2 pr-3">{t("gateways.logs")}</th>
+                      <th className="pb-2">{t("common.actions")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -121,15 +117,15 @@ export function GatewaysPage() {
                       >
                         <td className="py-3 pr-3">
                           <code className="mono">{g.id}</code>
-                          {g.is_default && <Chip>default</Chip>}
+                          {g.is_default && <Chip>{t("common.defaultLabel")}</Chip>}
                         </td>
                         <td className="py-3 pr-3">
                           <Chip variant={g.authentication ? "on" : "off"}>
-                            {g.authentication ? "已开启" : "已关闭"}
+                            {g.authentication ? t("common.authOn") : t("common.authOff")}
                           </Chip>
                         </td>
                         <td className="py-3 pr-3 text-[var(--color-muted)]">
-                          {g.collect_logs ? "on" : "off"}
+                          {g.collect_logs ? t("common.onLabel") : t("common.offLabel")}
                         </td>
                         <td className="py-3">
                           <div className="flex flex-wrap gap-2">
@@ -138,7 +134,7 @@ export function GatewaysPage() {
                               size="sm"
                               onClick={() => setSelectedId(g.id)}
                             >
-                              详情
+                              {t("gateways.detail")}
                             </Button>
                             <Button
                               variant="ghost"
@@ -151,7 +147,7 @@ export function GatewaysPage() {
                                 })
                               }
                             >
-                              {g.authentication ? "关闭鉴权" : "开启鉴权"}
+                              {g.authentication ? t("gateways.toggleAuthOff") : t("gateways.toggleAuthOn")}
                             </Button>
                           </div>
                         </td>
@@ -164,10 +160,12 @@ export function GatewaysPage() {
           </Card>
 
           <Card>
-            <CardTitle>新建 / 更新</CardTitle>
+            <CardTitle>{t("gateways.createTitle")}</CardTitle>
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-[160px] flex-1">
-                <label className="mb-1 block text-xs text-[var(--color-muted)]">网关 ID</label>
+                <label className="mb-1 block text-xs text-[var(--color-muted)]">
+                  {t("gateways.gatewayId")}
+                </label>
                 <Input value={gwId} onChange={(e) => setGwId(e.target.value)} placeholder="qwen-gw" />
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -177,13 +175,13 @@ export function GatewaysPage() {
                   onChange={(e) => setGwAuth(e.target.checked)}
                   className="accent-[var(--color-accent)]"
                 />
-                开启鉴权
+                {t("gateways.enableAuth")}
               </label>
               <Button
                 disabled={!gwId.trim() || saveMut.isPending}
                 onClick={() => saveMut.mutate({ id: gwId.trim(), authentication: gwAuth })}
               >
-                创建 / 更新
+                {t("common.createUpdate")}
               </Button>
             </div>
           </Card>

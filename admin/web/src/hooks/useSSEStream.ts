@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { useLocale } from "@/contexts/LocaleContext";
 
 export interface SSEEvent {
   event: string;
@@ -21,6 +22,7 @@ function parseSSEBuffer(buffer: string, onEvent: (e: SSEEvent) => void): string 
 }
 
 export function useSSEStream() {
+  const { t } = useLocale();
   const [lines, setLines] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -36,6 +38,9 @@ export function useSSEStream() {
       setLines([]);
       setRunning(true);
 
+      const requestFailedPrefix = t("playground.requestFailedPrefix");
+      const errorPrefix = t("playground.errorPrefix");
+
       try {
         const resp = await fetch(url, {
           method: opts.method ?? "POST",
@@ -46,7 +51,7 @@ export function useSSEStream() {
         const ct = resp.headers.get("content-type") ?? "";
         if (!resp.ok || !ct.includes("text/event-stream")) {
           const j = await resp.json().catch(() => null);
-          const msg = `请求失败 (${resp.status}): ${JSON.stringify(j)}`;
+          const msg = `${requestFailedPrefix} (${resp.status}): ${JSON.stringify(j)}`;
           setLines([msg]);
           opts.onEvent?.({ event: "error", data: msg });
           return;
@@ -67,7 +72,7 @@ export function useSSEStream() {
         }
       } catch (e) {
         if ((e as Error).name !== "AbortError") {
-          const msg = `错误: ${(e as Error).message}`;
+          const msg = `${errorPrefix}: ${(e as Error).message}`;
           setLines((prev) => [...prev, msg]);
           opts.onEvent?.({ event: "error", data: msg });
         }
@@ -75,7 +80,7 @@ export function useSSEStream() {
         setRunning(false);
       }
     },
-    [],
+    [t],
   );
 
   const stop = useCallback(() => {

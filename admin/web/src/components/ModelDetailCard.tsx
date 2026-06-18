@@ -1,14 +1,16 @@
 import type { FieldMetaEntry, ModelMeta, RoutingInfo } from "@/types";
+import { useT } from "@/contexts/LocaleContext";
+import type { MessageKey } from "@/i18n";
 import { Card } from "./ui/Card";
 import { Chip } from "./ui/Chip";
 import { SourceBadge } from "./SourceBadge";
 
-const FAMILY_LABEL: Record<string, string> = {
-  max: "旗舰 Max",
-  plus: "均衡 Plus",
-  flash: "快速 Flash",
-  coder: "代码 Coder",
-  other: "其他",
+const FAMILY_LABEL_KEYS: Record<string, MessageKey> = {
+  max: "model.family.max",
+  plus: "model.family.plus",
+  flash: "model.family.flash",
+  coder: "model.family.coder",
+  other: "model.family.other",
 };
 
 export function ModelDetailCard({
@@ -29,11 +31,16 @@ export function ModelDetailCard({
   showWorker?: boolean;
   workerModel?: string | null;
 }) {
+  const t = useT();
   const effectiveWorkerModel = workerModel ?? routing?.worker_model ?? null;
   const workerMismatch =
     showWorker && effectiveWorkerModel && effectiveWorkerModel !== modelId
-      ? `Worker DEFAULT_MODEL (${effectiveWorkerModel}) 与当前模型不一致`
+      ? t("model.workerMismatch", { workerModel: effectiveWorkerModel })
       : null;
+
+  const familyLabel = modelMeta
+    ? t(FAMILY_LABEL_KEYS[modelMeta.family] ?? "model.family.other")
+    : null;
 
   return (
     <Card className={compact ? "p-4" : ""}>
@@ -44,12 +51,12 @@ export function ModelDetailCard({
         )}
         {modelMeta ? (
           <>
-            <Chip>{FAMILY_LABEL[modelMeta.family] ?? modelMeta.family}</Chip>
-            {modelMeta.supports_thinking && <Chip variant="on">支持思考模式</Chip>}
+            <Chip>{familyLabel}</Chip>
+            {modelMeta.supports_thinking && <Chip variant="on">{t("model.supportsThinking")}</Chip>}
             {fieldMeta?.model_meta && <SourceBadge meta={fieldMeta.model_meta} />}
           </>
         ) : (
-          <Chip variant="warn">不在已知目录中</Chip>
+          <Chip variant="warn">{t("model.notInCatalog")}</Chip>
         )}
       </div>
       {modelMeta && (
@@ -62,7 +69,7 @@ export function ModelDetailCard({
         <div className="mt-3 space-y-1 text-xs text-[var(--color-muted)]">
           <div className="flex items-center gap-1.5">
             <span>
-              API 类型：<span className="text-[var(--color-text)]">{routing.api_type}</span>
+              {t("model.apiType")}：<span className="text-[var(--color-text)]">{routing.api_type}</span>
             </span>
             {fieldMeta?.["routing.api_type"] && (
               <SourceBadge meta={fieldMeta["routing.api_type"]} />
@@ -71,7 +78,7 @@ export function ModelDetailCard({
           {showWorker && effectiveWorkerModel && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span>
-                Worker 默认模型：<code className="mono">{effectiveWorkerModel}</code>
+                {t("model.workerDefaultModel")}：<code className="mono">{effectiveWorkerModel}</code>
               </span>
               {fieldMeta?.["routing.worker_model"] && (
                 <SourceBadge meta={fieldMeta["routing.worker_model"]} />
@@ -84,9 +91,7 @@ export function ModelDetailCard({
         <p className="mt-2 text-xs text-[var(--color-warn)]">⚠ {workerMismatch}</p>
       )}
       {!modelMeta && (
-        <p className="mt-2 text-xs text-[var(--color-warn)]">
-          Responses API 不支持无版本 qwen-max；请确认模型 ID 正确。
-        </p>
+        <p className="mt-2 text-xs text-[var(--color-warn)]">{t("model.noVersionWarn")}</p>
       )}
     </Card>
   );

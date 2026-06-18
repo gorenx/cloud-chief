@@ -1,13 +1,15 @@
 import type { FieldMetaEntry, FieldSource } from "@/types";
+import { useT } from "@/contexts/LocaleContext";
+import type { MessageKey } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { SelectHTMLAttributes } from "react";
 
-const SOURCE_LABEL: Record<FieldSource, string> = {
-  env: "admin/.env",
-  cf: "CF",
-  wrangler: "Worker",
-  catalog: "catalog",
-  derived: "derived",
+const SOURCE_LABEL_KEYS: Record<FieldSource, MessageKey> = {
+  env: "source.env",
+  cf: "source.cf",
+  wrangler: "source.wrangler",
+  catalog: "source.catalog",
+  derived: "source.derived",
 };
 
 const SOURCE_STYLE: Record<FieldSource, string> = {
@@ -18,26 +20,29 @@ const SOURCE_STYLE: Record<FieldSource, string> = {
   derived: "bg-[var(--color-panel-elevated)] text-[var(--color-muted)]",
 };
 
-function titleFor(meta: FieldMetaEntry): string {
+export function SourceBadge({ meta }: { meta?: FieldMetaEntry }) {
+  const t = useT();
+  if (!meta) return null;
+
+  const sourceLabel = t(SOURCE_LABEL_KEYS[meta.source]);
   const parts: string[] = [];
   if (meta.key) parts.push(meta.key);
   if (meta.hint) parts.push(meta.hint);
-  if (meta.dependsOn?.length) parts.push(`依赖: ${meta.dependsOn.join(", ")}`);
-  return parts.join(" · ") || SOURCE_LABEL[meta.source];
-}
+  if (meta.dependsOn?.length) {
+    parts.push(`${t("routing.dependsOn")}: ${meta.dependsOn.join(", ")}`);
+  }
+  const title = parts.join(" · ") || sourceLabel;
 
-export function SourceBadge({ meta }: { meta?: FieldMetaEntry }) {
-  if (!meta) return null;
   return (
     <span
-      title={titleFor(meta)}
-      aria-label={titleFor(meta)}
+      title={title}
+      aria-label={title}
       className={cn(
         "inline-flex shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none",
         SOURCE_STYLE[meta.source],
       )}
     >
-      {SOURCE_LABEL[meta.source]}
+      {sourceLabel}
     </span>
   );
 }
@@ -58,7 +63,6 @@ export function FieldLabel({
   );
 }
 
-/** 下拉框内嵌来源徽章（CF / admin/.env 等），不撑开外部布局 */
 export function SelectWithSourceBadge({
   meta,
   className,

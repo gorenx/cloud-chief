@@ -1,4 +1,5 @@
 import type { UseQueryResult } from "@tanstack/react-query";
+import { useLocale } from "@/contexts/LocaleContext";
 import { Chip } from "@/components/ui/Chip";
 import type { WorkerList } from "@/types";
 
@@ -13,24 +14,31 @@ export function LocalWorkerPanel({
   deployedScriptNames: Set<string>;
   onSelectDir: (dir: string) => void;
 }) {
+  const { t, displayError } = useLocale();
+
   return (
     <section>
       <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
-        本地
+        {t("worker.panel.local")}
       </h3>
       {workersQ.data?.root && (
         <p className="mt-1 text-[11px] text-[var(--color-muted)]">
-          根目录 <code className="mono">{workersQ.data.root}</code>
+          {t("worker.panel.localRoot")}{" "}
+          <code className="mono">{workersQ.data.root}</code>
         </p>
       )}
       {workersQ.isLoading && (
-        <p className="mt-3 text-sm text-[var(--color-muted)]">加载中…</p>
+        <p className="mt-3 text-sm text-[var(--color-muted)]">{t("common.loading")}</p>
       )}
       {workersQ.isError && (
-        <p className="mt-3 text-sm text-red-400">{String(workersQ.error)}</p>
+        <p className="mt-3 text-sm text-red-400">
+          {displayError(
+            workersQ.error instanceof Error ? workersQ.error.message : String(workersQ.error),
+          )}
+        </p>
       )}
       {workersQ.data && workersQ.data.workers.length === 0 && (
-        <p className="mt-3 text-sm text-[var(--color-muted)]">未找到含 wrangler.toml 的目录</p>
+        <p className="mt-3 text-sm text-[var(--color-muted)]">{t("worker.panel.noWranglerDirs")}</p>
       )}
       {workersQ.data && workersQ.data.workers.length > 0 && (
         <ul className="mt-3 space-y-2 text-sm">
@@ -51,15 +59,17 @@ export function LocalWorkerPanel({
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <code className="mono font-medium">{w.dir}</code>
-                    {isSelected && <Chip variant="on">当前选中</Chip>}
+                    {isSelected && <Chip variant="on">{t("worker.status.currentSelected")}</Chip>}
                     {w.script_name ? (
                       <Chip variant="default">script: {w.script_name}</Chip>
                     ) : (
-                      <Chip variant="warn">无 script 名</Chip>
+                      <Chip variant="warn">{t("worker.status.noScriptName")}</Chip>
                     )}
                     {w.script_name && (
                       <Chip variant={itemDeployed ? "on" : "off"}>
-                        {itemDeployed ? "已部署" : "未部署"}
+                        {itemDeployed
+                          ? t("worker.status.deployed")
+                          : t("worker.status.notDeployed")}
                       </Chip>
                     )}
                   </div>

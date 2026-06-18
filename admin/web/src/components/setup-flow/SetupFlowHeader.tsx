@@ -1,12 +1,9 @@
+import { useMemo } from "react";
 import { Check, ChevronDown } from "lucide-react";
-import { SETUP_STEPS, stepDone, type SetupStatus, type SetupStep } from "@/lib/setup-flow";
+import { useT } from "@/contexts/LocaleContext";
+import { getLocalizedSetupSteps } from "@/i18n/setup-flow-ui";
+import { stepDone, type SetupStatus, type SetupStep } from "@/lib/setup-flow";
 import { cn } from "@/lib/utils";
-
-const SUBTITLE = (
-  <>
-    前两步必做；BYOK 可选（密钥也可放在 .env 的 <code className="mono">DASHSCOPE_API_KEY</code>）
-  </>
-);
 
 export function SetupFlowHeader({
   collapsible,
@@ -21,7 +18,11 @@ export function SetupFlowHeader({
   currentStep?: SetupStep;
   status: SetupStatus;
 }) {
+  const t = useT();
+  const steps = useMemo(() => getLocalizedSetupSteps(t), [t]);
   const coreDone = status.gatewayDone && status.providerDone;
+
+  const subtitle = t("setupFlow.subtitle");
 
   return (
     <div
@@ -46,10 +47,10 @@ export function SetupFlowHeader({
               aria-hidden
             />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold">配置流程</h2>
+              <h2 className="text-sm font-semibold">{t("setupFlow.title")}</h2>
               {!open && (
                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-muted)]">
-                  {SETUP_STEPS.map((step) => {
+                  {steps.map((step) => {
                     const done = stepDone(step.id, status);
                     return (
                       <span
@@ -68,21 +69,21 @@ export function SetupFlowHeader({
                   })}
                 </p>
               )}
-              {open && <p className="mt-0.5 text-xs text-[var(--color-muted)]">{SUBTITLE}</p>}
+              {open && <p className="mt-0.5 text-xs text-[var(--color-muted)]">{subtitle}</p>}
             </div>
           </button>
         ) : (
           <>
-            <h2 className="text-sm font-semibold">配置流程</h2>
-            <p className="mt-0.5 text-xs text-[var(--color-muted)]">{SUBTITLE}</p>
+            <h2 className="text-sm font-semibold">{t("setupFlow.title")}</h2>
+            <p className="mt-0.5 text-xs text-[var(--color-muted)]">{subtitle}</p>
           </>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {coreDone && (
           <span className="rounded-full bg-emerald-950/50 px-2.5 py-0.5 text-xs text-emerald-400">
-            必做步骤已完成
-            {status.byokDone ? " · 已配置 BYOK" : ""}
+            {t("setupFlow.coreDone")}
+            {status.byokDone ? t("setupFlow.coreDoneByok") : ""}
           </span>
         )}
         {collapsible && (
@@ -91,7 +92,7 @@ export function SetupFlowHeader({
             onClick={onToggle}
             className="rounded-lg px-2 py-1 text-xs text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]"
           >
-            {open ? "收起" : "展开"}
+            {open ? t("setupFlow.collapse") : t("setupFlow.expand")}
           </button>
         )}
       </div>

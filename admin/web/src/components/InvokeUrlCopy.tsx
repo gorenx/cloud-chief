@@ -1,12 +1,14 @@
 import { Copy, Check } from "lucide-react";
 import { useState } from "react";
+import { useT } from "@/contexts/LocaleContext";
 import { Button } from "./ui/Button";
 
 export function InvokeUrlCopy({ url }: { url: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   if (!url) {
-    return <span className="text-xs text-[var(--color-muted)]">（缺少网关或提供商配置）</span>;
+    return <span className="text-xs text-[var(--color-muted)]">{t("invoke.missingConfig")}</span>;
   }
 
   return (

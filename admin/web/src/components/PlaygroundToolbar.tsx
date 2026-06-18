@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { useT } from "@/contexts/LocaleContext";
 import { Button } from "@/components/ui/Button";
 import { SelectWithSourceBadge } from "@/components/SourceBadge";
 import { WorkerConfigSourceToggle } from "@/components/WorkerConfigSourceToggle";
@@ -59,6 +60,7 @@ export function PlaygroundToolbar({
   hasAdminToken?: boolean;
   workerHealthResult?: string | null;
 }) {
+  const t = useT();
   const { controls } = dataView;
   const modelOptions = config?.models ?? [];
   const gatewayOpts = gatewayOptions(config?.gateways, effectiveGateway);
@@ -73,7 +75,7 @@ export function PlaygroundToolbar({
     <div className="mb-4 flex gap-4">
       <div className="min-w-0 flex-1 space-y-2">
         <div className="grid grid-cols-[auto_1fr] items-start gap-x-3">
-          <h1 className="pt-1 text-xl font-semibold">聊天调试</h1>
+          <h1 className="pt-1 text-xl font-semibold">{t("playground.title")}</h1>
 
           <div className={toolbarGrid}>
             <div className="flex w-fit justify-self-start rounded-lg border border-[var(--color-border)] p-0.5">
@@ -87,7 +89,7 @@ export function PlaygroundToolbar({
                 )}
                 onClick={() => onCallModeChange("gateway")}
               >
-                直连 Gateway
+                {t("playground.directGateway")}
               </button>
               <button
                 type="button"
@@ -99,7 +101,7 @@ export function PlaygroundToolbar({
                 )}
                 onClick={() => onCallModeChange("worker")}
               >
-                经 Worker
+                {t("playground.viaWorker")}
               </button>
             </div>
 
@@ -108,7 +110,7 @@ export function PlaygroundToolbar({
               value={effectiveGateway}
               onChange={(e) => onGatewayChange(e.target.value)}
               disabled={flags.gatewayLocked}
-              title={flags.gatewayLocked ? "Worker 配置：wrangler CF_GATEWAY_ID" : undefined}
+              title={flags.gatewayLocked ? t("playground.gatewayLockedTitle") : undefined}
               className="min-w-0 w-full justify-self-stretch disabled:opacity-60"
             >
               {gatewayOpts.map((g) => (
@@ -123,7 +125,7 @@ export function PlaygroundToolbar({
               value={effectiveModel}
               onChange={(e) => onModelChange(e.target.value)}
               disabled={flags.modelLocked}
-              title={flags.modelLocked ? "Worker 配置：wrangler DEFAULT_MODEL" : undefined}
+              title={flags.modelLocked ? t("playground.modelLockedTitle") : undefined}
               className="min-w-0 w-full justify-self-stretch disabled:opacity-60"
             >
               {modelOptions.map((m) => (
@@ -152,10 +154,10 @@ export function PlaygroundToolbar({
                     onClick={onStartLocalDev}
                   >
                     {startingLocalDev
-                      ? "启动中…"
+                      ? t("playground.startingLocal")
                       : localWorkerHealthy
-                        ? "本地已就绪"
-                        : "启动本地 Worker"}
+                        ? t("playground.localReady")
+                        : t("playground.startLocalWorker")}
                   </Button>
                 ) : (
                   <span />
@@ -167,8 +169,7 @@ export function PlaygroundToolbar({
 
         {catalogSynced && catalogSynced.length > 0 && (
           <p className="text-xs text-teal-300/90">
-            已自动写入 <code className="mono">admin/.env</code>{" "}
-            <code className="mono">MODEL_CATALOG</code>：{catalogSynced.join(", ")}
+            {t("playground.catalogSynced", { models: catalogSynced.join(t("common.listSeparator")) })}
           </p>
         )}
       </div>
@@ -176,7 +177,7 @@ export function PlaygroundToolbar({
       <div className="w-80 shrink-0">
         <Button variant="ghost" size="sm" onClick={onSidebarToggle}>
           {sidebarOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          路由详情
+          {t("playground.routingDetails")}
         </Button>
       </div>
     </div>

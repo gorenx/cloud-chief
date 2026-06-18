@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import type { TranslateFn } from "../i18n";
 
 export interface WorkerVarRow {
   k: string;
@@ -14,14 +15,14 @@ export interface WorkerSecretRowState {
 
 const ENV_KEY_RE = /^[A-Z][A-Z0-9_]*$/;
 
-export function buildVarsObject(rows: WorkerVarRow[]): Record<string, string> {
+export function buildVarsObject(rows: WorkerVarRow[], t: TranslateFn): Record<string, string> {
   const obj: Record<string, string> = {};
   for (const { k, v } of rows) {
     if (!k.trim()) continue;
-    if (!ENV_KEY_RE.test(k.trim())) throw new Error(`变量名 ${k} 非法`);
+    if (!ENV_KEY_RE.test(k.trim())) throw new Error(t("worker.toast.invalidVarName", { name: k }));
     obj[k.trim()] = v;
   }
-  if (Object.keys(obj).length === 0) throw new Error("请至少填写一个变量");
+  if (Object.keys(obj).length === 0) throw new Error(t("worker.toast.atLeastOneVar"));
   return obj;
 }
 
@@ -53,12 +54,13 @@ export function buildOnlineVarRows(
 
 export function collectWorkerSecrets(
   rows: WorkerSecretRowState[],
+  t: TranslateFn,
 ): Record<string, string> | null {
   const out: Record<string, string> = {};
   for (const s of rows) {
     if (!s.name.trim() || !s.value) continue;
     if (!ENV_KEY_RE.test(s.name.trim())) {
-      toast.error(`Secret 名 ${s.name} 非法`);
+      toast.error(t("worker.toast.invalidSecretName", { name: s.name }));
       return null;
     }
     out[s.name.trim()] = s.value;

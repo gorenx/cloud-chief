@@ -1,3 +1,4 @@
+import { useT } from "@/contexts/LocaleContext";
 import { SourceBadge } from "./SourceBadge";
 import { cn } from "@/lib/utils";
 
@@ -46,21 +47,22 @@ export function RoutingMismatchNotice({
   cfSlug: string;
   workerSlug: string;
 }) {
+  const t = useT();
   const items: string[] = [];
   if (cfGateway && workerGateway && cfGateway !== workerGateway) {
-    items.push(`gateway：CF 默认「${cfGateway}」≠ Worker「${workerGateway}」`);
+    items.push(t("routing.mismatchGateway", { cf: cfGateway, worker: workerGateway }));
   }
   if (cfSlug && workerSlug && cfSlug !== workerSlug) {
-    items.push(`provider_slug：CF 默认「${cfSlug}」≠ Worker「${workerSlug}」`);
+    items.push(t("routing.mismatchSlug", { cf: cfSlug, worker: workerSlug }));
   }
   if (items.length === 0) return null;
 
   return (
     <div className="rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
-      <p className="font-medium">CF 默认与 Worker 配置不一致</p>
+      <p className="font-medium">{t("routing.mismatchTitle")}</p>
       <ul className="mt-1 list-inside list-disc space-y-0.5 text-amber-200/90">
-        {items.map((t) => (
-          <li key={t}>{t}</li>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
         ))}
       </ul>
     </div>
@@ -68,11 +70,13 @@ export function RoutingMismatchNotice({
 }
 
 export function RoutingSourceLegend({ showWorker = true }: { showWorker?: boolean }) {
+  const t = useT();
+
   return (
     <div className="flex flex-wrap gap-2 text-[10px] text-[var(--color-muted)]">
       <span className="inline-flex items-center gap-1">
         <SourceBadge meta={{ source: "cf" }} />
-        Cloudflare API / 控制台
+        {t("routing.cfApiLabel")}
       </span>
       {showWorker && (
         <span className="inline-flex items-center gap-1">
@@ -82,7 +86,7 @@ export function RoutingSourceLegend({ showWorker = true }: { showWorker?: boolea
       )}
       <span className="inline-flex items-center gap-1">
         <SourceBadge meta={{ source: "derived" }} />
-        代码拼接
+        {t("routing.codeBuildLabel")}
       </span>
     </div>
   );

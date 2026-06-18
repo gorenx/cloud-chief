@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   SetupStepCallGuide,
   type SetupCallGuideOverrides,
@@ -8,12 +8,14 @@ import { SetupFlowHeader } from "@/components/setup-flow/SetupFlowHeader";
 import { SetupFlowStepNav } from "@/components/setup-flow/SetupFlowStepNav";
 import { SetupFlowUrlPreview } from "@/components/setup-flow/SetupFlowUrlPreview";
 import { useSetupFlowData } from "@/hooks/useSetupFlowData";
+import { useT } from "@/contexts/LocaleContext";
 import {
   SETUP_STEPS,
   defaultSelectedStep,
   nextSetupAction,
   resolveSetupCurrent,
   type SetupStep,
+  type SetupActionKey,
 } from "@/lib/setup-flow";
 
 export type { SetupCallGuideOverrides, SetupStep };
@@ -30,6 +32,7 @@ export function GatewaySetupFlow({
   /** collapsible 时默认是否展开；未指定时 collapsible 页默认折叠 */
   defaultOpen?: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(defaultOpen ?? !collapsible);
   const { stateQ, ctxQ, status } = useSetupFlowData();
 
@@ -44,6 +47,14 @@ export function GatewaySetupFlow({
 
   const coreDone = status.gatewayDone && status.providerDone;
   const action = nextSetupAction(status, current);
+  const formatAction = useMemo(() => {
+    const map: Record<SetupActionKey, string> = {
+      createGateway: t("setupFlow.actionGw"),
+      addProvider: t("setupFlow.actionPv"),
+      goPlayground: t("setupFlow.actionPlayground"),
+    };
+    return (key: SetupActionKey) => map[key];
+  }, [t]);
   const currentIdx = SETUP_STEPS.findIndex((s) => s.id === current);
   const d = stateQ.data?.defaults;
   const usePageGuide = pageStep === "byok" && selectedStep === "byok";
@@ -107,6 +118,7 @@ export function GatewaySetupFlow({
             status={status}
             coreDone={coreDone}
             pageStep={pageStep}
+            formatAction={formatAction}
           />
         </div>
       )}

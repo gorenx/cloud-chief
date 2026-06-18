@@ -1,11 +1,8 @@
+import { useMemo } from "react";
 import { Check, ChevronRight } from "lucide-react";
-import {
-  WORKER_SETUP_STEPS,
-  workerStepDone,
-  workerStepMeta,
-  type WorkerSetupStatus,
-  type WorkerSetupStep,
-} from "@/lib/worker-setup-flow";
+import { useT } from "@/contexts/LocaleContext";
+import { workerStepDone, type WorkerSetupStatus, type WorkerSetupStep } from "@/lib/worker-setup-flow";
+import { formatWorkerStepMeta, getLocalizedWorkerSteps } from "@/i18n/worker-ui";
 import { cn } from "@/lib/utils";
 
 export function WorkerSetupFlowStepNav({
@@ -17,9 +14,12 @@ export function WorkerSetupFlowStepNav({
   selectedStep: WorkerSetupStep;
   onSelect: (step: WorkerSetupStep) => void;
 }) {
+  const t = useT();
+  const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
+
   return (
     <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
-      {WORKER_SETUP_STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const done = workerStepDone(step.id, status);
         const warn = step.id === "ci" && status.ciWarn && !done;
         const isSelected = step.id === selectedStep;
@@ -67,7 +67,7 @@ export function WorkerSetupFlowStepNav({
                   <span className="font-medium">{step.label}</span>
                   {step.optional && (
                     <span className="rounded bg-[var(--color-panel-elevated)] px-1.5 py-0.5 text-[10px] text-[var(--color-muted)]">
-                      可选
+                      {t("worker.status.optionalTag")}
                     </span>
                   )}
                 </div>
@@ -75,7 +75,7 @@ export function WorkerSetupFlowStepNav({
                   {step.summary}
                 </p>
                 <p className="mt-1.5 text-xs text-[var(--color-muted)]">
-                  {workerStepMeta(step.id, status)}
+                  {formatWorkerStepMeta(t, step.id, status)}
                 </p>
               </button>
             </div>

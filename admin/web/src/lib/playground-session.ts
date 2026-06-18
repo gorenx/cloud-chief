@@ -61,16 +61,6 @@ export function resolveEffectiveGateway(
   return uiGateway;
 }
 
-export function emptyChatHint(flags: PlaygroundSessionFlags): string {
-  if (!flags.isWorker) {
-    return "通过 Cloudflare AI Gateway 对话，输入消息开始。";
-  }
-  if (flags.useWorkerToml) {
-    return "经 Worker 对话，使用 wrangler.toml 中的 DEFAULT_MODEL。";
-  }
-  return "经 Worker 对话，模型与网关由调试界面选择（Worker 仍固定 wrangler 路由）。";
-}
-
 export interface ChatRequestParams {
   callMode: CallMode;
   effectiveModel: string;

@@ -1,5 +1,6 @@
 import { useRef, useState, type RefObject } from "react";
-import { streamChatResponse } from "@/lib/chat-stream";
+import { useLocale } from "@/contexts/LocaleContext";
+import { ChatStreamError, streamChatResponse } from "@/lib/chat-stream";
 import { buildChatRequest, type CallMode, type WorkerTarget } from "@/lib/playground-session";
 
 export interface ChatMessage {
@@ -8,10 +9,13 @@ export interface ChatMessage {
 }
 
 export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
+  const { t } = useLocale();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const historyRef = useRef<ChatMessage[]>([]);
+  const requestFailedPrefix = t("playground.requestFailedPrefix");
+  const errorPrefix = t("playground.errorPrefix");
 
   async function send(params: {
     callMode: CallMode;
@@ -34,7 +38,7 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
     setMessages((m) => [...m, userMsg]);
 
     const assistantIdx = historyRef.current.length;
-    setMessages((m) => [...m, { role: "assistant", content: "思考中…" }]);
+    setMessages((m) => [...m, { role: "assistant", content: t("playground.thinking") }]);
 
     try {
       const { url, body } = buildChatRequest({
@@ -54,7 +58,7 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
           return copy;
         });
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-      });
+      }, t);
 
       historyRef.current = [...historyRef.current, { role: "assistant", content }];
       setMessages((m) => {
@@ -63,13 +67,16 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
         return copy;
       });
     } catch (e) {
-      const err = (e as Error).message;
+      let errContent: string;
+      if (e instanceof ChatStreamError) {
+        errContent = `${requestFailedPrefix} (${e.status}): ${JSON.stringify(e.body)}`;
+      } else {
+        const err = (e as Error).message;
+        errContent = err.startsWith(requestFailedPrefix) ? err : `${errorPrefix}: ${err}`;
+      }
       setMessages((m) => {
         const copy = [...m];
-        copy[assistantIdx] = {
-          role: "assistant",
-          content: err.startsWith("请求失败") ? err : `错误: ${err}`,
-        };
+        copy[assistantIdx] = { role: "assistant", content: errContent };
         return copy;
       });
     } finally {
@@ -77,5 +84,5 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
     }
   }
 
-  return { messages, input, setInput, sending, send };
+  return { messages, input, setInput, sending, send, errorPrefixes: { requestFailedPrefix, errorPrefix } };
 }
