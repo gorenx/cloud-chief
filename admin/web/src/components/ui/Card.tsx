@@ -14,13 +14,32 @@ export function Card({ className, children }: { className?: string; children: Re
   );
 }
 
-export function CardTitle({ children, desc }: { children: ReactNode; desc?: string }) {
+export function CardTitle({
+  children,
+  desc,
+  footer,
+  trailing,
+}: {
+  children: ReactNode;
+  desc?: string;
+  footer?: ReactNode;
+  /** 标题行右侧内容；容器溢出时可横向滚动 */
+  trailing?: ReactNode;
+}) {
   return (
-    <div className="mb-4">
-      <h2 className="font-display text-sm font-semibold tracking-tight text-[var(--color-text)]">
-        {children}
-      </h2>
+    <div className="mb-4 min-w-0">
+      <div className={cn("gap-3", trailing ? "flex items-start justify-between" : undefined)}>
+        <h2 className="shrink-0 font-display text-sm font-semibold tracking-tight text-[var(--color-text)]">
+          {children}
+        </h2>
+        {trailing && (
+          <div className="min-w-0 max-w-[min(100%,22rem)] flex-1 overflow-x-auto overscroll-x-contain text-right [scrollbar-width:thin]">
+            {trailing}
+          </div>
+        )}
+      </div>
       {desc && <p className="mt-1 text-xs leading-relaxed text-[var(--color-muted)]">{desc}</p>}
+      {footer && <div className="mt-1.5 space-y-1 text-xs leading-relaxed">{footer}</div>}
     </div>
   );
 }

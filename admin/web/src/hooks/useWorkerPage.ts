@@ -25,7 +25,7 @@ export function useWorkerPage(token: string) {
   const qc = useQueryClient();
   const scrollRef = useScrollContainer();
   const [workerDir, setWorkerDir] = useState("");
-  const [vars, setVars] = useState<WorkerVarRow[]>([{ k: "", v: "" }]);
+  const [vars, setVars] = useState<WorkerVarRow[]>([]);
   const [secrets, setSecrets] = useState<WorkerSecretRowState[]>([]);
   const [prodSet, setProdSet] = useState<Set<string> | null>(null);
   const deploy = useSSEStream();
@@ -281,7 +281,11 @@ function syncFormFromStatus(
   setProdSet: (set: Set<string> | null) => void,
 ) {
   const entries = Object.entries(s.vars);
-  setVars(entries.length ? entries.map(([k, v]) => ({ k, v })) : [{ k: "", v: "" }]);
+  setVars(
+    entries.length
+      ? entries.map(([k, v]) => ({ k, v })).filter(({ k, v }) => k.trim() || v.trim())
+      : [],
+  );
 
   const seen = new Set<string>();
   const rows: WorkerSecretRowState[] = [];
