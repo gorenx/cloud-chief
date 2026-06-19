@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
 import { Button } from "@/components/ui/Button";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { SelectWithSourceBadge } from "@/components/SourceBadge";
 import { WorkerConfigSourceToggle } from "@/components/WorkerConfigSourceToggle";
 import { WorkerTargetToggle } from "@/components/WorkerTargetToggle";
@@ -80,40 +81,18 @@ export function PlaygroundToolbar({
   );
 
   return (
-    <div className="mb-4 flex gap-4">
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="grid grid-cols-[auto_1fr] items-start gap-x-3">
-          <h1 className="pt-1 text-xl font-semibold">
-            {t("playground.title")}
-          </h1>
-
+    <div className="glass-panel rounded-[var(--radius-xl)] p-4">
+      <div className="flex gap-4">
+        <div className="min-w-0 flex-1 space-y-3">
           <div className={toolbarGrid}>
-            <div className="flex w-fit justify-self-start rounded-lg border border-[var(--color-border)] p-0.5">
-              <button
-                type="button"
-                className={cn(
-                  "rounded-md px-3 py-1 text-sm",
-                  callMode === "gateway"
-                    ? "bg-[var(--color-accent)]/20 text-[var(--color-text)]"
-                    : "text-[var(--color-muted)]",
-                )}
-                onClick={() => onCallModeChange("gateway")}
-              >
-                {t("playground.directGateway")}
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "rounded-md px-3 py-1 text-sm",
-                  callMode === "worker"
-                    ? "bg-[var(--color-accent)]/20 text-[var(--color-text)]"
-                    : "text-[var(--color-muted)]",
-                )}
-                onClick={() => onCallModeChange("worker")}
-              >
-                {t("playground.viaWorker")}
-              </button>
-            </div>
+            <SegmentedControl
+              value={callMode}
+              onChange={onCallModeChange}
+              options={[
+                { value: "gateway" as const, label: t("playground.directGateway") },
+                { value: "worker" as const, label: t("playground.viaWorker") },
+              ]}
+            />
 
             <SelectWithSourceBadge
               meta={controls.gateway as FieldMetaEntry | undefined}
@@ -183,26 +162,26 @@ export function PlaygroundToolbar({
               </>
             )}
           </div>
+
+          {catalogSynced && catalogSynced.length > 0 && (
+            <p className="text-xs text-[var(--color-ice)]/90">
+              {t("playground.catalogSynced", {
+                models: catalogSynced.join(t("common.listSeparator")),
+              })}
+            </p>
+          )}
         </div>
 
-        {catalogSynced && catalogSynced.length > 0 && (
-          <p className="text-xs text-teal-300/90">
-            {t("playground.catalogSynced", {
-              models: catalogSynced.join(t("common.listSeparator")),
-            })}
-          </p>
-        )}
-      </div>
-
-      <div className="w-80 shrink-0">
-        <Button variant="ghost" size="sm" onClick={onSidebarToggle}>
-          {sidebarOpen ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
-          {t("playground.routingDetails")}
-        </Button>
+        <div className="hidden w-80 shrink-0 sm:block">
+          <Button variant="ghost" size="sm" onClick={onSidebarToggle}>
+            {sidebarOpen ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+            {t("playground.routingDetails")}
+          </Button>
+        </div>
       </div>
     </div>
   );

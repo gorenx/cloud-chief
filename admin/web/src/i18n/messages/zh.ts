@@ -85,6 +85,10 @@ export const zhMessages: Messages = {
     configReadError: "无法读取配置",
   },
   nav: {
+    sectionMonitor: "监控",
+    sectionInfra: "基础设施",
+    sectionDeploy: "部署",
+    sectionSystem: "系统",
     overview: "概览",
     playground: "聊天调试",
     gateways: "网关",
@@ -266,6 +270,7 @@ export const zhMessages: Messages = {
   },
   playground: {
     title: "聊天调试",
+    desc: "不部署 Worker 也能快速验证模型与网关路由；支持直连 Gateway 或经 Worker 转发。",
     directGateway: "直连 Gateway",
     viaWorker: "经 Worker",
     gatewayLockedTitle: "Worker 配置：wrangler CF_GATEWAY_ID",
@@ -384,6 +389,7 @@ export const zhMessages: Messages = {
       projectDone: "已应用 {name}",
       projectDoneUrl: "项目配置已写入",
       projectPending: "待选择项目并写入配置",
+      projectEmpty: "尚未选择有效项目",
       projectBlocked: "请先完成平台授权",
       databaseDone: "全部表已同步",
       databaseBlocked: "请先完成项目配置",

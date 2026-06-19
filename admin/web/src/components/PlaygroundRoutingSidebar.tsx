@@ -70,7 +70,7 @@ export function PlaygroundRoutingSidebar({
   const hasByok = (gatewayContext?.keys.length ?? 0) > 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 page-enter page-enter-delay-1">
       {isWorker && workerInfo && (
         <WorkerChatNotice
           workerUrl={effectiveWorkerUrl}
@@ -92,8 +92,8 @@ export function PlaygroundRoutingSidebar({
           {t("routing.requestTitle")}
         </CardTitle>
         <div className="min-w-0 space-y-2 text-xs">
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2">
-            <code className="mono text-[var(--color-text)]">
+          <div className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-3 py-2 ring-1 ring-[var(--color-border-subtle)]">
+            <code className="mono text-[var(--color-ice)]/90">
               {isWorker ? "POST /api/worker-chat" : "POST /api/chat"}
             </code>
           </div>
@@ -105,7 +105,7 @@ export function PlaygroundRoutingSidebar({
           {isWorker && workerInfo ? (
             <>
               {workerInfo.cf_error && (
-                <p className="text-xs text-amber-200">
+                <p className="text-xs text-[var(--color-warn)]">
                   {t("routing.cfWorkerParse", { error: workerInfo.cf_error })}
                 </p>
               )}

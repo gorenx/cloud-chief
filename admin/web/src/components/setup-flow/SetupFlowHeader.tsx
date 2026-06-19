@@ -29,7 +29,7 @@ export function SetupFlowHeader({
       className={cn(
         "flex flex-wrap items-center justify-between gap-2 p-4",
         collapsible && !open && "pb-4",
-        collapsible && open && "border-b border-[var(--color-border)]",
+        collapsible && open && "border-b border-[var(--color-border-subtle)]",
       )}
     >
       <div className="min-w-0 flex-1">
@@ -47,7 +47,7 @@ export function SetupFlowHeader({
               aria-hidden
             />
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold">{t("setupFlow.title")}</h2>
+              <h2 className="font-display text-sm font-semibold">{t("setupFlow.title")}</h2>
               {!open && (
                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-muted)]">
                   {steps.map((step) => {
@@ -74,7 +74,7 @@ export function SetupFlowHeader({
           </button>
         ) : (
           <>
-            <h2 className="text-sm font-semibold">{t("setupFlow.title")}</h2>
+            <h2 className="font-display text-sm font-semibold">{t("setupFlow.title")}</h2>
             <p className="mt-0.5 text-xs text-[var(--color-muted)]">{subtitle}</p>
           </>
         )}

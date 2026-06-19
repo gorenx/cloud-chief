@@ -8,6 +8,7 @@ import { WorkerSetupWorkspace } from "@/components/worker/WorkerSetupWorkspace";
 import { WorkerStepContent } from "@/components/worker/WorkerStepContent";
 import { WorkerStepPanelHeader } from "@/components/worker/WorkerStepPanel";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { WorkerViewMode } from "@/components/worker/WorkerSetupStepSidebar";
 import { resolveWorkerSetupCurrent, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
@@ -92,11 +93,8 @@ export function WorkerPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">{t("worker.page.title")}</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("worker.page.desc")}</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title={t("worker.page.title")} description={t("worker.page.desc")} />
 
       <WorkerSetupFlow
         flowStatus={flowStatus}
@@ -110,6 +108,7 @@ export function WorkerPage() {
         onSelect={selectStep}
         onShowAll={() => selectStep("all")}
         rightHeader={rightHeader}
+        scrollMain
       >
         {activeStep === "all" ? (
           <div className="space-y-8">

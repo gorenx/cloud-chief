@@ -8,6 +8,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Chip } from "@/components/ui/Chip";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { GatewayDetailPanel } from "@/components/GatewayDetailPanel";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
@@ -81,11 +82,8 @@ export function GatewaysPage() {
   }, [defaultGw, gwId]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">{t("gateways.title")}</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("gateways.desc")}</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader title={t("gateways.title")} description={t("gateways.desc")} />
 
       <GatewaySetupFlow current="gateway" collapsible />
 

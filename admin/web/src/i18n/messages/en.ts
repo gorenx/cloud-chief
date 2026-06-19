@@ -85,6 +85,10 @@ export const enMessages: Messages = {
     configReadError: "Could not read config",
   },
   nav: {
+    sectionMonitor: "Monitor",
+    sectionInfra: "Infrastructure",
+    sectionDeploy: "Deploy",
+    sectionSystem: "System",
     overview: "Overview",
     playground: "Playground",
     gateways: "Gateways",
@@ -269,6 +273,7 @@ export const enMessages: Messages = {
   },
   playground: {
     title: "Playground",
+    desc: "Quickly validate models and gateway routing without deploying a Worker; supports direct Gateway or Worker proxy paths.",
     directGateway: "Direct Gateway",
     viaWorker: "Via Worker",
     gatewayLockedTitle: "Worker config: wrangler CF_GATEWAY_ID",
@@ -388,6 +393,7 @@ export const enMessages: Messages = {
       projectDone: "Applied {name}",
       projectDoneUrl: "Project config written",
       projectPending: "Select project and write config",
+      projectEmpty: "No project selected",
       projectBlocked: "Complete platform authorization first",
       databaseDone: "All tables synced",
       databaseBlocked: "Complete project setup first",

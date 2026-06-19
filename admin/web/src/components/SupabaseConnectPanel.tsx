@@ -242,7 +242,7 @@ export function SupabaseConnectPanel({
 
   useEffect(() => {
     if (!awaitingTestAccount || hasTestCredentials) return;
-    emailRef.current?.focus();
+    emailRef.current?.focus({ preventScroll: true });
   }, [awaitingTestAccount, hasTestCredentials]);
 
   const status = statusQ.data;

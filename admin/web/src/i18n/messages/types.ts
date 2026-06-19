@@ -84,6 +84,10 @@ export interface Messages {
     configReadError: string;
   };
   nav: {
+    sectionMonitor: string;
+    sectionInfra: string;
+    sectionDeploy: string;
+    sectionSystem: string;
     overview: string;
     playground: string;
     gateways: string;
@@ -236,6 +240,7 @@ export interface Messages {
   };
   playground: {
     title: string;
+    desc: string;
     directGateway: string;
     viaWorker: string;
     gatewayLockedTitle: string;
@@ -339,6 +344,7 @@ export interface Messages {
       projectDone: string;
       projectDoneUrl: string;
       projectPending: string;
+      projectEmpty: string;
       projectBlocked: string;
       databaseDone: string;
       databaseBlocked: string;

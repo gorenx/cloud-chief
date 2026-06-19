@@ -3,20 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
-import { SupabaseConnectPanel } from "@/components/SupabaseConnectPanel";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { SupabaseSetupFlow } from "@/components/supabase/SupabaseSetupFlow";
 import { SupabaseSetupWorkspace } from "@/components/supabase/SupabaseSetupWorkspace";
 import { SupabaseStepPanelHeader } from "@/components/supabase/SupabaseStepPanel";
+import { SupabaseStepContent, type SupabasePanelProps } from "@/components/supabase/SupabaseStepContent";
 import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupStepSidebar";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
-import {
-  pinScrollTop,
-  readMainScrollTop,
-  restoreMainScrollTop,
-  setFlowInert,
-} from "@/lib/prevent-nav-scroll";
+import { readMainScrollTop, restoreMainScrollTop } from "@/lib/prevent-nav-scroll";
 import { useSupabaseSetupFlowStatus } from "@/hooks/useSupabaseSetupFlowStatus";
 import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { fetchPublicConfig } from "@/lib/api";
@@ -26,16 +22,14 @@ import { resolveSupabaseSetupCurrent, type SupabaseSetupStep } from "@/lib/supab
 export function SupabasePage() {
   const { token } = useAdminToken();
   const { t } = useLocale();
+  const scrollRef = useScrollContainer();
   const [searchParams, setSearchParams] = useSearchParams();
   const [testEmail, setTestEmail] = useState("");
   const [testPassword, setTestPassword] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [activeStep, setActiveStep] = useState<SupabaseViewMode>("connect");
   const [activeInit, setActiveInit] = useState(false);
-  const flowRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useScrollContainer();
   const pendingScrollTop = useRef<number | null>(null);
-  const pinStop = useRef<(() => void) | null>(null);
 
   const configQ = useQuery({
     queryKey: ["public-config"],
@@ -55,39 +49,18 @@ export function SupabasePage() {
     hasAnonKey: worker?.has_anon_key ?? false,
   });
 
-  const selectStepFromWorkspace = useCallback(
+  const selectStep = useCallback(
     (step: SupabaseViewMode) => {
-      pinStop.current?.();
-      const top = readMainScrollTop(scrollRef);
-      pendingScrollTop.current = top;
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-      setFlowInert(flowRef.current, true);
-      pinStop.current = pinScrollTop(top, scrollRef);
+      pendingScrollTop.current = readMainScrollTop(scrollRef);
       setActiveStep(step);
     },
     [scrollRef],
   );
 
-  const selectStepFromFlow = useCallback((step: SupabaseSetupStep) => {
-    setActiveStep(step);
-  }, []);
-
   useLayoutEffect(() => {
     if (pendingScrollTop.current === null) return;
     restoreMainScrollTop(pendingScrollTop.current, scrollRef);
-  }, [activeStep, scrollRef]);
-
-  useEffect(() => {
-    if (pendingScrollTop.current === null) return;
-    const id = window.setTimeout(() => {
-      pinStop.current?.();
-      pinStop.current = null;
-      pendingScrollTop.current = null;
-      setFlowInert(flowRef.current, false);
-    }, 600);
-    return () => clearTimeout(id);
+    pendingScrollTop.current = null;
   }, [activeStep, scrollRef]);
 
   const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
@@ -117,8 +90,8 @@ export function SupabasePage() {
     return <NoTokenPrompt />;
   }
 
-  const panelProps = {
-    variant: "page" as const,
+  const panelProps: SupabasePanelProps = {
+    variant: "page",
     supabaseUrl: worker?.supabase_url,
     supabaseUrlMeta,
     hasAnonKey: worker?.has_anon_key ?? false,
@@ -133,49 +106,64 @@ export function SupabasePage() {
   };
 
   const stepDef = activeStep !== "all" ? steps.find((s) => s.id === activeStep) : null;
+  const projectRef = flowStatus.projectRef ?? null;
 
   const rightHeader =
     activeStep === "all" ? (
-      <div>
-        <h3 className="text-sm font-semibold leading-tight">{t("supabase.page.allSteps")}</h3>
-        <p className="mt-1 text-xs text-[var(--color-muted)]">{t("supabase.page.allStepsDesc")}</p>
+      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <h3 className="font-display text-sm font-semibold leading-tight">
+          {t("supabase.page.allSteps")}
+        </h3>
+        <p className="max-w-[min(24rem,100%)] shrink-0 text-right text-xs text-[var(--color-muted)] sm:max-w-[min(24rem,45%)]">
+          {t("supabase.page.allStepsDesc")}
+        </p>
       </div>
     ) : (
-      stepDef && <SupabaseStepPanelHeader step={stepDef} />
+      stepDef && (
+        <SupabaseStepPanelHeader
+          step={stepDef}
+          projectRef={activeStep === "project" || activeStep === "connect" ? projectRef : undefined}
+        />
+      )
     );
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">{t("supabase.page.title")}</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("supabase.page.desc")}</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title={t("supabase.page.title")} description={t("supabase.page.desc")} />
 
-      <div ref={flowRef}>
-        <SupabaseSetupFlow flowStatus={flowStatus} onGoToStep={selectStepFromFlow} />
-      </div>
+      <SupabaseSetupFlow
+        flowStatus={flowStatus}
+        activeStep={activeStep}
+        onGoToStep={selectStep}
+      />
 
       <SupabaseSetupWorkspace
         status={flowStatus}
         activeStep={activeStep}
-        onSelect={selectStepFromWorkspace}
-        onShowAll={() => selectStepFromWorkspace("all")}
+        onSelect={selectStep}
+        onShowAll={() => selectStep("all")}
         rightHeader={rightHeader}
+        scrollMain
       >
         {activeStep === "all" ? (
           <div className="space-y-8">
             {steps.map((def) => (
               <section key={def.id}>
                 <div className="mb-4">
-                  <SupabaseStepPanelHeader step={def} />
+                  <SupabaseStepPanelHeader
+                    step={def}
+                    projectRef={
+                      def.id === "project" || def.id === "connect" ? projectRef : undefined
+                    }
+                  />
                 </div>
-                <SupabaseConnectPanel {...panelProps} activeStep={def.id} />
+                <SupabaseStepContent step={def.id} panelProps={panelProps} />
               </section>
             ))}
           </div>
         ) : (
           stepDef && (
-            <SupabaseConnectPanel {...panelProps} activeStep={activeStep as SupabaseSetupStep} />
+            <SupabaseStepContent step={activeStep as SupabaseSetupStep} panelProps={panelProps} />
           )
         )}
       </SupabaseSetupWorkspace>

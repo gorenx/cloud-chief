@@ -5,6 +5,7 @@ import { useLocale } from "@/contexts/LocaleContext";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { LOCALES } from "@/i18n";
 
 export function SettingsPage() {
@@ -13,11 +14,8 @@ export function SettingsPage() {
   const [draft, setDraft] = useState(token);
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">{t("settings.title")}</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("settings.desc")}</p>
-      </div>
+    <div className="mx-auto max-w-lg space-y-8">
+      <PageHeader title={t("settings.title")} description={t("settings.desc")} />
 
       <Card>
         <CardTitle>{t("settings.adminToken")}</CardTitle>

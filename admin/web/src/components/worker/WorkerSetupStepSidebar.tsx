@@ -1,10 +1,10 @@
 import { useMemo } from "react";
+import { LayoutList } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
-import { Check, LayoutList } from "lucide-react";
 import { workerStepDone, type WorkerSetupStatus, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
-import { cn } from "@/lib/utils";
-import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
+import { WizardSidebarButton, WizardSidebarStep } from "@/components/ui/WizardWorkspace";
 
 export type WorkerViewMode = WorkerSetupStep | "all";
 
@@ -16,21 +16,12 @@ export function WorkerSetupShowAllButton({
   onClick: () => void;
 }) {
   const t = useT();
+  const scrollRef = useScrollContainer();
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      {...navButtonFocusProps}
-      className={cn(
-        "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-medium transition-colors",
-        active
-          ? "bg-[var(--color-accent)]/15 text-[var(--color-accent)]"
-          : "text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]",
-      )}
-    >
+    <WizardSidebarButton active={active} onClick={onClick} scrollRef={scrollRef}>
       <LayoutList className="h-3.5 w-3.5 shrink-0" aria-hidden />
       {t("btn.worker.showAll")}
-    </button>
+    </WizardSidebarButton>
   );
 }
 
@@ -44,6 +35,7 @@ export function WorkerSetupStepList({
   onSelect: (step: WorkerSetupStep) => void;
 }) {
   const t = useT();
+  const scrollRef = useScrollContainer();
   const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
 
   return (
@@ -54,43 +46,18 @@ export function WorkerSetupStepList({
         const selected = activeStep === step.id;
 
         return (
-          <button
+          <WizardSidebarStep
             key={step.id}
-            type="button"
+            active={selected}
+            done={done}
+            warn={warn}
+            num={step.num}
+            label={step.label}
+            optional={step.optional}
+            optionalLabel={t("worker.status.optionalTag")}
             onClick={() => onSelect(step.id)}
-            {...navButtonFocusProps}
-            className={cn(
-              "flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-xs transition-colors",
-              selected
-                ? "bg-[var(--color-accent)]/15 font-semibold text-[var(--color-accent)]"
-                : done
-                  ? "text-emerald-400 hover:bg-emerald-950/20"
-                  : warn
-                    ? "text-[var(--color-warn)] hover:bg-[var(--color-warn)]/10"
-                    : "text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]",
-            )}
-          >
-            <span
-              className={cn(
-                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
-                done
-                  ? "bg-emerald-600 text-white"
-                  : warn
-                    ? "bg-[var(--color-warn)] text-black"
-                    : selected
-                      ? "bg-[var(--color-accent)] text-white"
-                      : "bg-[var(--color-panel-elevated)] text-[var(--color-muted)]",
-              )}
-            >
-              {done ? <Check className="h-3 w-3" /> : step.num}
-            </span>
-            <span className="min-w-0 flex-1 truncate">
-              {step.label}
-              {step.optional && (
-                <span className="ml-1 font-normal opacity-60">{t("worker.status.optionalTag")}</span>
-              )}
-            </span>
-          </button>
+            scrollRef={scrollRef}
+          />
         );
       })}
     </nav>

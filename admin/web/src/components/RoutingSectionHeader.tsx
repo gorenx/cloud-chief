@@ -15,13 +15,13 @@ export function RoutingSectionHeader({
 }) {
   const style =
     badge === "CF"
-      ? "bg-violet-950/40 text-violet-300 border-violet-900/50"
-      : "bg-orange-950/40 text-orange-300 border-orange-900/50";
+      ? "bg-cyan-950/40 text-[var(--color-ice)] border-cyan-900/40"
+      : "bg-[var(--color-accent-glow)] text-[var(--color-accent)] border-[var(--color-accent)]/25";
 
   return (
     <div className={cn("space-y-1", className)}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-[var(--color-text)]">{title}</span>
+        <span className="font-display text-xs font-medium text-[var(--color-text)]">{title}</span>
         <span
           className={cn(
             "inline-flex rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium leading-none",
@@ -58,9 +58,9 @@ export function RoutingMismatchNotice({
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-200">
+    <div className="rounded-[var(--radius-md)] border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/8 px-3 py-2 text-xs text-[var(--color-warn)]">
       <p className="font-medium">{t("routing.mismatchTitle")}</p>
-      <ul className="mt-1 list-inside list-disc space-y-0.5 text-amber-200/90">
+      <ul className="mt-1 list-inside list-disc space-y-0.5 opacity-90">
         {items.map((item) => (
           <li key={item}>{item}</li>
         ))}

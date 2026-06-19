@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Chip } from "@/components/ui/Chip";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { ModelDetailCard } from "@/components/ModelDetailCard";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
@@ -142,11 +143,8 @@ export function KeysPage() {
   const byokForGateway = (keysQ.data?.length ?? 0) > 0;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">{t("keys.title")}</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("keys.desc")}</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader title={t("keys.title")} description={t("keys.desc")} />
 
       <GatewaySetupFlow
         current="byok"

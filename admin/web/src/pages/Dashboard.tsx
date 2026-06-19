@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { fetchState, fetchGatewayContext, fetchWorkerStatus } from "@/lib/api";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { CardTitle, StatCard } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { ModelDetailCard } from "@/components/ModelDetailCard";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
@@ -45,11 +46,9 @@ export function DashboardPage() {
 
   if (!token) {
     return (
-      <div>
-        <h1 className="text-xl font-semibold">{t("dashboard.title")}</h1>
-        <p className="mt-4">
-          <NoTokenPrompt suffixKey="dashboard.noTokenSuffix" />
-        </p>
+      <div className="page-enter space-y-4">
+        <PageHeader title={t("dashboard.title")} />
+        <NoTokenPrompt suffixKey="dashboard.noTokenSuffix" />
       </div>
     );
   }
@@ -57,11 +56,8 @@ export function DashboardPage() {
   const s = stateQ.data;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">{t("dashboard.title")}</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("dashboard.desc")}</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader title={t("dashboard.title")} description={t("dashboard.desc")} />
 
       {stateQ.isError && (
         <p className="text-sm text-[var(--color-err)]">
@@ -70,25 +66,17 @@ export function DashboardPage() {
       )}
 
       {s && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <div className="text-xs text-[var(--color-muted)]">{t("dashboard.cfApi")}</div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label={t("dashboard.cfApi")}>
             <div className="mt-2">
               <Chip variant={s.has_api_token ? "on" : "off"}>
                 {s.has_api_token ? t("dashboard.tokenConfigured") : t("dashboard.tokenMissing")}
               </Chip>
             </div>
-          </Card>
-          <Card>
-            <div className="text-xs text-[var(--color-muted)]">{t("dashboard.gateways")}</div>
-            <div className="mt-2 text-2xl font-semibold">{s.gateways.length}</div>
-          </Card>
-          <Card>
-            <div className="text-xs text-[var(--color-muted)]">{t("dashboard.providers")}</div>
-            <div className="mt-2 text-2xl font-semibold">{s.providers.length}</div>
-          </Card>
-          <Card>
-            <div className="text-xs text-[var(--color-muted)]">{t("dashboard.wrangler")}</div>
+          </StatCard>
+          <StatCard label={t("dashboard.gateways")} value={s.gateways.length} />
+          <StatCard label={t("dashboard.providers")} value={s.providers.length} />
+          <StatCard label={t("dashboard.wrangler")}>
             <div className="mt-2">
               {workerQ.data ? (
                 <Chip variant={workerQ.data.logged_in ? "on" : "off"}>
@@ -100,14 +88,14 @@ export function DashboardPage() {
                 <span className="text-sm text-[var(--color-muted)]">—</span>
               )}
             </div>
-          </Card>
+          </StatCard>
         </div>
       )}
 
       {ctxQ.data && (
-        <div>
+        <section className="page-enter page-enter-delay-2 space-y-3">
           <CardTitle>{t("dashboard.defaultRouting")}</CardTitle>
-          <div className="mt-3 max-w-xl">
+          <div className="max-w-xl">
             <ModelDetailCard
               modelId={ctxQ.data.routing.model}
               modelMeta={ctxQ.data.model_meta}
@@ -115,16 +103,18 @@ export function DashboardPage() {
               compact
             />
           </div>
-          <p className="mt-2 text-xs text-[var(--color-muted)]">
+          <p className="text-xs text-[var(--color-muted)]">
             {t("dashboard.accountDefault", {
               account: s?.account_id ?? "",
               gateway: s?.defaults.gateway ?? "",
             })}
           </p>
-        </div>
+        </section>
       )}
 
-      <GatewaySetupFlow />
+      <div className="page-enter page-enter-delay-3">
+        <GatewaySetupFlow />
+      </div>
     </div>
   );
 }

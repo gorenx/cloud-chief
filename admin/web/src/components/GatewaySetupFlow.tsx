@@ -7,6 +7,7 @@ import { SetupFlowActions } from "@/components/setup-flow/SetupFlowActions";
 import { SetupFlowHeader } from "@/components/setup-flow/SetupFlowHeader";
 import { SetupFlowStepNav } from "@/components/setup-flow/SetupFlowStepNav";
 import { SetupFlowUrlPreview } from "@/components/setup-flow/SetupFlowUrlPreview";
+import { FlowPanel } from "@/components/ui/SetupStepBadge";
 import { useSetupFlowData } from "@/hooks/useSetupFlowData";
 import { useT } from "@/contexts/LocaleContext";
 import {
@@ -76,7 +77,7 @@ export function GatewaySetupFlow({
   };
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)]">
+    <FlowPanel>
       <SetupFlowHeader
         collapsible={collapsible}
         open={open}
@@ -122,6 +123,6 @@ export function GatewaySetupFlow({
           />
         </div>
       )}
-    </div>
+    </FlowPanel>
   );
 }

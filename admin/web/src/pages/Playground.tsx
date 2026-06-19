@@ -6,6 +6,7 @@ import { emptyChatHint } from "@/i18n/playground-ui";
 import { PlaygroundRoutingSidebar } from "@/components/PlaygroundRoutingSidebar";
 import { PlaygroundToolbar } from "@/components/PlaygroundToolbar";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { usePlaygroundChat } from "@/hooks/usePlaygroundChat";
 import { usePlaygroundSession } from "@/hooks/usePlaygroundSession";
 import { cn } from "@/lib/utils";
@@ -85,7 +86,9 @@ export function PlaygroundPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-[calc(100vh-2.5rem)] flex-col gap-4">
+      <PageHeader title={t("playground.title")} description={t("playground.desc")} />
+
       <PlaygroundToolbar
         callMode={callMode}
         onCallModeChange={setCallMode}
@@ -110,8 +113,8 @@ export function PlaygroundPage() {
         workerHealthResult={workerHealthResult}
       />
 
-      <div className="flex min-h-0 flex-1 gap-4">
-        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)]">
+      <div className="flex min-h-0 flex-1 gap-4 page-enter page-enter-delay-1">
+        <div className="flex min-h-0 flex-1 flex-col rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] bg-[var(--color-panel)]/90 shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]">
           <div ref={chatRef} className="flex-1 overflow-y-auto p-4">
             {messages.length === 0 ? (
               <p className="text-center text-sm text-[var(--color-muted)]">
@@ -129,13 +132,13 @@ export function PlaygroundPage() {
                   >
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                        "max-w-[85%] rounded-[var(--radius-lg)] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
                         msg.role === "user"
-                          ? "bg-[var(--color-accent)]/20 text-[var(--color-text)]"
-                          : "bg-[var(--color-bg)] text-[var(--color-text)]",
+                          ? "bg-[var(--color-accent-glow)] text-[var(--color-text)] ring-1 ring-[var(--color-accent)]/20"
+                          : "bg-[var(--color-bg-elevated)] text-[var(--color-text)] ring-1 ring-[var(--color-border-subtle)]",
                         msg.content.startsWith(errorPrefixes.requestFailedPrefix) ||
                           msg.content.startsWith(errorPrefixes.errorPrefix)
-                          ? "text-red-300"
+                          ? "text-[var(--color-err)] ring-[var(--color-err)]/30"
                           : "",
                       )}
                     >
@@ -146,7 +149,7 @@ export function PlaygroundPage() {
               </div>
             )}
           </div>
-          <div className="border-t border-[var(--color-border)] p-4">
+          <div className="border-t border-[var(--color-border-subtle)] p-4">
             <div className="mx-auto flex max-w-2xl gap-2">
               <textarea
                 value={input}
@@ -159,7 +162,7 @@ export function PlaygroundPage() {
                 }}
                 rows={1}
                 placeholder={t("playground.sendPlaceholder")}
-                className="flex-1 resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)]"
+                className="flex-1 resize-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent-glow)]"
               />
               <Button disabled={sending || !input.trim()} onClick={handleSend}>
                 {t("playground.send")}

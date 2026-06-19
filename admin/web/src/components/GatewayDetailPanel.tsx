@@ -21,9 +21,9 @@ export function RoutingWarnings({ ctx }: { ctx: GatewayContext }) {
   if (warnings.length === 0) return null;
 
   return (
-    <div className="space-y-1 rounded-lg border border-amber-900/40 bg-amber-950/20 p-3">
+    <div className="space-y-1 rounded-[var(--radius-md)] border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/8 p-3">
       {warnings.map((w) => (
-        <p key={w} className="text-xs text-amber-200">⚠ {w}</p>
+        <p key={w} className="text-xs text-[var(--color-warn)]">⚠ {w}</p>
       ))}
     </div>
   );
@@ -106,7 +106,7 @@ export function ByokKeysCard({
           {ctx.keys.map((k) => (
             <li
               key={k.id}
-              className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm"
+              className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/50 px-3 py-2 text-sm"
             >
               <code className="mono">{k.provider_slug}</code>
               <span className="text-[var(--color-muted)]">{k.alias}</span>
@@ -139,7 +139,7 @@ export function GatewayDetailPanel({ ctx, loading }: { ctx: GatewayContext | nul
   const fields = ctx._meta?.fields ?? {};
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:sticky lg:top-6">
       <GatewayStatusCard ctx={ctx} />
 
       <RoutingWarnings ctx={ctx} />

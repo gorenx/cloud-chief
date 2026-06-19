@@ -8,6 +8,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Chip } from "@/components/ui/Chip";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 
@@ -72,11 +73,8 @@ export function ProvidersPage() {
   }, [stateQ.data?.defaults, slug, baseUrl]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">{t("providers.title")}</h1>
-        <p className="mt-1 text-sm text-[var(--color-muted)]">{t("providers.desc")}</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader title={t("providers.title")} description={t("providers.desc")} />
 
       <GatewaySetupFlow current="provider" collapsible />
 
