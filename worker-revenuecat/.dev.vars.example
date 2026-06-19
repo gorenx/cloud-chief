@@ -1,0 +1,18 @@
+# Worker 本地密钥（wrangler dev）。线上用 `wrangler secret put`。
+# 非敏感配置见 wrangler.toml [vars]。
+# 复制：cp .dev.vars.example .dev.vars
+
+# RevenueCat v2 Secret API Key（Dashboard → Project Settings → API keys → + New → V2）
+REVENUECAT_SECRET_API_KEY=sk_你的RevenueCatV2密钥
+
+# RevenueCat v1 REST API Key（Project Settings → API keys — subscriber mirror）
+REVENUECAT_REST_API_KEY=sk_你的RevenueCatV1密钥
+
+# Webhook Authorization: Bearer <same value>
+REVENUECAT_WEBHOOK_SECRET=你的WebhookSharedSecret
+
+# Supabase service role — writes user_entitlements
+SUPABASE_SERVICE_ROLE_KEY=你的SupabaseServiceRoleKey
+
+# 仅当 Supabase 项目仍用旧版 HS256 共享密钥时才需要：
+# SUPABASE_JWT_SECRET=你的SupabaseJWT密钥

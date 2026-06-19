@@ -1,0 +1,26 @@
+{
+  "name": "revenuecat-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cloud-chief/gateway-core": "file:../packages/gateway-core",
+    "hono": "^4.12.25",
+    "jose": "^6.2.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.16.16",
+    "@cloudflare/workers-types": "^4.20260617.1",
+    "@vitest/runner": "^4.1.9",
+    "@vitest/snapshot": "^4.1.9",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9",
+    "wrangler": "^4.101.0"
+  }
+}

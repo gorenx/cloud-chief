@@ -6,8 +6,7 @@
 --   2. RLS on ai_usage — read own, never write directly
 --   3. RLS on ai_throttle — fully invisible to authenticated clients
 --
--- Quota/throttle increment logic lives in wren-voice (_shared/ai_gateway.ts);
--- validation specs:  deno test --allow-read supabase/functions/_shared/ai_gateway_test.ts
+-- Quota/throttle increment logic lives in packages/gateway-core (Vitest).
 
 begin;
 select plan(10);

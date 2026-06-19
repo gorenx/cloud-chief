@@ -17,14 +17,16 @@ https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/resp
 | 目录 / 文件 | 作用 |
 | --- | --- |
 | `admin/` | **配置 / 管理服务**（TypeScript + Hono）：管理网关 / 提供商 / BYOK，部署 Worker，本地聊天调试页。详见 [admin/README.md](admin/README.md) |
-| `worker/` | **生产边缘代理**（Cloudflare Worker，TS + Hono + jose）：验 Supabase JWT 后转发到 AI Gateway。详见 [worker/README.md](worker/README.md) |
+| `ai-gateway-worker/` | **生产 AI 网关**（Cloudflare Worker，TS + Hono + jose）：验 Supabase JWT、服务端权威权益/配额，转发到 AI Gateway。详见 [ai-gateway-worker/README.md](ai-gateway-worker/README.md) |
+| `worker-revenuecat/` | **RevenueCat 边界**（webhook、sync-entitlement、只读 API）。详见 [worker-revenuecat/README.md](worker-revenuecat/README.md) |
+| `packages/gateway-core/` | AI 网关与 billing 共享逻辑（配额、权益 mirror） |
 | `setup.sh` | （可选，CLI）创建/更新自定义提供商并确保网关存在（读 `admin/.env`） |
 | `test.sh` | （可选，CLI）用 curl 验证链路（读 `admin/.env`） |
 | `admin.sh` / `admin/run.sh` | 一键安装依赖、开发或生产启动配置后台 |
 
 两条调用路径：
 
-- **生产**：应用带 Supabase `access_token` → `worker/`（边缘验签 + 持密钥）→ AI Gateway → 阿里云。
+- **生产**：应用带 Supabase `access_token` → `ai-gateway-worker/`（边缘验签 + 权益/配额 + 持密钥）→ AI Gateway → 阿里云。
 - **运维 / 本地**：浏览器 → `admin/` 配置后台（管理资源、部署 Worker、本地聊天调试）。
 
 ## 可视化配置后台（推荐）
@@ -100,8 +102,8 @@ https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>/custom-qwen-maas/
 **Playground 经 Worker 调试**（可选）：
 
 1. `admin/.env` 配置 `SUPABASE_OAUTH_*`（Organization OAuth App）与 `ADMIN_TOKEN`
-2. Playground 切到「经 Worker」→ 侧栏完成 Supabase 向导（或手动配置 `SUPABASE_*` + `worker/wrangler.toml`）
-3. 顶栏选「本地 Worker」，点击「启动本地 Worker」或于 `worker/` 执行 `pnpm dev`（默认 `:8788`）
+2. Playground 切到「经 Worker」→ 侧栏完成 Supabase 向导（或手动配置 `SUPABASE_*` + `ai-gateway-worker/wrangler.toml`）
+3. 顶栏选「本地 Worker」，点击「启动本地 Worker」或于 `ai-gateway-worker/` 执行 `pnpm dev`（默认 `:8788`）
 4. `GET /health` 通过后发送消息
 
 ## 直接用 OpenAI SDK 调用（可选）
@@ -156,4 +158,4 @@ AI Gateway 不替你管理上游鉴权，请求需要两个头：
 
 - `.env` 含密钥，切勿提交到 git（见 `.gitignore`）。
 - 配置后台（`admin/`）默认只绑 `127.0.0.1`，`/admin/*` 接口需 `ADMIN_TOKEN`。
-- 生产聊天走 `worker/`：密钥放 Worker Secret，应用只持有自己的 Supabase token，拿不到上游密钥。
+- 生产聊天走 `ai-gateway-worker/`：密钥放 Worker Secret，应用只持有自己的 Supabase token，拿不到上游密钥。

@@ -1,9 +1,0 @@
-# Worker 本地密钥（wrangler dev）。线上用 `wrangler secret put`。
-# 非敏感路由配置见 wrangler.toml [vars]；与 admin/.env 无关。
-# 复制：cp .dev.vars.example .dev.vars
-
-CF_AIG_TOKEN=cfut_你的网关令牌
-DASHSCOPE_API_KEY=sk-你的阿里云DashScopeKey
-
-# 仅当 Supabase 项目仍用旧版 HS256 共享密钥时才需要（新项目走 JWKS，不用填）：
-# SUPABASE_JWT_SECRET=你的SupabaseJWT密钥
