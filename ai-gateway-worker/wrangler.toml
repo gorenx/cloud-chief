@@ -13,7 +13,7 @@ CF_GATEWAY_ID = "qwen-gw"
 PROVIDER_SLUG = "qwen-beijing-maas"
 DEFAULT_MODEL = "qwen-plus"
 FREE_MODEL = "qwen-plus"
-PLUS_MODEL = "qwen3-max"
+PLUS_MODEL = "qwen-plus"
 
 # ===== Supabase 鉴权 + 服务端权威权益/配额 =====
 # 你的 Supabase 项目地址（不要带末尾斜杠），用于拉 JWKS 公钥并校验 iss。

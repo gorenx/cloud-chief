@@ -5,7 +5,7 @@
 // RevenueCat and the Flutter client (WrenRules.proEntitlementId).
 
 export const FREE_MODEL = "qwen-plus";
-export const PLUS_MODEL = "qwen3-max";
+export const PLUS_MODEL = "qwen-plus";
 export const PLUS_ENTITLEMENT_ID = "wren Pro";
 
 /** Supabase user access_token `aud` claim; override via wrangler [vars]. */
