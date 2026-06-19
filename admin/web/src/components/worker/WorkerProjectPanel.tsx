@@ -3,7 +3,7 @@ import { CfWorkerPanel } from "@/components/worker/CfWorkerPanel";
 import { LocalWorkerPanel } from "@/components/worker/LocalWorkerPanel";
 import { useT } from "@/contexts/LocaleContext";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { ScrollSafeButton } from "@/components/ui/ScrollSafeButton";
 import { Chip } from "@/components/ui/Chip";
 import type { CfDeployedList, WorkerList, WorkerStatus } from "@/types";
 
@@ -36,16 +36,16 @@ export function WorkerProjectPanel({
       {!embedded && (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <CardTitle desc={t("worker.card.project.desc")}>{t("worker.card.project.title")}</CardTitle>
-          <Button variant="ghost" size="sm" onClick={onRefresh}>
+          <ScrollSafeButton variant="ghost" size="sm" onAction={onRefresh}>
             {t("btn.worker.refreshList")}
-          </Button>
+          </ScrollSafeButton>
         </div>
       )}
       {embedded && (
         <div className="mb-4 flex justify-end">
-          <Button variant="ghost" size="sm" onClick={onRefresh}>
+          <ScrollSafeButton variant="ghost" size="sm" onAction={onRefresh}>
             {t("btn.worker.refreshList")}
-          </Button>
+          </ScrollSafeButton>
         </div>
       )}
 

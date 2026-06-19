@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
 import { ClickTarget } from "@/components/ui/ClickTarget";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import { workerStepDone, type WorkerSetupStatus, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { formatWorkerStepMeta, getLocalizedWorkerSteps } from "@/i18n/worker-ui";
 import { SetupStepBadge, setupStepCardClasses } from "@/components/ui/SetupStepBadge";
@@ -16,6 +17,7 @@ export function WorkerSetupFlowStepNav({
   onSelect: (step: WorkerSetupStep) => void;
 }) {
   const t = useT();
+  const scrollRef = useScrollContainer();
   const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
 
   return (
@@ -36,6 +38,7 @@ export function WorkerSetupFlowStepNav({
             <div className={setupStepCardClasses({ isSelected, done, warn })}>
               <ClickTarget
                 onClick={() => onSelect(step.id)}
+                scrollRef={scrollRef}
                 className="w-full flex-1 text-left"
               >
                 <div className="flex items-center gap-2">

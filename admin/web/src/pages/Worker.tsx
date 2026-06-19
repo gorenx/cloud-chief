@@ -13,27 +13,51 @@ import type { WorkerViewMode } from "@/components/worker/WorkerSetupStepSidebar"
 import { resolveWorkerSetupCurrent, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
-import { readMainScrollTop, restoreMainScrollTop } from "@/lib/prevent-nav-scroll";
+import {
+  pinScrollTop,
+  readMainScrollTop,
+  resetWizardMainScroll,
+  restoreMainScrollTop,
+  setFlowInert,
+} from "@/lib/prevent-nav-scroll";
 
 export function WorkerPage() {
   const { token } = useAdminToken();
   const { t, displayError } = useLocale();
   const page = useWorkerPage(token);
   const scrollRef = useScrollContainer();
+  const flowRef = useRef<HTMLDivElement>(null);
+  const pinStop = useRef<(() => void) | null>(null);
   const [activeStep, setActiveStep] = useState<WorkerViewMode>("project");
   const [activeInit, setActiveInit] = useState(false);
   const pendingScrollTop = useRef<number | null>(null);
 
-  const selectStep = useCallback((step: WorkerViewMode) => {
-    pendingScrollTop.current = readMainScrollTop(scrollRef);
-    setActiveStep(step);
-  }, [scrollRef]);
+  const selectStep = useCallback(
+    (step: WorkerViewMode) => {
+      pinStop.current?.();
+      pendingScrollTop.current = readMainScrollTop(scrollRef);
+      resetWizardMainScroll(scrollRef);
+      setFlowInert(flowRef.current, true);
+      pinStop.current = pinScrollTop(pendingScrollTop.current, scrollRef);
+      setActiveStep(step);
+    },
+    [scrollRef],
+  );
 
   useLayoutEffect(() => {
     if (pendingScrollTop.current === null) return;
     restoreMainScrollTop(pendingScrollTop.current, scrollRef);
     pendingScrollTop.current = null;
   }, [activeStep, scrollRef]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      pinStop.current?.();
+      pinStop.current = null;
+      setFlowInert(flowRef.current, false);
+    }, 600);
+    return () => clearTimeout(id);
+  }, [activeStep]);
 
   const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
 
@@ -97,6 +121,7 @@ export function WorkerPage() {
       <PageHeader title={t("worker.page.title")} description={t("worker.page.desc")} />
 
       <WorkerSetupFlow
+        ref={flowRef}
         flowStatus={flowStatus}
         activeStep={activeStep}
         onGoToStep={selectStep}

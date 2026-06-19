@@ -12,7 +12,13 @@ import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupStepSi
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
-import { readMainScrollTop, restoreMainScrollTop } from "@/lib/prevent-nav-scroll";
+import {
+  pinScrollTop,
+  readMainScrollTop,
+  resetWizardMainScroll,
+  restoreMainScrollTop,
+  setFlowInert,
+} from "@/lib/prevent-nav-scroll";
 import { useSupabaseSetupFlowStatus } from "@/hooks/useSupabaseSetupFlowStatus";
 import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { fetchPublicConfig } from "@/lib/api";
@@ -23,6 +29,8 @@ export function SupabasePage() {
   const { token } = useAdminToken();
   const { t } = useLocale();
   const scrollRef = useScrollContainer();
+  const flowRef = useRef<HTMLDivElement>(null);
+  const pinStop = useRef<(() => void) | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [testEmail, setTestEmail] = useState("");
   const [testPassword, setTestPassword] = useState("");
@@ -51,7 +59,11 @@ export function SupabasePage() {
 
   const selectStep = useCallback(
     (step: SupabaseViewMode) => {
+      pinStop.current?.();
       pendingScrollTop.current = readMainScrollTop(scrollRef);
+      resetWizardMainScroll(scrollRef);
+      setFlowInert(flowRef.current, true);
+      pinStop.current = pinScrollTop(pendingScrollTop.current, scrollRef);
       setActiveStep(step);
     },
     [scrollRef],
@@ -62,6 +74,15 @@ export function SupabasePage() {
     restoreMainScrollTop(pendingScrollTop.current, scrollRef);
     pendingScrollTop.current = null;
   }, [activeStep, scrollRef]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      pinStop.current?.();
+      pinStop.current = null;
+      setFlowInert(flowRef.current, false);
+    }, 600);
+    return () => clearTimeout(id);
+  }, [activeStep]);
 
   const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
 
@@ -132,6 +153,7 @@ export function SupabasePage() {
       <PageHeader title={t("supabase.page.title")} description={t("supabase.page.desc")} />
 
       <SupabaseSetupFlow
+        ref={flowRef}
         flowStatus={flowStatus}
         activeStep={activeStep}
         onGoToStep={selectStep}

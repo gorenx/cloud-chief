@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
 import { ClickTarget } from "@/components/ui/ClickTarget";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import {
   supabaseStepDone,
   type SupabaseSetupStatus,
@@ -20,6 +21,7 @@ export function SupabaseSetupFlowStepNav({
   onSelect: (step: SupabaseSetupStep) => void;
 }) {
   const t = useT();
+  const scrollRef = useScrollContainer();
   const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
 
   return (
@@ -42,6 +44,7 @@ export function SupabaseSetupFlowStepNav({
             <div className={setupStepCardClasses({ isSelected, done, warn })}>
               <ClickTarget
                 onClick={() => onSelect(step.id)}
+                scrollRef={scrollRef}
                 className="w-full flex-1 text-left"
               >
                 <div className="flex items-center gap-2">

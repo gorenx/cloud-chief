@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
 import { Chip } from "@/components/ui/Chip";
@@ -20,17 +20,18 @@ import {
   getLocalizedSupabaseSteps,
 } from "@/i18n/supabase-ui";
 import { cn } from "@/lib/utils";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 
-export function SupabaseSetupFlow({
-  flowStatus,
-  activeStep,
-  onGoToStep,
-}: {
-  flowStatus: SupabaseSetupStatus;
-  activeStep: SupabaseViewMode;
-  onGoToStep: (step: SupabaseSetupStep) => void;
-}) {
+export const SupabaseSetupFlow = forwardRef<
+  HTMLDivElement,
+  {
+    flowStatus: SupabaseSetupStatus;
+    activeStep: SupabaseViewMode;
+    onGoToStep: (step: SupabaseSetupStep) => void;
+  }
+>(function SupabaseSetupFlow({ flowStatus, activeStep, onGoToStep }, ref) {
   const t = useT();
+  const scrollRef = useScrollContainer();
   const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
   const coreDone = supabaseCoreDone(flowStatus);
   const action = formatNextSupabaseSetupAction(t, flowStatus);
@@ -45,7 +46,7 @@ export function SupabaseSetupFlow({
   const toggleOpen = () => setOpen((v) => !v);
 
   return (
-    <FlowPanel>
+    <FlowPanel ref={ref}>
       <div
         className={cn(
           "flex flex-wrap items-center justify-between gap-2 p-4",
@@ -54,6 +55,7 @@ export function SupabaseSetupFlow({
       >
         <ClickTarget
           onClick={toggleOpen}
+          scrollRef={scrollRef}
           className="flex min-w-0 flex-1 items-start gap-2 text-left"
         >
           <ChevronDown
@@ -108,6 +110,7 @@ export function SupabaseSetupFlow({
           )}
           <ClickTarget
             onClick={toggleOpen}
+            scrollRef={scrollRef}
             className="rounded-lg px-2 py-1 text-xs text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]"
           >
             {open ? t("btn.common.collapse") : t("btn.common.expand")}
@@ -163,6 +166,7 @@ export function SupabaseSetupFlow({
               <p className="text-xs text-[var(--color-muted)]">{action.text}</p>
               <ClickTarget
                 onClick={() => onGoToStep(action.step)}
+                scrollRef={scrollRef}
                 className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent-glow)]"
               >
                 {t("btn.common.goTo")}
@@ -185,4 +189,4 @@ export function SupabaseSetupFlow({
       )}
     </FlowPanel>
   );
-}
+});

@@ -119,6 +119,13 @@ export function restoreMainScrollTop(
   restoreScrollTop(top, ref);
 }
 
+/** 切换向导步骤时重置右侧主内容区滚动，避免短内容继承旧 scrollTop 造成视觉跳动。 */
+export function resetWizardMainScroll(ref?: RefObject<HTMLElement | null> | null): void {
+  const root = getScrollEl(ref);
+  const main = root?.querySelector<HTMLElement>("[data-wizard-main]");
+  if (main) main.scrollTop = 0;
+}
+
 /** 在指定时间内钉住滚动位置（部署日志、布局刷新等）。 */
 export function pinScrollTop(
   top: number,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
 import { Chip } from "@/components/ui/Chip";
@@ -19,18 +19,19 @@ import {
   getLocalizedWorkerSteps,
 } from "@/i18n/worker-ui";
 import { cn } from "@/lib/utils";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import type { WorkerViewMode } from "@/components/worker/WorkerSetupStepSidebar";
 
-export function WorkerSetupFlow({
-  flowStatus,
-  activeStep,
-  onGoToStep,
-}: {
-  flowStatus: WorkerSetupStatus;
-  activeStep: WorkerViewMode;
-  onGoToStep: (step: WorkerSetupStep) => void;
-}) {
+export const WorkerSetupFlow = forwardRef<
+  HTMLDivElement,
+  {
+    flowStatus: WorkerSetupStatus;
+    activeStep: WorkerViewMode;
+    onGoToStep: (step: WorkerSetupStep) => void;
+  }
+>(function WorkerSetupFlow({ flowStatus, activeStep, onGoToStep }, ref) {
   const t = useT();
+  const scrollRef = useScrollContainer();
   const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
   const coreDone = workerCoreDone(flowStatus);
   const action = formatNextWorkerSetupAction(t, flowStatus);
@@ -44,7 +45,7 @@ export function WorkerSetupFlow({
   const toggleOpen = () => setOpen((v) => !v);
 
   return (
-    <FlowPanel>
+    <FlowPanel ref={ref}>
       <div
         className={cn(
           "flex flex-wrap items-center justify-between gap-2 p-4",
@@ -53,6 +54,7 @@ export function WorkerSetupFlow({
       >
         <ClickTarget
           onClick={toggleOpen}
+          scrollRef={scrollRef}
           className="flex min-w-0 flex-1 items-start gap-2 text-left"
         >
           <ChevronDown
@@ -111,6 +113,7 @@ export function WorkerSetupFlow({
           )}
           <ClickTarget
             onClick={toggleOpen}
+            scrollRef={scrollRef}
             className="rounded-lg px-2 py-1 text-xs text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]"
           >
             {open ? t("btn.common.collapse") : t("btn.common.expand")}
@@ -153,6 +156,7 @@ export function WorkerSetupFlow({
               <p className="text-xs text-[var(--color-muted)]">{action.text}</p>
               <ClickTarget
                 onClick={() => onGoToStep(action.step)}
+                scrollRef={scrollRef}
                 className="rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent-glow)]"
               >
                 {t("btn.common.goTo")}
@@ -175,4 +179,4 @@ export function WorkerSetupFlow({
       )}
     </FlowPanel>
   );
-}
+});

@@ -11,6 +11,7 @@ import {
   navButtonScrollSafeProps,
   focusWithoutScroll,
   workspaceSidebarButtonProps,
+  resetWizardMainScroll,
 } from "./prevent-nav-scroll";
 
 function scrollContainer(initialTop = 0): HTMLElement {
@@ -166,6 +167,18 @@ describe("prevent-nav-scroll", () => {
     expect(action).toHaveBeenCalledTimes(1);
     expect(container.scrollTop).toBe(480);
     expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+
+  it("resetWizardMainScroll clears inner wizard main scroll", () => {
+    const main = document.createElement("main");
+    main.setAttribute("data-wizard-main", "");
+    Object.defineProperty(main, "scrollTop", { configurable: true, writable: true, value: 320 });
+    container.appendChild(main);
+
+    const ref = { current: container } as RefObject<HTMLElement>;
+    resetWizardMainScroll(ref);
+    expect(main.scrollTop).toBe(0);
+    expect(container.scrollTop).toBe(480);
   });
 
   it("simulates supabase sidebar step switch preserving scroll", () => {

@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 
 export function SetupStepBadge({
   done,
@@ -60,18 +60,21 @@ export function setupStepCardClasses({
   );
 }
 
-export function FlowPanel({ className, children }: { className?: string; children: ReactNode }) {
-  return (
-    <div
-      className={cn(
-        "glass-panel overflow-hidden rounded-[var(--radius-xl)] shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
+export const FlowPanel = forwardRef<HTMLDivElement, { className?: string; children: ReactNode }>(
+  function FlowPanel({ className, children }, ref) {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "glass-panel overflow-hidden rounded-[var(--radius-xl)] shadow-[0_1px_0_rgba(255,255,255,0.03)_inset]",
+          className,
+        )}
+      >
+        {children}
+      </div>
+    );
+  },
+);
 
 export function FlowProgressBar({ value }: { value: number }) {
   return (
