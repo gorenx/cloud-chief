@@ -58,6 +58,7 @@ ai-gateway-worker/
 - `SUPABASE_URL`
 - `JWT_AUDIENCE`（默认 `authenticated`，与 Supabase 用户 access_token 的 `aud` 一致）
 - `FREE_MODEL` / `PLUS_MODEL`（默认均为 `qwen-plus`）
+- `FREE_DAILY_CEILING` / `MAX_TOKENS` / `MAX_PROMPT_CHARS` / `DEVICE_DAILY_CAP` / `IP_DAILY_CAP`（默认见 `gateway-core` `policy.ts`）
 - `ALLOWED_SUBS`
 
 ## Secrets

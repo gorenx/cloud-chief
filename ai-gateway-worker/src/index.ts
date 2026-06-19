@@ -76,7 +76,7 @@ function handler(kind: UpstreamKind) {
       return c.json(policyOrReject.body, policyOrReject.status as 400 | 429 | 500);
     }
     const policy = policyOrReject;
-    const body = patchUpstreamBody(rawBody, policy.model);
+    const body = patchUpstreamBody(rawBody, policy.model, policy.maxTokens);
     const upstream = await forward(
       c.env,
       kind,

@@ -15,6 +15,13 @@ DEFAULT_MODEL = "qwen-plus"
 FREE_MODEL = "qwen-plus"
 PLUS_MODEL = "qwen-plus"
 
+# ===== Free-tier policy (override defaults in gateway-core policy.ts) =====
+FREE_DAILY_CEILING = "8"
+MAX_TOKENS = "4096"
+MAX_PROMPT_CHARS = "100000"
+DEVICE_DAILY_CAP = "16"
+IP_DAILY_CAP = "64"
+
 # ===== Supabase 鉴权 + 服务端权威权益/配额 =====
 # 你的 Supabase 项目地址（不要带末尾斜杠），用于拉 JWKS 公钥并校验 iss。
 SUPABASE_URL = "https://hkhdizuncmaghkhtcvvw.supabase.co"

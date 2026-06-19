@@ -2,14 +2,11 @@ import type { JWTPayload } from "jose";
 import {
   AiGatewayError,
   createAdminClient,
-  DEVICE_DAILY_CAP,
-  FREE_DAILY_CEILING,
   FREE_MODEL,
-  IP_DAILY_CAP,
-  MAX_PROMPT_CHARS,
-  MAX_TOKENS,
   PLUS_MODEL,
+  PolicyConfigError,
   readUserEntitlement,
+  resolveGatewayLimits,
   spendFreeAiCredit,
   utcPeriodKey,
 } from "@cloud-chief/gateway-core";
@@ -21,6 +18,7 @@ export type GatewayPolicy = {
   model: string;
   used: number;
   quota: number;
+  maxTokens: number;
 };
 
 export type PolicyReject = {
@@ -63,14 +61,18 @@ export function estimatePromptChars(bodyText: string): number | null {
   }
 }
 
-export function patchUpstreamBody(bodyText: string, model: string): string {
+export function patchUpstreamBody(
+  bodyText: string,
+  model: string,
+  maxTokens: number,
+): string {
   try {
     const payload = JSON.parse(bodyText) as Record<string, unknown>;
     payload.model = model;
     if (typeof payload.max_tokens === "number") {
-      payload.max_tokens = Math.min(payload.max_tokens, MAX_TOKENS);
+      payload.max_tokens = Math.min(payload.max_tokens, maxTokens);
     } else if (typeof payload.max_output_tokens === "number") {
-      payload.max_output_tokens = Math.min(payload.max_output_tokens, MAX_TOKENS);
+      payload.max_output_tokens = Math.min(payload.max_output_tokens, maxTokens);
     }
     return JSON.stringify(payload);
   } catch {
@@ -87,13 +89,24 @@ export async function enforceGatewayPolicy(
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return { status: 500, body: { error: "gateway_misconfigured" } };
   }
+
+  let limits;
+  try {
+    limits = resolveGatewayLimits(env);
+  } catch (e) {
+    if (e instanceof PolicyConfigError) {
+      return { status: 500, body: { error: "gateway_misconfigured" } };
+    }
+    throw e;
+  }
+
   const userId = claims.sub;
   if (!userId) {
     return { status: 403, body: { error: "token missing sub claim" } };
   }
 
   const promptLen = estimatePromptChars(bodyText);
-  if (promptLen !== null && promptLen > MAX_PROMPT_CHARS) {
+  if (promptLen !== null && promptLen > limits.maxPromptChars) {
     return { status: 400, body: { error: "bad_prompt" } };
   }
 
@@ -108,6 +121,7 @@ export async function enforceGatewayPolicy(
       model,
       used: 0,
       quota: 0,
+      maxTokens: limits.maxTokens,
     };
   }
 
@@ -121,11 +135,11 @@ export async function enforceGatewayPolicy(
       admin,
       userId,
       period,
-      FREE_DAILY_CEILING,
+      limits.freeDailyCeiling,
       dev,
       ip,
-      DEVICE_DAILY_CAP,
-      IP_DAILY_CAP,
+      limits.deviceDailyCap,
+      limits.ipDailyCap,
     );
   } catch (e) {
     if (e instanceof AiGatewayError) {
@@ -143,7 +157,7 @@ export async function enforceGatewayPolicy(
       body: {
         error: "over_quota",
         used: spend.used,
-        quota: FREE_DAILY_CEILING,
+        quota: limits.freeDailyCeiling,
       },
     };
   }
@@ -154,6 +168,7 @@ export async function enforceGatewayPolicy(
     model,
     used: spend.used,
     quota: spend.quota,
+    maxTokens: limits.maxTokens,
   };
 }
 

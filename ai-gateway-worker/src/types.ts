@@ -17,6 +17,12 @@ export interface Env {
   JWT_AUDIENCE?: string;
   ALLOWED_SUBS?: string;
   UPSTREAM_TIMEOUT_MS?: string;
+  /** Free-tier limits; see gateway-core resolveGatewayLimits(). */
+  FREE_DAILY_CEILING?: string;
+  MAX_TOKENS?: string;
+  MAX_PROMPT_CHARS?: string;
+  DEVICE_DAILY_CAP?: string;
+  IP_DAILY_CAP?: string;
   // secrets
   CF_AIG_TOKEN?: string;
   DASHSCOPE_API_KEY: string;
