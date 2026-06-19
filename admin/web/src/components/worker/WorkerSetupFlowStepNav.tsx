@@ -4,6 +4,7 @@ import { useT } from "@/contexts/LocaleContext";
 import { workerStepDone, type WorkerSetupStatus, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { formatWorkerStepMeta, getLocalizedWorkerSteps } from "@/i18n/worker-ui";
 import { cn } from "@/lib/utils";
+import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
 
 export function WorkerSetupFlowStepNav({
   status,
@@ -47,6 +48,7 @@ export function WorkerSetupFlowStepNav({
               <button
                 type="button"
                 onClick={() => onSelect(step.id)}
+                {...navButtonFocusProps}
                 className="w-full flex-1 text-left"
               >
                 <div className="flex items-center gap-2">

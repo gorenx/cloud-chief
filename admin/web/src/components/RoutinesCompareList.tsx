@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Minus } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { ScrollSafeButton } from "@/components/ui/ScrollSafeButton";
 import { Chip } from "@/components/ui/Chip";
 import { useLocale } from "@/contexts/LocaleContext";
 import type { SupabaseRoutineCompareRow } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
 
 function PresenceMark({ on }: { on: boolean }) {
   return on ? (
@@ -77,11 +78,16 @@ function RoutineCompareDetail({
       </div>
 
       {row.status === "local_only" && (
-        <Button size="sm" disabled={applying} onClick={() => onApply(row.name)}>
+        <ScrollSafeButton
+          size="sm"
+          disabled={applying}
+          busy={applying && applyingName === row.name}
+          onAction={() => onApply(row.name)}
+        >
           {applying && applyingName === row.name
             ? t("supabase.migrationApplying")
             : t("supabase.applyRoutine")}
-        </Button>
+        </ScrollSafeButton>
       )}
     </div>
   );
@@ -141,11 +147,11 @@ export function RoutinesCompareList({
           </p>
         </div>
         {onApplyAll && (pendingCount ?? 0) > 0 && (
-          <Button size="sm" disabled={applying} onClick={onApplyAll}>
+          <ScrollSafeButton size="sm" disabled={applying} busy={applying} onAction={onApplyAll}>
             {applying
               ? t("supabase.migrationApplying")
               : t("supabase.applyAllRoutines", { count: pendingCount ?? 0 })}
-          </Button>
+          </ScrollSafeButton>
         )}
       </div>
 
@@ -162,6 +168,7 @@ export function RoutinesCompareList({
                   key={row.name}
                   type="button"
                   onClick={() => setSelected(row.name)}
+                  {...navButtonFocusProps}
                   className={cn(
                     "flex min-w-[7rem] items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors sm:min-w-0 sm:w-full",
                     active

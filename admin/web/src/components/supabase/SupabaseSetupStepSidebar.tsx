@@ -8,6 +8,7 @@ import {
 } from "@/lib/supabase-setup-flow";
 import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { cn } from "@/lib/utils";
+import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
 
 export type SupabaseViewMode = SupabaseSetupStep | "all";
 
@@ -23,6 +24,7 @@ export function SupabaseSetupShowAllButton({
     <button
       type="button"
       onClick={onClick}
+      {...navButtonFocusProps}
       className={cn(
         "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-medium transition-colors",
         active
@@ -62,6 +64,7 @@ export function SupabaseSetupStepList({
             key={step.id}
             type="button"
             onClick={() => onSelect(step.id)}
+            {...navButtonFocusProps}
             className={cn(
               "flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-xs transition-colors",
               selected

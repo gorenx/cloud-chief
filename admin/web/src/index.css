@@ -20,17 +20,23 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   font-family: var(--font-sans);
   background: var(--color-bg);
   color: var(--color-text);
-  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
 
 #root {
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
 }
 
 code,

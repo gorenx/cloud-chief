@@ -17,6 +17,7 @@ import {
   getLocalizedWorkerSteps,
 } from "@/i18n/worker-ui";
 import { cn } from "@/lib/utils";
+import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
 
 export function WorkerSetupFlow({
   flowStatus,
@@ -163,6 +164,7 @@ export function WorkerSetupFlow({
               <button
                 type="button"
                 onClick={() => onGoToStep(action.step)}
+                {...navButtonFocusProps}
                 className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
               >
                 {t("btn.common.goTo")}

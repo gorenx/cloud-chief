@@ -649,6 +649,10 @@ export interface Messages {
       cfListFailed: string;
       localDirSuffix: string;
       matchCurrentSuffix: string;
+      selectLocal: string;
+      localOption: string;
+      localOptionNoScript: string;
+      workerName: string;
     };
     card: {
       project: { title: string; desc: string };

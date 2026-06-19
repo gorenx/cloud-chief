@@ -4,6 +4,7 @@ import { Check, LayoutList } from "lucide-react";
 import { workerStepDone, type WorkerSetupStatus, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
 import { cn } from "@/lib/utils";
+import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
 
 export type WorkerViewMode = WorkerSetupStep | "all";
 
@@ -19,6 +20,7 @@ export function WorkerSetupShowAllButton({
     <button
       type="button"
       onClick={onClick}
+      {...navButtonFocusProps}
       className={cn(
         "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-medium transition-colors",
         active
@@ -56,6 +58,7 @@ export function WorkerSetupStepList({
             key={step.id}
             type="button"
             onClick={() => onSelect(step.id)}
+            {...navButtonFocusProps}
             className={cn(
               "flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-xs transition-colors",
               selected

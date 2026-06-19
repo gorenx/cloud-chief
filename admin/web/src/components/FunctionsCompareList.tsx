@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Minus } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { ScrollSafeButton } from "@/components/ui/ScrollSafeButton";
 import { Chip } from "@/components/ui/Chip";
 import { useLocale } from "@/contexts/LocaleContext";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import type { SupabaseFunctionCompareRow } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { runOnMouseDownWithoutScrollJump } from "@/lib/prevent-nav-scroll";
 
 function PresenceMark({ on }: { on: boolean }) {
   return on ? (
@@ -97,15 +99,16 @@ function FunctionCompareDetail({
       </div>
 
       {row.status === "local_only" && (
-        <Button
+        <ScrollSafeButton
           size="sm"
           disabled={deploying}
-          onClick={() => onDeploy(row.slug)}
+          busy={deploying && deployingSlug === row.slug}
+          onAction={() => onDeploy(row.slug)}
         >
           {deploying && deployingSlug === row.slug
             ? t("supabase.functionDeploying")
             : t("supabase.deployFunction")}
-        </Button>
+        </ScrollSafeButton>
       )}
     </div>
   );
@@ -129,23 +132,21 @@ export function FunctionsCompareList({
   pendingCount?: number;
 }) {
   const { t } = useLocale();
-  const [selected, setSelected] = useState<string | null>(null);
+  const scrollRef = useScrollContainer();
+  const [selectedOverride, setSelectedOverride] = useState<string | null>(null);
+
+  const selected = useMemo(() => {
+    if (selectedOverride && rows.some((r) => r.slug === selectedOverride)) {
+      return selectedOverride;
+    }
+    if (rows.length === 0) return null;
+    return (rows.find((r) => r.status === "local_only") ?? rows[0]).slug;
+  }, [rows, selectedOverride]);
 
   const selectedRow = useMemo(
     () => rows.find((r) => r.slug === selected) ?? null,
     [rows, selected],
   );
-
-  useEffect(() => {
-    if (rows.length === 0) {
-      setSelected(null);
-      return;
-    }
-    if (!selected || !rows.some((r) => r.slug === selected)) {
-      const prefer = rows.find((r) => r.status === "local_only") ?? rows[0];
-      setSelected(prefer.slug);
-    }
-  }, [rows, selected]);
 
   if (rows.length === 0) {
     return (
@@ -165,11 +166,11 @@ export function FunctionsCompareList({
           </p>
         </div>
         {onDeployAll && (pendingCount ?? 0) > 0 && (
-          <Button size="sm" disabled={deploying} onClick={onDeployAll}>
+          <ScrollSafeButton size="sm" disabled={deploying} busy={deploying} onAction={onDeployAll}>
             {deploying
               ? t("supabase.functionDeploying")
               : t("supabase.deployAllFunctions", { count: pendingCount ?? 0 })}
-          </Button>
+          </ScrollSafeButton>
         )}
       </div>
 
@@ -185,7 +186,9 @@ export function FunctionsCompareList({
                 <button
                   key={row.slug}
                   type="button"
-                  onClick={() => setSelected(row.slug)}
+                  onMouseDown={(e) =>
+                    runOnMouseDownWithoutScrollJump(e, scrollRef, () => setSelectedOverride(row.slug))
+                  }
                   className={cn(
                     "flex min-w-[7rem] items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors sm:min-w-0 sm:w-full",
                     active

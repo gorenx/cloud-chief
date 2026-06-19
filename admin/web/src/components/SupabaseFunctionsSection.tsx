@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/Button";
+import { ScrollSafeButton } from "@/components/ui/ScrollSafeButton";
 import { FunctionsCompareList } from "@/components/FunctionsCompareList";
 import { FunctionsDirPicker } from "@/components/FunctionsDirPicker";
 import { useLocale } from "@/contexts/LocaleContext";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import {
   deploySupabaseFunction,
   fetchSupabaseFunctionsDirs,
@@ -13,6 +14,7 @@ import {
   saveSupabaseFunctionsDir,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { pinScrollTop, readMainScrollTop, restoreMainScrollTop } from "@/lib/prevent-nav-scroll";
 
 export function SupabaseFunctionsSection({
   token,
@@ -25,6 +27,8 @@ export function SupabaseFunctionsSection({
 }) {
   const { t, displayError } = useLocale();
   const queryClient = useQueryClient();
+  const scrollRef = useScrollContainer();
+  const scrollLock = useRef<number | null>(null);
   const [activeDir, setActiveDir] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -116,6 +120,27 @@ export function SupabaseFunctionsSection({
   const pending = statusQ.data?.pending_count ?? 0;
   const deploying = deployOneM.isPending || deployAllM.isPending;
   const deployingSlug = deployOneM.isPending ? deployOneM.variables : undefined;
+  const scrollBusy = statusQ.isFetching || deploying;
+
+  useLayoutEffect(() => {
+    if (scrollBusy) {
+      if (scrollLock.current === null) {
+        scrollLock.current = readMainScrollTop(scrollRef);
+      }
+      restoreMainScrollTop(scrollLock.current, scrollRef);
+      return;
+    }
+    if (scrollLock.current !== null) {
+      restoreMainScrollTop(scrollLock.current, scrollRef);
+      scrollLock.current = null;
+    }
+  }, [scrollBusy, statusQ.data, scrollRef]);
+
+  useEffect(() => {
+    if (!scrollBusy || scrollLock.current === null) return;
+    return pinScrollTop(scrollLock.current, scrollRef);
+  }, [scrollBusy, statusQ.data, scrollRef]);
+
   const dirLabel = activeDir || t("supabase.functionsDirPickerRoot");
   const compareRows = statusQ.data?.function_comparison ?? [];
   const summary = statusQ.data?.function_summary ?? {
@@ -138,16 +163,17 @@ export function SupabaseFunctionsSection({
           <div className="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5">
             <code className="mono block truncate text-xs text-[var(--color-text)]">{dirLabel}</code>
           </div>
-          <Button
+          <ScrollSafeButton
             size="sm"
             variant="ghost"
             disabled={dirsQ.isLoading || saveDirM.isPending}
-            onClick={() => setPickerOpen(true)}
+            busy={saveDirM.isPending}
+            onAction={() => setPickerOpen(true)}
             className="gap-1.5"
           >
             <FolderOpen className="h-3.5 w-3.5" />
             {t("supabase.functionsDirPick")}
-          </Button>
+          </ScrollSafeButton>
         </div>
         <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.functionsDirHint")}</p>
       </div>

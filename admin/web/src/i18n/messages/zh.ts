@@ -718,6 +718,10 @@ export const zhMessages: Messages = {
       cfListFailed: "无法拉取线上列表",
       localDirSuffix: "· 本地 {dir}",
       matchCurrentSuffix: "· 匹配当前",
+      selectLocal: "选择本地 Worker…",
+      localOption: "{dir} · {name}",
+      localOptionNoScript: "{dir} · 无 script 名",
+      workerName: "Worker",
     },
     card: {
       project: {

@@ -17,6 +17,7 @@ import {
   getLocalizedSupabaseSteps,
 } from "@/i18n/supabase-ui";
 import { cn } from "@/lib/utils";
+import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
 
 export function SupabaseSetupFlow({
   flowStatus,
@@ -50,6 +51,7 @@ export function SupabaseSetupFlow({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
+          {...navButtonFocusProps}
           className="flex min-w-0 flex-1 items-start gap-2 text-left"
         >
           <ChevronDown
@@ -116,6 +118,7 @@ export function SupabaseSetupFlow({
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
+            {...navButtonFocusProps}
             className="rounded-lg px-2 py-1 text-xs text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]"
           >
             {open ? t("btn.common.collapse") : t("btn.common.expand")}
@@ -164,6 +167,7 @@ export function SupabaseSetupFlow({
               <button
                 type="button"
                 onClick={() => onGoToStep(action.step)}
+                {...navButtonFocusProps}
                 className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
               >
                 {t("btn.common.goTo")}

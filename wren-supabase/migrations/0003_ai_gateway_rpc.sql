@@ -35,8 +35,7 @@ begin
     raise exception 'invalid throttle bucket';
   end if;
 
-  savepoint spend;
-
+  -- PL/pgSQL functions cannot use SAVEPOINT; undo prior throttle bumps on later failure.
   if coalesce(p_device, '') <> '' then
     insert into public.ai_throttle as t (scope, bucket, period_key, used)
     values ('device', p_device, p_period, 1)
@@ -46,7 +45,6 @@ begin
       updated_at = now()
     where t.used < p_device_cap;
     if not found then
-      rollback to savepoint spend;
       return jsonb_build_object('granted', false, 'reason', 'throttled');
     end if;
   end if;
@@ -60,7 +58,11 @@ begin
       updated_at = now()
     where t.used < p_ip_cap;
     if not found then
-      rollback to savepoint spend;
+      if coalesce(p_device, '') <> '' then
+        update public.ai_throttle
+        set used = greatest(used - 1, 0), updated_at = now()
+        where scope = 'device' and bucket = p_device and period_key = p_period;
+      end if;
       return jsonb_build_object('granted', false, 'reason', 'throttled');
     end if;
   end if;
@@ -76,7 +78,16 @@ begin
   returning u.used into v_used;
 
   if not found then
-    rollback to savepoint spend;
+    if coalesce(p_ip, '') <> '' then
+      update public.ai_throttle
+      set used = greatest(used - 1, 0), updated_at = now()
+      where scope = 'ip' and bucket = p_ip and period_key = p_period;
+    end if;
+    if coalesce(p_device, '') <> '' then
+      update public.ai_throttle
+      set used = greatest(used - 1, 0), updated_at = now()
+      where scope = 'device' and bucket = p_device and period_key = p_period;
+    end if;
     select used into v_used
     from public.ai_usage
     where user_id = p_user_id and period_key = p_period;

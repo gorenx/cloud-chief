@@ -1,6 +1,7 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useLocale } from "@/contexts/LocaleContext";
 import { Chip } from "@/components/ui/Chip";
+import { Select } from "@/components/ui/Select";
 import type { WorkerList } from "@/types";
 
 export function LocalWorkerPanel({
@@ -15,6 +16,10 @@ export function LocalWorkerPanel({
   onSelectDir: (dir: string) => void;
 }) {
   const { t, displayError } = useLocale();
+  const workers = workersQ.data?.workers ?? [];
+  const selected = workers.find((w) => w.dir === workerDir);
+  const itemDeployed =
+    Boolean(selected?.script_name) && deployedScriptNames.has(selected!.script_name!);
 
   return (
     <section>
@@ -37,47 +42,52 @@ export function LocalWorkerPanel({
           )}
         </p>
       )}
-      {workersQ.data && workersQ.data.workers.length === 0 && (
+      {workersQ.data && workers.length === 0 && (
         <p className="mt-3 text-sm text-[var(--color-muted)]">{t("worker.panel.noWranglerDirs")}</p>
       )}
-      {workersQ.data && workersQ.data.workers.length > 0 && (
-        <ul className="mt-3 space-y-2 text-sm">
-          {workersQ.data.workers.map((w) => {
-            const itemDeployed =
-              Boolean(w.script_name) && deployedScriptNames.has(w.script_name!);
-            const isSelected = w.dir === workerDir;
-            return (
-              <li key={w.dir}>
-                <button
-                  type="button"
-                  onClick={() => onSelectDir(w.dir)}
-                  className={
-                    isSelected
-                      ? "w-full rounded-lg border border-emerald-800/60 bg-emerald-950/30 px-3 py-2 text-left"
-                      : "w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-left hover:border-[var(--color-muted)]"
-                  }
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <code className="mono font-medium">{w.dir}</code>
-                    {isSelected && <Chip variant="on">{t("worker.status.currentSelected")}</Chip>}
-                    {w.script_name ? (
-                      <Chip variant="default">script: {w.script_name}</Chip>
-                    ) : (
-                      <Chip variant="warn">{t("worker.status.noScriptName")}</Chip>
-                    )}
-                    {w.script_name && (
-                      <Chip variant={itemDeployed ? "on" : "off"}>
-                        {itemDeployed
-                          ? t("worker.status.deployed")
-                          : t("worker.status.notDeployed")}
-                      </Chip>
-                    )}
-                  </div>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      {workersQ.data && workers.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <Select
+            value={workerDir}
+            onChange={(e) => onSelectDir(e.target.value)}
+          >
+            {!workerDir && (
+              <option value="" disabled>
+                {t("worker.panel.selectLocal")}
+              </option>
+            )}
+            {workers.map((w) => {
+              const label = w.script_name
+                ? t("worker.panel.localOption", { dir: w.dir, name: w.script_name })
+                : t("worker.panel.localOptionNoScript", { dir: w.dir });
+              return (
+                <option key={w.dir} value={w.dir}>
+                  {label}
+                </option>
+              );
+            })}
+          </Select>
+
+          {selected && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {selected.script_name ? (
+                <Chip variant="default">
+                  {t("worker.panel.workerName")}{" "}
+                  <code className="mono">{selected.script_name}</code>
+                </Chip>
+              ) : (
+                <Chip variant="warn">{t("worker.status.noScriptName")}</Chip>
+              )}
+              {selected.script_name && (
+                <Chip variant={itemDeployed ? "on" : "off"}>
+                  {itemDeployed
+                    ? t("worker.status.deployed")
+                    : t("worker.status.notDeployed")}
+                </Chip>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </section>
   );

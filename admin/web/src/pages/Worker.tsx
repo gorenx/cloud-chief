@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useWorkerPage } from "@/hooks/useWorkerPage";
@@ -11,13 +11,28 @@ import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 import type { WorkerViewMode } from "@/components/worker/WorkerSetupStepSidebar";
 import { resolveWorkerSetupCurrent, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
+import { readMainScrollTop, restoreMainScrollTop } from "@/lib/prevent-nav-scroll";
 
 export function WorkerPage() {
   const { token } = useAdminToken();
   const { t, displayError } = useLocale();
   const page = useWorkerPage(token);
+  const scrollRef = useScrollContainer();
   const [activeStep, setActiveStep] = useState<WorkerViewMode>("project");
   const [activeInit, setActiveInit] = useState(false);
+  const pendingScrollTop = useRef<number | null>(null);
+
+  const selectStep = useCallback((step: WorkerViewMode) => {
+    pendingScrollTop.current = readMainScrollTop(scrollRef);
+    setActiveStep(step);
+  }, [scrollRef]);
+
+  useLayoutEffect(() => {
+    if (pendingScrollTop.current === null) return;
+    restoreMainScrollTop(pendingScrollTop.current, scrollRef);
+    pendingScrollTop.current = null;
+  }, [activeStep, scrollRef]);
 
   const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
 
@@ -58,15 +73,18 @@ export function WorkerPage() {
         : null;
 
   const stepDef = activeStep !== "all" ? steps.find((s) => s.id === activeStep) : null;
+  const workerName = page.displayWorkerName;
 
   const rightHeader =
     activeStep === "all" ? (
-      <div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <h3 className="text-sm font-semibold leading-tight">{t("worker.page.allSteps")}</h3>
-        <p className="mt-1 text-xs text-[var(--color-muted)]">{t("worker.page.allStepsDesc")}</p>
+        <p className="max-w-[min(24rem,100%)] shrink-0 text-right text-xs text-[var(--color-muted)] sm:max-w-[min(24rem,45%)]">
+          {t("worker.page.allStepsDesc")}
+        </p>
       </div>
     ) : (
-      stepDef && <WorkerStepPanelHeader step={stepDef} />
+      stepDef && <WorkerStepPanelHeader step={stepDef} workerName={workerName} />
     );
 
   if (!token) {
@@ -83,14 +101,14 @@ export function WorkerPage() {
       <WorkerSetupFlow
         flowStatus={flowStatus}
         activeStep={activeStep}
-        onGoToStep={setActiveStep}
+        onGoToStep={selectStep}
       />
 
       <WorkerSetupWorkspace
         status={flowStatus}
         activeStep={activeStep}
-        onSelect={setActiveStep}
-        onShowAll={() => setActiveStep("all")}
+        onSelect={selectStep}
+        onShowAll={() => selectStep("all")}
         rightHeader={rightHeader}
       >
         {activeStep === "all" ? (
@@ -98,7 +116,7 @@ export function WorkerPage() {
             {steps.map((def) => (
               <section key={def.id}>
                 <div className="mb-4">
-                  <WorkerStepPanelHeader step={def} />
+                  <WorkerStepPanelHeader step={def} workerName={workerName} />
                 </div>
                 <WorkerStepContent
                   step={def.id}

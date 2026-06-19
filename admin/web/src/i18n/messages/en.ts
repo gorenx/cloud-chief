@@ -726,6 +726,10 @@ export const enMessages: Messages = {
       cfListFailed: "Could not fetch online list",
       localDirSuffix: "· local {dir}",
       matchCurrentSuffix: "· matches current",
+      selectLocal: "Select local Worker…",
+      localOption: "{dir} · {name}",
+      localOptionNoScript: "{dir} · no script name",
+      workerName: "Worker",
     },
     card: {
       project: {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -10,10 +10,12 @@ import { SupabaseStepPanelHeader } from "@/components/supabase/SupabaseStepPanel
 import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupStepSidebar";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import { useSupabaseSetupFlowStatus } from "@/hooks/useSupabaseSetupFlowStatus";
 import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { fetchPublicConfig } from "@/lib/api";
 import { pickFields } from "@/lib/field-meta";
+import { readMainScrollTop, restoreMainScrollTop } from "@/lib/prevent-nav-scroll";
 import { resolveSupabaseSetupCurrent, type SupabaseSetupStep } from "@/lib/supabase-setup-flow";
 
 export function SupabasePage() {
@@ -25,6 +27,19 @@ export function SupabasePage() {
   const [accessToken, setAccessToken] = useState("");
   const [activeStep, setActiveStep] = useState<SupabaseViewMode>("connect");
   const [activeInit, setActiveInit] = useState(false);
+  const scrollRef = useScrollContainer();
+  const pendingScrollTop = useRef<number | null>(null);
+
+  const selectStep = useCallback((step: SupabaseViewMode) => {
+    pendingScrollTop.current = readMainScrollTop(scrollRef);
+    setActiveStep(step);
+  }, [scrollRef]);
+
+  useLayoutEffect(() => {
+    if (pendingScrollTop.current === null) return;
+    restoreMainScrollTop(pendingScrollTop.current, scrollRef);
+    pendingScrollTop.current = null;
+  }, [activeStep, scrollRef]);
 
   const configQ = useQuery({
     queryKey: ["public-config"],
@@ -108,14 +123,14 @@ export function SupabasePage() {
       <SupabaseSetupFlow
         flowStatus={flowStatus}
         activeStep={activeStep}
-        onGoToStep={setActiveStep}
+        onGoToStep={selectStep}
       />
 
       <SupabaseSetupWorkspace
         status={flowStatus}
         activeStep={activeStep}
-        onSelect={setActiveStep}
-        onShowAll={() => setActiveStep("all")}
+        onSelect={selectStep}
+        onShowAll={() => selectStep("all")}
         rightHeader={rightHeader}
       >
         {activeStep === "all" ? (

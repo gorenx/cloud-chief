@@ -8,6 +8,7 @@ import {
 } from "@/lib/supabase-setup-flow";
 import { formatSupabaseStepMeta, getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { cn } from "@/lib/utils";
+import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
 
 export function SupabaseSetupFlowStepNav({
   status,
@@ -53,6 +54,7 @@ export function SupabaseSetupFlowStepNav({
               <button
                 type="button"
                 onClick={() => onSelect(step.id)}
+                {...navButtonFocusProps}
                 className="w-full flex-1 text-left"
               >
                 <div className="flex items-center gap-2">

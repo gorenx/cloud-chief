@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/Button";
+import { ScrollSafeButton } from "@/components/ui/ScrollSafeButton";
 import { Select } from "@/components/ui/Select";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
@@ -81,8 +81,11 @@ export function SupabaseConnectPanel({
 }) {
   const isPage = variant === "page";
   const pageStepMode = isPage && activeStep !== undefined;
-  const showStep = (step: "connect" | "project" | "database" | "functions") =>
-    !pageStepMode || activeStep === "all" || activeStep === step;
+  const showSchemaFeatures = isPage;
+  const showStep = (step: "connect" | "project" | "database" | "functions") => {
+    if (!showSchemaFeatures && (step === "database" || step === "functions")) return false;
+    return !pageStepMode || activeStep === "all" || activeStep === step;
+  };
   const { token } = useAdminToken();
   const { t, displayError } = useLocale();
   const queryClient = useQueryClient();
@@ -127,7 +130,7 @@ export function SupabaseConnectPanel({
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    enabled: Boolean(token),
+    enabled: Boolean(showSchemaFeatures && token),
   });
 
   const functionsDirsQ = useQuery({
@@ -137,7 +140,7 @@ export function SupabaseConnectPanel({
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    enabled: Boolean(token),
+    enabled: Boolean(showSchemaFeatures && token),
   });
 
   const migrationsQ = useQuery({
@@ -151,7 +154,9 @@ export function SupabaseConnectPanel({
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    enabled: Boolean(token && appliedProject?.ref && hasAnonKey && migrationDirsQ.data?.current),
+    enabled: Boolean(
+      showSchemaFeatures && token && appliedProject?.ref && hasAnonKey && migrationDirsQ.data?.current,
+    ),
     retry: false,
   });
 
@@ -166,7 +171,9 @@ export function SupabaseConnectPanel({
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    enabled: Boolean(token && appliedProject?.ref && hasAnonKey && functionsDirsQ.data?.current),
+    enabled: Boolean(
+      showSchemaFeatures && token && appliedProject?.ref && hasAnonKey && functionsDirsQ.data?.current,
+    ),
     retry: false,
   });
 
@@ -322,18 +329,6 @@ export function SupabaseConnectPanel({
         ) : (
           <>
             <StepBadge n={3} label={t("supabase.step3Label")} active={showTestStep} done={stepTest} />
-            <StepBadge
-              n={4}
-              label={t("supabase.step4Label")}
-              active={stepApply && !stepSchema}
-              done={stepSchema}
-            />
-            <StepBadge
-              n={5}
-              label={t("supabase.stepFunctionsLabel")}
-              active={stepApply && stepSchema && !stepFunctions}
-              done={stepFunctions}
-            />
           </>
         )}
       </div>
@@ -407,13 +402,14 @@ export function SupabaseConnectPanel({
                 </p>
               )}
               <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.oauthAppHint")}</p>
-              <Button
+              <ScrollSafeButton
                 size="sm"
                 disabled={connectM.isPending || !status.local_only}
-                onClick={() => connectM.mutate()}
+                busy={connectM.isPending}
+                onAction={() => connectM.mutate()}
               >
                 {connectM.isPending ? t("supabase.redirecting") : t("supabase.connectBtn")}
-              </Button>
+              </ScrollSafeButton>
             </div>
           ) : (
             <p className="text-xs text-emerald-300">
@@ -441,13 +437,14 @@ export function SupabaseConnectPanel({
                     </option>
                   ))}
                 </Select>
-                <Button
+                <ScrollSafeButton
                   size="sm"
                   disabled={!selectedRef || applyM.isPending}
-                  onClick={() => applyM.mutate(selectedRef)}
+                  busy={applyM.isPending}
+                  onAction={() => applyM.mutate(selectedRef)}
                 >
                   {applyM.isPending ? t("supabase.writing") : t("supabase.applyConfig")}
-                </Button>
+                </ScrollSafeButton>
               </div>
             </div>
           ) : (
@@ -465,14 +462,15 @@ export function SupabaseConnectPanel({
             </div>
           )}
 
-          <Button
+          <ScrollSafeButton
             variant="ghost"
             size="sm"
             disabled={disconnectM.isPending}
-            onClick={() => disconnectM.mutate()}
+            busy={disconnectM.isPending}
+            onAction={() => disconnectM.mutate()}
           >
             {t("supabase.disconnect")}
-          </Button>
+          </ScrollSafeButton>
         </div>
       )}
 
@@ -537,13 +535,14 @@ export function SupabaseConnectPanel({
                   />
                 </div>
               </div>
-              <Button
+              <ScrollSafeButton
                 size="sm"
                 disabled={!testEmail.trim() || !testPassword || saveTestM.isPending}
-                onClick={() => saveTestM.mutate()}
+                busy={saveTestM.isPending}
+                onAction={() => saveTestM.mutate()}
               >
                 {saveTestM.isPending ? t("supabase.saving") : t("supabase.saveTestAccount")}
-              </Button>
+              </ScrollSafeButton>
             </div>
           )}
           <div className="space-y-1.5">

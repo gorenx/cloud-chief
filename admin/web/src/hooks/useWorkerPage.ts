@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -16,16 +16,24 @@ import {
 } from "@/lib/worker-config";
 import { useSSEStream } from "@/hooks/useSSEStream";
 import { useLocale } from "@/contexts/LocaleContext";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
+import { readMainScrollTop, restoreMainScrollTop, pinScrollTop } from "@/lib/prevent-nav-scroll";
 import type { WorkerStatus } from "@/types";
 
 export function useWorkerPage(token: string) {
   const { t, displayError } = useLocale();
   const qc = useQueryClient();
+  const scrollRef = useScrollContainer();
   const [workerDir, setWorkerDir] = useState("");
   const [vars, setVars] = useState<WorkerVarRow[]>([{ k: "", v: "" }]);
   const [secrets, setSecrets] = useState<WorkerSecretRowState[]>([]);
   const [prodSet, setProdSet] = useState<Set<string> | null>(null);
   const deploy = useSSEStream();
+  const mainScrollLock = useRef<number | null>(null);
+
+  function lockMainScrollPosition() {
+    mainScrollLock.current = readMainScrollTop(scrollRef);
+  }
 
   const workersQ = useQuery({
     queryKey: ["worker-list", token],
@@ -69,6 +77,37 @@ export function useWorkerPage(token: string) {
     },
     enabled: Boolean(token && workerDir),
   });
+
+  useLayoutEffect(() => {
+    if (mainScrollLock.current === null) return;
+    restoreMainScrollTop(mainScrollLock.current, scrollRef);
+    const busy =
+      deploy.running || statusQ.isFetching || cfDeployedQ.isFetching;
+    if (!busy) mainScrollLock.current = null;
+  }, [
+    deploy.running,
+    deploy.lines,
+    statusQ.isFetching,
+    cfDeployedQ.isFetching,
+    statusQ.data,
+    cfDeployedQ.data,
+    scrollRef,
+  ]);
+
+  useEffect(() => {
+    const busy =
+      deploy.running || statusQ.isFetching || cfDeployedQ.isFetching;
+    if (!busy || mainScrollLock.current === null) return;
+    return pinScrollTop(mainScrollLock.current, scrollRef);
+  }, [
+    deploy.running,
+    deploy.lines,
+    statusQ.isFetching,
+    cfDeployedQ.isFetching,
+    statusQ.data,
+    cfDeployedQ.data,
+    scrollRef,
+  ]);
 
   useEffect(() => {
     const s = statusQ.data;
@@ -120,12 +159,13 @@ export function useWorkerPage(token: string) {
   }
 
   function refreshStatus() {
+    lockMainScrollPosition();
     void qc.invalidateQueries({ queryKey: ["worker-status"] });
     void qc.invalidateQueries({ queryKey: ["worker-cf-deployed"] });
   }
 
   function startDeploy() {
-    deploy.setLines([]);
+    lockMainScrollPosition();
     void deploy.start(`/admin/worker/deploy${wq}`, {
       headers: { Authorization: `Bearer ${token}` },
       onEvent: (e) => {
@@ -194,12 +234,22 @@ export function useWorkerPage(token: string) {
     Boolean(statusQ.data?.worker_name) &&
     onlineScript?.name === statusQ.data?.worker_name;
 
+  const displayWorkerName = useMemo(() => {
+    const local = workersQ.data?.workers.find((w) => w.dir === workerDir);
+    const status = statusQ.data;
+    if (status?.worker_dir_rel === workerDir) {
+      return status.worker_name ?? local?.script_name ?? null;
+    }
+    return local?.script_name ?? null;
+  }, [workerDir, workersQ.data?.workers, statusQ.data]);
+
   return {
     workerDir,
     setWorkerDir,
     workersQ,
     cfDeployedQ,
     statusQ,
+    displayWorkerName,
     deployedScriptNames,
     vars,
     setVars,
