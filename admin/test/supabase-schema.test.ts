@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   buildMigrationFileRows,
+  buildFunctionComparison,
   buildTableComparison,
   resolveTableSql,
   parseMigrationFilename,
@@ -16,7 +17,7 @@ import {
   getConfiguredMigrationsDir,
   isMigrationsDirReadable,
 } from "../src/supabase-schema";
-import { parseTablesFromSql } from "pg-migration-sql";
+import { parseFunctionsFromSql, parseTablesFromSql } from "pg-migration-sql";
 
 describe("supabase-schema", () => {
   let tmpDir: string;
@@ -73,6 +74,30 @@ describe("supabase-schema", () => {
     ];
     const files = buildMigrationFileRows(local);
     expect(files[0].tables).toEqual(["wren_log", "wren_state"]);
+    expect(files[0].functions).toEqual([]);
+  });
+
+  it("buildMigrationFileRows lists postgres routines from 0003", () => {
+    const rpcPath = path.join(
+      path.dirname(defaultMigrationsDir()),
+      "0003_ai_gateway_rpc.sql",
+    );
+    if (!fs.existsSync(rpcPath)) return;
+    const sql = fs.readFileSync(rpcPath, "utf8");
+    const files = buildMigrationFileRows([
+      { version: "0003_ai_gateway_rpc", filename: "0003_ai_gateway_rpc.sql", sql },
+    ]);
+    expect(files[0].functions).toContain("spend_free_ai_credit");
+    expect(parseFunctionsFromSql(sql)).toEqual(["spend_free_ai_credit"]);
+  });
+
+  it("buildFunctionComparison marks local-only routines", () => {
+    const rows = buildFunctionComparison(
+      new Set(["spend_free_ai_credit"]),
+      new Set<string>(),
+      new Map([["spend_free_ai_credit", ["0003_ai_gateway_rpc.sql"]]]),
+    );
+    expect(rows[0]?.status).toBe("local_only");
   });
 
   it("buildTableComparison compares local sql tables with remote db", () => {

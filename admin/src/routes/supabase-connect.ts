@@ -22,6 +22,8 @@ import {
   listSupabaseProjects,
 } from "../supabase-management";
 import {
+  applyFunctionMigration,
+  applyPendingMigrations,
   applyPendingTables,
   applyTableMigration,
   browseMigrationsDir,
@@ -365,6 +367,7 @@ supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     ref?: string;
     table?: string;
+    function?: string;
     apply_all?: boolean;
     dir?: string;
   };
@@ -373,22 +376,40 @@ supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
   const migrationsDir = body.dir?.trim() || null;
 
   if (body.apply_all) {
-    const r = await applyPendingTables(ref, migrationsDir);
+    const r = await applyPendingMigrations(ref, migrationsDir);
     if (!r.ok) {
       return c.json(
         {
           error: r.error,
           needs_db_scope: r.needs_db_scope ?? false,
-          partial: r.partial ?? [],
+          partial_tables: r.partial_tables ?? [],
+          partial_functions: r.partial_functions ?? [],
         },
         r.needs_db_scope ? 403 : 502,
       );
     }
-    return c.json({ ok: true, applied: r.applied });
+    return c.json({
+      ok: true,
+      applied: [...r.applied_tables, ...r.applied_functions],
+      applied_tables: r.applied_tables,
+      applied_functions: r.applied_functions,
+    });
+  }
+
+  const fn = body.function?.trim();
+  if (fn) {
+    const r = await applyFunctionMigration(ref, fn, migrationsDir);
+    if (!r.ok) {
+      return c.json(
+        { error: r.error, needs_db_scope: r.needs_db_scope ?? false },
+        r.needs_db_scope ? 403 : 502,
+      );
+    }
+    return c.json({ ok: true, applied: [r.function], skipped: r.skipped ?? false });
   }
 
   const table = body.table?.trim();
-  if (!table) return c.json({ error: "缺少 table 或 apply_all" }, 400);
+  if (!table) return c.json({ error: "缺少 table、function 或 apply_all" }, 400);
 
   const r = await applyTableMigration(ref, table, migrationsDir);
   if (!r.ok) {

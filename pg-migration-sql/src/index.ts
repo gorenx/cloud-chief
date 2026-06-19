@@ -6,3 +6,8 @@ export {
   statementReferencesTable,
 } from "./tables";
 export { parsePoliciesFromSql, policiesForTable, type ParsedPolicy } from "./policies";
+export {
+  extractFunctionSql,
+  extractFunctionSqlFromSources,
+  parseFunctionsFromSql,
+} from "./functions.js";

@@ -233,6 +233,15 @@ export interface SupabaseMigrationFileRow {
   version: string;
   filename: string;
   tables: string[];
+  functions: string[];
+}
+
+export interface SupabaseRoutineCompareRow {
+  name: string;
+  local: boolean;
+  remote: boolean;
+  status: SupabaseMigrationSyncStatus;
+  source_files: string[];
 }
 
 export type SupabaseMigrationSyncStatus = "synced" | "local_only" | "remote_only";
@@ -270,7 +279,14 @@ export interface SupabaseMigrationDirs {
 export interface SupabaseMigrationStatus {
   migration_files: SupabaseMigrationFileRow[];
   table_comparison: SupabaseTableCompareRow[];
+  function_comparison: SupabaseRoutineCompareRow[];
   table_summary: {
+    local: number;
+    remote: number;
+    synced: number;
+    pending: number;
+  };
+  function_summary: {
     local: number;
     remote: number;
     synced: number;
@@ -341,13 +357,25 @@ export async function fetchSupabaseMigrationStatus(token: string, ref: string, d
 export async function applySupabaseMigration(
   token: string,
   ref: string,
-  opts: { table?: string; applyAll?: boolean; dir?: string },
+  opts: { table?: string; function?: string; applyAll?: boolean; dir?: string },
 ) {
   const base = opts.applyAll
     ? { ref, apply_all: true }
-    : { ref, table: opts.table };
+    : opts.function
+      ? { ref, function: opts.function }
+      : { ref, table: opts.table };
   const body = opts.dir ? { ...base, dir: opts.dir } : base;
-  return adminFetch<{ ok: boolean; applied: string[]; skipped?: boolean; needs_db_scope?: boolean; partial?: string[] }>(
+  return adminFetch<{
+    ok: boolean;
+    applied: string[];
+    applied_tables?: string[];
+    applied_functions?: string[];
+    skipped?: boolean;
+    needs_db_scope?: boolean;
+    partial?: string[];
+    partial_tables?: string[];
+    partial_functions?: string[];
+  }>(
     token,
     "POST",
     "/admin/supabase/migrations/apply",

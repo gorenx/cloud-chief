@@ -7,7 +7,7 @@ import {
   listDatabaseMigrations,
   runProjectDatabaseQuery,
 } from "./supabase-management";
-import { extractTableSqlFromSources, parsePoliciesFromSql, parseTablesFromSql } from "pg-migration-sql";
+import { extractTableSqlFromSources, parsePoliciesFromSql, parseTablesFromSql, parseFunctionsFromSql, extractFunctionSqlFromSources } from "pg-migration-sql";
 
 export const DEFAULT_MIGRATIONS_REL_DIR = "wren-supabase/migrations";
 export const LEGACY_MIGRATIONS_REL_DIR = "supabase/migrations";
@@ -47,6 +47,15 @@ export interface MigrationFileRow {
   version: string;
   filename: string;
   tables: string[];
+  functions: string[];
+}
+
+export interface FunctionCompareRow {
+  name: string;
+  local: boolean;
+  remote: boolean;
+  status: MigrationSyncStatus;
+  source_files: string[];
 }
 
 export type MigrationSyncStatus = "synced" | "local_only" | "remote_only";
@@ -250,6 +259,73 @@ export function resolveTableSql(migrations: LocalMigration[], tableName: string)
   return extractTableSqlFromSources(migrations, tableName);
 }
 
+export function resolveFunctionSql(migrations: LocalMigration[], functionName: string): string | null {
+  return extractFunctionSqlFromSources(migrations, functionName);
+}
+
+export function indexLocalFunctions(
+  migrations: LocalMigration[],
+): { names: Set<string>; sourceFiles: Map<string, string[]> } {
+  const names = new Set<string>();
+  const sourceFiles = new Map<string, string[]>();
+
+  for (const migration of migrations) {
+    for (const fn of parseFunctionsFromSql(migration.sql)) {
+      names.add(fn);
+      const files = sourceFiles.get(fn) ?? [];
+      if (!files.includes(migration.filename)) files.push(migration.filename);
+      sourceFiles.set(fn, files);
+    }
+  }
+
+  return { names, sourceFiles };
+}
+
+export function buildFunctionComparison(
+  localNames: Set<string>,
+  remoteNames: Set<string>,
+  sourceFiles: Map<string, string[]>,
+): FunctionCompareRow[] {
+  const all = new Set([...localNames, ...remoteNames]);
+  return [...all].sort((a, b) => a.localeCompare(b)).map((name) => {
+    const local = localNames.has(name);
+    const remote = remoteNames.has(name);
+    const status: MigrationSyncStatus =
+      local && remote ? "synced" : local ? "local_only" : "remote_only";
+    return {
+      name,
+      local,
+      remote,
+      status,
+      source_files: sourceFiles.get(name) ?? [],
+    };
+  });
+}
+
+export async function fetchRemoteRoutineNames(
+  ref: string,
+): Promise<
+  { ok: true; names: Set<string> } | { ok: false; error: string; needs_db_scope?: boolean }
+> {
+  const q = await runProjectDatabaseQuery(
+    ref,
+    `select routine_name
+     from information_schema.routines
+     where routine_schema = 'public'
+       and routine_type = 'FUNCTION'
+     order by routine_name`,
+    { readOnly: true },
+  );
+  if (!q.ok) return q;
+
+  const names = new Set<string>();
+  for (const row of asRows(q.result)) {
+    const name = String(row.routine_name ?? "").trim().toLowerCase();
+    if (name) names.add(name);
+  }
+  return { ok: true, names };
+}
+
 export function indexLocalTables(
   migrations: LocalMigration[],
 ): {
@@ -349,6 +425,7 @@ export function buildMigrationFileRows(local: LocalMigration[]): MigrationFileRo
     version: m.version,
     filename: m.filename,
     tables: parseTablesFromSql(m.sql),
+    functions: parseFunctionsFromSql(m.sql),
   }));
 }
 
@@ -411,7 +488,14 @@ export async function getMigrationStatus(
       ok: true;
       migration_files: MigrationFileRow[];
       table_comparison: TableCompareRow[];
+      function_comparison: FunctionCompareRow[];
       table_summary: {
+        local: number;
+        remote: number;
+        synced: number;
+        pending: number;
+      };
+      function_summary: {
         local: number;
         remote: number;
         synced: number;
@@ -429,9 +513,13 @@ export async function getMigrationStatus(
   const local = listLocalMigrations(picked.dir);
   const migration_files = buildMigrationFileRows(local);
   const { names: localTableNames, sourceFiles, localPolicies } = indexLocalTables(local);
+  const { names: localFunctionNames, sourceFiles: functionSourceFiles } = indexLocalFunctions(local);
 
   const tables = await fetchTableRlsStatus(ref);
   if (!tables.ok) return tables;
+
+  const remoteRoutines = await fetchRemoteRoutineNames(ref);
+  if (!remoteRoutines.ok) return remoteRoutines;
 
   const table_comparison = buildTableComparison(
     localTableNames,
@@ -439,20 +527,33 @@ export async function getMigrationStatus(
     sourceFiles,
     localPolicies,
   );
-  const pending_count = table_comparison.filter((r) => r.status === "local_only").length;
+  const function_comparison = buildFunctionComparison(
+    localFunctionNames,
+    remoteRoutines.names,
+    functionSourceFiles,
+  );
+  const table_pending = table_comparison.filter((r) => r.status === "local_only").length;
+  const function_pending = function_comparison.filter((r) => r.status === "local_only").length;
 
   return {
     ok: true,
     migration_files,
     table_comparison,
+    function_comparison,
     table_summary: {
       local: localTableNames.size,
       remote: tables.tables.length,
       synced: table_comparison.filter((r) => r.status === "synced").length,
-      pending: pending_count,
+      pending: table_pending,
+    },
+    function_summary: {
+      local: localFunctionNames.size,
+      remote: remoteRoutines.names.size,
+      synced: function_comparison.filter((r) => r.status === "synced").length,
+      pending: function_pending,
     },
     tables: tables.tables,
-    pending_count,
+    pending_count: table_pending + function_pending,
     migrations_dir: picked.path,
   };
 }
@@ -480,6 +581,29 @@ export async function applyTableMigration(
   return applied.ok ? { ok: true, table: tableName, skipped: applied.skipped } : applied;
 }
 
+export async function applyFunctionMigration(
+  ref: string,
+  functionName: string,
+  migrationsDir?: string | null,
+): Promise<
+  { ok: true; function: string; skipped?: boolean }
+  | { ok: false; error: string; needs_db_scope?: boolean }
+> {
+  const picked = migrationsDirOrError(migrationsDir);
+  if (!picked.ok) return picked;
+
+  const fn = functionName.trim().toLowerCase();
+  if (!/^[a-z_][\w]*$/i.test(fn)) {
+    return { ok: false, error: `无效的函数名: ${functionName}` };
+  }
+
+  const sql = resolveFunctionSql(listLocalMigrations(picked.dir), fn);
+  if (!sql) return { ok: false, error: `未找到函数 ${fn} 的本地 SQL` };
+
+  const applied = await applyDatabaseMigration(ref, `fn_${fn}`, sql);
+  return applied.ok ? { ok: true, function: fn, skipped: applied.skipped } : applied;
+}
+
 export async function applyPendingTables(
   ref: string,
   migrationsDir?: string | null,
@@ -504,6 +628,68 @@ export async function applyPendingTables(
   }
 
   return { ok: true, applied };
+}
+
+export async function applyPendingFunctions(
+  ref: string,
+  migrationsDir?: string | null,
+): Promise<
+  | { ok: true; applied: string[] }
+  | { ok: false; error: string; needs_db_scope?: boolean; partial?: string[] }
+> {
+  const status = await getMigrationStatus(ref, migrationsDir);
+  if (!status.ok) return status;
+
+  const pending = status.function_comparison
+    .filter((r) => r.status === "local_only")
+    .map((r) => r.name);
+  const applied: string[] = [];
+
+  for (const fn of pending) {
+    const r = await applyFunctionMigration(ref, fn, migrationsDir);
+    if (!r.ok) {
+      return { ok: false, error: r.error, needs_db_scope: r.needs_db_scope, partial: applied };
+    }
+    applied.push(r.function);
+  }
+
+  return { ok: true, applied };
+}
+
+export async function applyPendingMigrations(
+  ref: string,
+  migrationsDir?: string | null,
+): Promise<
+  | { ok: true; applied_tables: string[]; applied_functions: string[] }
+  | { ok: false; error: string; needs_db_scope?: boolean; partial_tables?: string[]; partial_functions?: string[] }
+> {
+  const tables = await applyPendingTables(ref, migrationsDir);
+  if (!tables.ok) {
+    return {
+      ok: false,
+      error: tables.error,
+      needs_db_scope: tables.needs_db_scope,
+      partial_tables: tables.partial,
+      partial_functions: [],
+    };
+  }
+
+  const functions = await applyPendingFunctions(ref, migrationsDir);
+  if (!functions.ok) {
+    return {
+      ok: false,
+      error: functions.error,
+      needs_db_scope: functions.needs_db_scope,
+      partial_tables: tables.applied,
+      partial_functions: functions.partial,
+    };
+  }
+
+  return {
+    ok: true,
+    applied_tables: tables.applied,
+    applied_functions: functions.applied,
+  };
 }
 
 function asRows(result: unknown): Record<string, unknown>[] {

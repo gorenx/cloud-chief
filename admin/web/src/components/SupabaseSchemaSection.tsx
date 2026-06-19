@@ -4,6 +4,7 @@ import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { TablesCompareList } from "@/components/TablesCompareList";
+import { RoutinesCompareList } from "@/components/RoutinesCompareList";
 import { MigrationsDirPicker } from "@/components/MigrationsDirPicker";
 import { useLocale } from "@/contexts/LocaleContext";
 import {
@@ -98,6 +99,28 @@ export function SupabaseSchemaSection({
     onError: (e: Error) => toast.error(displayError(e.message)),
   });
 
+  const applyFunctionM = useMutation({
+    mutationFn: async (functionName: string) => {
+      const r = await applySupabaseMigration(token, projectRef, {
+        function: functionName,
+        dir: activeDir,
+      });
+      if (!r.ok) throw new Error(r.error);
+      return { ...r.data, functionName };
+    },
+    onSuccess: async (data) => {
+      toast.success(
+        data.skipped
+          ? t("supabase.toastMigrationAlreadyApplied")
+          : t("supabase.toastRoutineApplied", { name: data.functionName }),
+      );
+      await queryClient.refetchQueries({
+        queryKey: ["supabase-migrations", token, projectRef, activeDir],
+      });
+    },
+    onError: (e: Error) => toast.error(displayError(e.message)),
+  });
+
   const applyAllM = useMutation({
     mutationFn: async () => {
       const r = await applySupabaseMigration(token, projectRef, {
@@ -108,7 +131,9 @@ export function SupabaseSchemaSection({
       return r.data;
     },
     onSuccess: async (data) => {
-      toast.success(t("supabase.toastTablesApplied", { count: data.applied.length }));
+      const tables = data.applied_tables?.length ?? 0;
+      const functions = data.applied_functions?.length ?? 0;
+      toast.success(t("supabase.toastMigrationsApplied", { tables, functions }));
       await queryClient.refetchQueries({
         queryKey: ["supabase-migrations", token, projectRef, activeDir],
       });
@@ -119,13 +144,21 @@ export function SupabaseSchemaSection({
   const err = statusQ.error as (Error & { needsDbScope?: boolean }) | null;
   const needsDbScope = Boolean(err?.needsDbScope);
   const pending = statusQ.data?.pending_count ?? 0;
-  const applying = applyOneM.isPending || applyAllM.isPending;
+  const applying = applyOneM.isPending || applyFunctionM.isPending || applyAllM.isPending;
   const applyingTable = applyOneM.isPending ? applyOneM.variables : undefined;
+  const applyingFunction = applyFunctionM.isPending ? applyFunctionM.variables : undefined;
   const dirLabel = activeDir || t("supabase.migrationsDirPickerRoot");
   const tableCompareRows = statusQ.data?.table_comparison ?? [];
+  const functionCompareRows = statusQ.data?.function_comparison ?? [];
   const stepTitle = isPage
     ? t("supabase.step4Title").replace(/^[④4]\s*/, "③ ")
     : t("supabase.step4Title");
+  const functionSummary = statusQ.data?.function_summary ?? {
+    local: 0,
+    remote: 0,
+    synced: 0,
+    pending: 0,
+  };
   const tableSummary = statusQ.data?.table_summary ?? {
     local: 0,
     remote: 0,
@@ -193,6 +226,13 @@ export function SupabaseSchemaSection({
             applyingTable={applyingTable}
             onApplyAll={() => applyAllM.mutate()}
             pendingCount={pending}
+          />
+          <RoutinesCompareList
+            rows={functionCompareRows}
+            summary={functionSummary}
+            onApply={(name) => applyFunctionM.mutate(name)}
+            applying={applying}
+            applyingName={applyingFunction}
           />
         </>
       )}

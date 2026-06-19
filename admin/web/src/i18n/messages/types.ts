@@ -424,6 +424,8 @@ export interface Messages {
     migrationFilesDesc: string;
     migrationFileTables: string;
     migrationFileNoTables: string;
+    migrationFileFunctions: string;
+    migrationFileNoFunctions: string;
     tablesCompareTitle: string;
     tableCompareSummary: string;
     tableDetailLocal: string;
@@ -440,6 +442,16 @@ export interface Messages {
     remotePolicies: string;
     noPolicies: string;
     noTablesCompared: string;
+    routinesCompareTitle: string;
+    routineCompareSummary: string;
+    routineNoSourceFiles: string;
+    routineDetailEmpty: string;
+    routineListAria: string;
+    noRoutinesCompared: string;
+    applyRoutine: string;
+    applyAllRoutines: string;
+    toastRoutineApplied: string;
+    toastMigrationsApplied: string;
     migrationColVersion: string;
     migrationColLocal: string;
     migrationColRemote: string;
