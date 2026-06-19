@@ -296,6 +296,15 @@ function databasePermissionHint(status: number, msg: string): boolean {
   return status === 403 || /scope|permission|unauthorized|forbidden/i.test(msg);
 }
 
+function isAlreadyAppliedSqlError(error: string): boolean {
+  return (
+    /already exists/i.test(error) ||
+    /duplicate key/i.test(error) ||
+    /\b42710\b/.test(error) ||
+    /\b42P07\b/.test(error)
+  );
+}
+
 export async function listDatabaseMigrations(
   ref: string,
 ): Promise<
@@ -323,7 +332,9 @@ export async function applyDatabaseMigration(
   ref: string,
   name: string,
   query: string,
-): Promise<{ ok: true } | { ok: false; error: string; needs_db_scope?: boolean }> {
+): Promise<
+  { ok: true; skipped?: boolean } | { ok: false; error: string; needs_db_scope?: boolean }
+> {
   const token = await getValidManagementToken();
   if (!token.ok) return token;
 
@@ -338,6 +349,11 @@ export async function applyDatabaseMigration(
   );
   if (mig.ok) return { ok: true };
 
+  if (isAlreadyAppliedSqlError(mig.error)) {
+    await recordMigrationVersion(ref, name);
+    return { ok: true, skipped: true };
+  }
+
   const queryRes = await managementFetch<unknown>(
     `/projects/${encodeURIComponent(ref)}/database/query`,
     token.accessToken,
@@ -347,7 +363,15 @@ export async function applyDatabaseMigration(
       body: JSON.stringify({ query }),
     },
   );
-  if (queryRes.ok) return { ok: true };
+  if (queryRes.ok) {
+    await recordMigrationVersion(ref, name);
+    return { ok: true };
+  }
+
+  if (isAlreadyAppliedSqlError(queryRes.error)) {
+    await recordMigrationVersion(ref, name);
+    return { ok: true, skipped: true };
+  }
 
   const err = queryRes.error || mig.error;
   return {
@@ -355,6 +379,19 @@ export async function applyDatabaseMigration(
     error: err,
     needs_db_scope: databasePermissionHint(queryRes.status, err) || databasePermissionHint(mig.status, mig.error),
   };
+}
+
+function isSafeMigrationVersion(version: string): boolean {
+  return /^(?:\d+_[\w.-]+|tbl_[\w.-]+)$/i.test(version);
+}
+
+async function recordMigrationVersion(ref: string, version: string): Promise<void> {
+  if (!isSafeMigrationVersion(version)) return;
+  const safe = version.replace(/'/g, "''");
+  await runProjectDatabaseQuery(
+    ref,
+    `insert into supabase_migrations.schema_migrations (version) values ('${safe}') on conflict (version) do nothing`,
+  );
 }
 
 export async function runProjectDatabaseQuery(
@@ -382,4 +419,124 @@ export async function runProjectDatabaseQuery(
     };
   }
   return { ok: true, result: res.data };
+}
+
+export interface RemoteFunctionRow {
+  id?: string;
+  slug: string;
+  name?: string;
+  status?: string;
+  verify_jwt?: boolean;
+  updated_at?: string | null;
+}
+
+function functionsPermissionHint(status: number, msg: string): boolean {
+  return status === 403 || /scope|permission|unauthorized|forbidden/i.test(msg);
+}
+
+export function functionsPermissionHintForTest(status: number, msg: string): boolean {
+  return functionsPermissionHint(status, msg);
+}
+
+export async function listProjectFunctions(
+  ref: string,
+): Promise<
+  | { ok: true; functions: RemoteFunctionRow[] }
+  | { ok: false; error: string; needs_functions_scope?: boolean; status?: number }
+> {
+  const token = await getValidManagementToken();
+  if (!token.ok) return token;
+
+  const res = await managementFetch<RemoteFunctionRow[]>(
+    `/projects/${encodeURIComponent(ref)}/functions`,
+    token.accessToken,
+  );
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: res.error,
+      status: res.status,
+      needs_functions_scope: functionsPermissionHint(res.status, res.error),
+    };
+  }
+  const rows = Array.isArray(res.data) ? res.data : [];
+  const functions: RemoteFunctionRow[] = [];
+  for (const row of rows) {
+    const slug = String(row.slug ?? row.name ?? "").trim();
+    if (!slug) continue;
+    functions.push({
+      slug,
+      name: row.name,
+      status: row.status,
+      verify_jwt: row.verify_jwt,
+      updated_at: row.updated_at ?? null,
+    });
+  }
+  return { ok: true, functions };
+}
+
+export async function deployProjectFunction(
+  ref: string,
+  slug: string,
+  files: Array<{ relativePath: string; content: Buffer }>,
+): Promise<
+  { ok: true; slug: string } | { ok: false; error: string; needs_functions_scope?: boolean; status?: number }
+> {
+  const token = await getValidManagementToken();
+  if (!token.ok) return token;
+
+  if (!files.some((f) => f.relativePath === "index.ts")) {
+    return { ok: false, error: "部署包缺少 index.ts" };
+  }
+
+  const importMap = files.find(
+    (f) => f.relativePath === "deno.json" || f.relativePath === "import_map.json",
+  );
+  const metadata: Record<string, unknown> = {
+    entrypoint_path: "index.ts",
+    name: slug,
+    verify_jwt: true,
+  };
+  if (importMap) metadata.import_map_path = importMap.relativePath;
+
+  const form = new FormData();
+  form.append("metadata", JSON.stringify(metadata));
+  for (const file of files) {
+    const bytes = new Uint8Array(file.content);
+    const blob = new Blob([bytes], { type: "application/octet-stream" });
+    form.append("file", blob, file.relativePath);
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `${API}/projects/${encodeURIComponent(ref)}/functions/deploy?slug=${encodeURIComponent(slug)}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token.accessToken}`,
+        },
+        body: form,
+      },
+    );
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+
+  const json = (await res.json().catch(() => ({}))) as {
+    message?: string;
+    error?: string;
+    slug?: string;
+  };
+  if (!res.ok) {
+    const msg = json.message || json.error || `部署 function 失败 (${res.status})`;
+    return {
+      ok: false,
+      error: msg,
+      status: res.status,
+      needs_functions_scope: functionsPermissionHint(res.status, msg),
+    };
+  }
+
+  return { ok: true, slug: json.slug ?? slug };
 }

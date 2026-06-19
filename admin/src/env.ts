@@ -24,7 +24,9 @@ const schema = z.object({
   WORKER_DIR: z.string().default("../worker"),
   WORKER_ROOT: z.string().default(".."),
   /** 相对 WORKER_ROOT 的 Supabase SQL 迁移目录 */
-  SUPABASE_MIGRATIONS_DIR: z.string().default("supabase/migrations"),
+  SUPABASE_MIGRATIONS_DIR: z.string().default("wren-supabase/migrations"),
+  /** 相对 WORKER_ROOT 的 Supabase Edge Functions 目录 */
+  SUPABASE_FUNCTIONS_DIR: z.string().default("wren-supabase/functions"),
   WORKER_URL: z.string().default("http://127.0.0.1:8788"),
   SUPABASE_ANON_KEY: z.string().default(""),
   SUPABASE_TEST_EMAIL: z.string().default(""),

@@ -1,3 +1,4 @@
 packages:
   - "." # admin/ 根包（Hono API）
   - "web" # web/ 前端包（Vite SPA）
+  - "../pg-migration-sql" # PostgreSQL 迁移 SQL 解析

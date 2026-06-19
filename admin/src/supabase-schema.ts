@@ -7,11 +7,34 @@ import {
   listDatabaseMigrations,
   runProjectDatabaseQuery,
 } from "./supabase-management";
+import { extractTableSqlFromSources, parsePoliciesFromSql, parseTablesFromSql } from "pg-migration-sql";
 
-export const DEFAULT_MIGRATIONS_REL_DIR = "supabase/migrations";
+export const DEFAULT_MIGRATIONS_REL_DIR = "wren-supabase/migrations";
+export const LEGACY_MIGRATIONS_REL_DIR = "supabase/migrations";
 
 export function defaultMigrationsDir(): string {
   return path.join(workerRoot, DEFAULT_MIGRATIONS_REL_DIR);
+}
+
+function legacyMigrationsDir(): string {
+  return path.join(workerRoot, LEGACY_MIGRATIONS_REL_DIR);
+}
+
+function knownMigrationsDirs(): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const add = (p: string) => {
+    const normalized = path.normalize(p);
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    out.push(normalized);
+  };
+
+  const fromEnv = resolveMigrationsDir();
+  if (fromEnv) add(fromEnv);
+  add(defaultMigrationsDir());
+  add(legacyMigrationsDir());
+  return out;
 }
 
 export interface LocalMigration {
@@ -20,16 +43,31 @@ export interface LocalMigration {
   sql: string;
 }
 
-export interface MigrationRow {
+export interface MigrationFileRow {
   version: string;
   filename: string;
-  applied: boolean;
+  tables: string[];
+}
+
+export type MigrationSyncStatus = "synced" | "local_only" | "remote_only";
+
+export interface TableCompareRow {
+  name: string;
+  local: boolean;
+  remote: boolean;
+  status: MigrationSyncStatus;
+  source_files: string[];
+  rls_enabled?: boolean;
+  policy_count?: number;
+  local_policies: string[];
+  remote_policies: string[];
 }
 
 export interface TableRlsStatus {
   name: string;
   rls_enabled: boolean;
   policy_count: number;
+  policies: string[];
 }
 
 export interface MigrationDirCandidate {
@@ -61,36 +99,53 @@ export function resolveMigrationsDir(input?: string | null): string | null {
   return path.resolve(workerRoot, rel);
 }
 
+function describeDirAccess(dir: string): { ok: true } | { ok: false; error: string } {
+  try {
+    const st = fs.statSync(dir);
+    if (!st.isDirectory()) {
+      return { ok: false, error: `路径不是目录：${dir}` };
+    }
+    fs.accessSync(dir, fs.constants.R_OK);
+    return { ok: true };
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      return { ok: false, error: `目录不存在：${dir}` };
+    }
+    if (err.code === "EACCES" || err.code === "EPERM") {
+      return { ok: false, error: `目录无权访问：${dir}` };
+    }
+    return { ok: false, error: `目录不可读：${dir}` };
+  }
+}
+
+export function isMigrationsDirReadable(dir: string): boolean {
+  return describeDirAccess(dir).ok;
+}
+
 export function getConfiguredMigrationsDir(): string {
+  for (const candidate of knownMigrationsDirs()) {
+    if (describeDirAccess(candidate).ok) return candidate;
+  }
   return resolveMigrationsDir() ?? defaultMigrationsDir();
 }
 
 function resolveBrowseDir(input?: string | null): string | null {
   if (input?.trim()) {
     const resolved = resolveMigrationsDir(input);
-    if (!resolved) return null;
-    try {
-      if (!fs.statSync(resolved).isDirectory()) return null;
-    } catch {
-      return null;
-    }
-    return resolved;
+    if (resolved && describeDirAccess(resolved).ok) return resolved;
+    /* 显式路径无效时回退到已配置/默认/主目录，避免选择器直接报错 */
   }
 
   const configured = getConfiguredMigrationsDir();
-  try {
-    if (fs.statSync(configured).isDirectory()) return configured;
-  } catch {
-    /* fall through */
-  }
+  if (describeDirAccess(configured).ok) return configured;
+
+  const fallback = defaultMigrationsDir();
+  if (fallback !== configured && describeDirAccess(fallback).ok) return fallback;
 
   const home = os.homedir();
-  try {
-    if (fs.statSync(home).isDirectory()) return home;
-  } catch {
-    return null;
-  }
-  return home;
+  if (describeDirAccess(home).ok) return home;
+  return null;
 }
 
 function migrationsDirOrError(dirInput?: string | null):
@@ -99,9 +154,13 @@ function migrationsDirOrError(dirInput?: string | null):
   if (dirInput?.trim()) {
     const dir = resolveMigrationsDir(dirInput.trim());
     if (!dir) return { ok: false, error: `无效的迁移目录: ${dirInput.trim()}` };
+    const access = describeDirAccess(dir);
+    if (!access.ok) return access;
     return { ok: true, dir, path: dir };
   }
   const dir = getConfiguredMigrationsDir();
+  const access = describeDirAccess(dir);
+  if (!access.ok) return access;
   return { ok: true, dir, path: dir };
 }
 
@@ -109,13 +168,19 @@ export function browseMigrationsDir(input?: string | null):
   | { ok: true; path: string; parent: string | null; migration_count: number; entries: BrowseDirEntry[] }
   | { ok: false; error: string } {
   const abs = resolveBrowseDir(input);
-  if (!abs) return { ok: false, error: "目录不可读" };
+  if (!abs) {
+    return { ok: false, error: "无法定位可浏览的目录，请检查本机路径权限" };
+  }
 
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(abs, { withFileTypes: true });
-  } catch {
-    return { ok: false, error: "目录不可读" };
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException;
+    if (err.code === "EACCES" || err.code === "EPERM") {
+      return { ok: false, error: `目录无权访问：${abs}` };
+    }
+    return { ok: false, error: `无法列出目录内容：${abs}` };
   }
 
   const dirs = entries
@@ -149,12 +214,10 @@ export function browseMigrationsDir(input?: string | null):
 }
 
 export function listMigrationDirCandidates(): MigrationDirCandidate[] {
-  const seen = new Set<string>();
   const out: MigrationDirCandidate[] = [];
 
-  for (const candidate of [getConfiguredMigrationsDir(), defaultMigrationsDir()]) {
-    if (seen.has(candidate)) continue;
-    seen.add(candidate);
+  for (const candidate of knownMigrationsDirs()) {
+    if (!describeDirAccess(candidate).ok) continue;
     out.push({ path: candidate, count: listLocalMigrations(candidate).length });
   }
 
@@ -183,27 +246,109 @@ export function listLocalMigrations(dir: string): LocalMigration[] {
   return out;
 }
 
+export function resolveTableSql(migrations: LocalMigration[], tableName: string): string | null {
+  return extractTableSqlFromSources(migrations, tableName);
+}
+
+export function indexLocalTables(
+  migrations: LocalMigration[],
+): {
+  names: Set<string>;
+  sourceFiles: Map<string, string[]>;
+  localPolicies: Map<string, string[]>;
+} {
+  const names = new Set<string>();
+  const sourceFiles = new Map<string, string[]>();
+  const localPolicies = new Map<string, Set<string>>();
+
+  for (const migration of migrations) {
+    for (const table of parseTablesFromSql(migration.sql)) {
+      names.add(table);
+      const files = sourceFiles.get(table) ?? [];
+      if (!files.includes(migration.filename)) files.push(migration.filename);
+      sourceFiles.set(table, files);
+    }
+    for (const policy of parsePoliciesFromSql(migration.sql)) {
+      names.add(policy.table);
+      const set = localPolicies.get(policy.table) ?? new Set<string>();
+      set.add(policy.name);
+      localPolicies.set(policy.table, set);
+    }
+  }
+
+  const policyMap = new Map<string, string[]>();
+  for (const [table, set] of localPolicies) {
+    policyMap.set(table, [...set].sort((a, b) => a.localeCompare(b)));
+  }
+
+  return { names, sourceFiles, localPolicies: policyMap };
+}
+
+export function buildTableComparison(
+  localTableNames: Set<string>,
+  remoteTables: TableRlsStatus[],
+  sourceFiles: Map<string, string[]>,
+  localPolicies: Map<string, string[]>,
+): TableCompareRow[] {
+  const remoteByName = new Map(remoteTables.map((t) => [t.name.toLowerCase(), t]));
+  const all = new Set([...localTableNames, ...remoteTables.map((t) => t.name.toLowerCase())]);
+
+  return [...all].sort((a, b) => a.localeCompare(b)).map((name) => {
+    const local = localTableNames.has(name);
+    const remoteInfo = remoteByName.get(name);
+    const remote = Boolean(remoteInfo);
+    const status: MigrationSyncStatus =
+      local && remote ? "synced" : local ? "local_only" : "remote_only";
+    return {
+      name,
+      local,
+      remote,
+      status,
+      source_files: sourceFiles.get(name) ?? [],
+      rls_enabled: remoteInfo?.rls_enabled,
+      policy_count: remoteInfo?.policy_count,
+      local_policies: localPolicies.get(name) ?? [],
+      remote_policies: remoteInfo?.policies ?? [],
+    };
+  });
+}
+
 export async function listRemoteMigrationVersions(
   ref: string,
-): Promise<{ ok: true; versions: Set<string> } | { ok: false; error: string; needs_db_scope?: boolean }> {
+): Promise<
+  | { ok: true; versions: Set<string>; list: string[] }
+  | { ok: false; error: string; needs_db_scope?: boolean }
+> {
   const remote = await listDatabaseMigrations(ref);
   if (!remote.ok) return remote;
+
   const versions = new Set<string>();
   for (const row of remote.migrations) {
     const v = row.version?.trim() || row.name?.trim();
     if (v) versions.add(v);
   }
-  return { ok: true, versions };
+
+  const schemaQ = await runProjectDatabaseQuery(
+    ref,
+    `select version from supabase_migrations.schema_migrations order by version`,
+    { readOnly: true },
+  );
+  if (schemaQ.ok) {
+    for (const row of asRows(schemaQ.result)) {
+      const v = String(row.version ?? "").trim();
+      if (v) versions.add(v);
+    }
+  }
+
+  const list = [...versions].sort((a, b) => a.localeCompare(b));
+  return { ok: true, versions, list };
 }
 
-export function mergeMigrationStatus(
-  local: LocalMigration[],
-  appliedVersions: Set<string>,
-): MigrationRow[] {
+export function buildMigrationFileRows(local: LocalMigration[]): MigrationFileRow[] {
   return local.map((m) => ({
     version: m.version,
     filename: m.filename,
-    applied: appliedVersions.has(m.version),
+    tables: parseTablesFromSql(m.sql),
   }));
 }
 
@@ -225,28 +370,34 @@ export async function fetchTableRlsStatus(
 
   const policiesQ = await runProjectDatabaseQuery(
     ref,
-    `select tablename, count(*)::int as policy_count
+    `select tablename, policyname
      from pg_policies
      where schemaname = 'public'
-     group by tablename`,
+     order by tablename, policyname`,
     { readOnly: true },
   );
   if (!policiesQ.ok) return policiesQ;
 
-  const policyMap = new Map<string, number>();
+  const policyMap = new Map<string, string[]>();
   for (const row of asRows(policiesQ.result)) {
     const table = String(row.tablename ?? "");
-    policyMap.set(table, Number(row.policy_count ?? 0));
+    const policy = String(row.policyname ?? "").trim();
+    if (!table || !policy) continue;
+    const list = policyMap.get(table) ?? [];
+    list.push(policy);
+    policyMap.set(table, list);
   }
 
   const tables: TableRlsStatus[] = [];
   for (const row of asRows(tablesQ.result)) {
     const name = String(row.name ?? "");
     if (!name) continue;
+    const policies = policyMap.get(name) ?? [];
     tables.push({
       name,
       rls_enabled: Boolean(row.rls_enabled),
-      policy_count: policyMap.get(name) ?? 0,
+      policy_count: policies.length,
+      policies,
     });
   }
   return { ok: true, tables };
@@ -258,7 +409,14 @@ export async function getMigrationStatus(
 ): Promise<
   | {
       ok: true;
-      migrations: MigrationRow[];
+      migration_files: MigrationFileRow[];
+      table_comparison: TableCompareRow[];
+      table_summary: {
+        local: number;
+        remote: number;
+        synced: number;
+        pending: number;
+      };
       tables: TableRlsStatus[];
       pending_count: number;
       migrations_dir: string;
@@ -269,38 +427,60 @@ export async function getMigrationStatus(
   if (!picked.ok) return picked;
 
   const local = listLocalMigrations(picked.dir);
-  const remote = await listRemoteMigrationVersions(ref);
-  if (!remote.ok) return remote;
+  const migration_files = buildMigrationFileRows(local);
+  const { names: localTableNames, sourceFiles, localPolicies } = indexLocalTables(local);
 
-  const migrations = mergeMigrationStatus(local, remote.versions);
   const tables = await fetchTableRlsStatus(ref);
   if (!tables.ok) return tables;
 
+  const table_comparison = buildTableComparison(
+    localTableNames,
+    tables.tables,
+    sourceFiles,
+    localPolicies,
+  );
+  const pending_count = table_comparison.filter((r) => r.status === "local_only").length;
+
   return {
     ok: true,
-    migrations,
+    migration_files,
+    table_comparison,
+    table_summary: {
+      local: localTableNames.size,
+      remote: tables.tables.length,
+      synced: table_comparison.filter((r) => r.status === "synced").length,
+      pending: pending_count,
+    },
     tables: tables.tables,
-    pending_count: migrations.filter((m) => !m.applied).length,
+    pending_count,
     migrations_dir: picked.path,
   };
 }
 
-export async function applyLocalMigration(
+export async function applyTableMigration(
   ref: string,
-  version: string,
+  table: string,
   migrationsDir?: string | null,
-): Promise<{ ok: true; version: string } | { ok: false; error: string; needs_db_scope?: boolean }> {
+): Promise<
+  { ok: true; table: string; skipped?: boolean }
+  | { ok: false; error: string; needs_db_scope?: boolean }
+> {
   const picked = migrationsDirOrError(migrationsDir);
   if (!picked.ok) return picked;
 
-  const local = listLocalMigrations(picked.dir).find((m) => m.version === version);
-  if (!local) return { ok: false, error: `未找到本地迁移 ${version}` };
+  const tableName = table.trim().toLowerCase();
+  if (!/^[a-z_][\w]*$/i.test(tableName)) {
+    return { ok: false, error: `无效的表名: ${table}` };
+  }
 
-  const applied = await applyDatabaseMigration(ref, local.version, local.sql);
-  return applied.ok ? { ok: true, version: local.version } : applied;
+  const sql = resolveTableSql(listLocalMigrations(picked.dir), tableName);
+  if (!sql) return { ok: false, error: `未找到表 ${tableName} 的本地 SQL` };
+
+  const applied = await applyDatabaseMigration(ref, `tbl_${tableName}`, sql);
+  return applied.ok ? { ok: true, table: tableName, skipped: applied.skipped } : applied;
 }
 
-export async function applyPendingMigrations(
+export async function applyPendingTables(
   ref: string,
   migrationsDir?: string | null,
 ): Promise<
@@ -310,15 +490,17 @@ export async function applyPendingMigrations(
   const status = await getMigrationStatus(ref, migrationsDir);
   if (!status.ok) return status;
 
-  const pending = status.migrations.filter((m) => !m.applied).map((m) => m.version);
+  const pending = status.table_comparison
+    .filter((r) => r.status === "local_only")
+    .map((r) => r.name);
   const applied: string[] = [];
 
-  for (const version of pending) {
-    const r = await applyLocalMigration(ref, version, migrationsDir);
+  for (const table of pending) {
+    const r = await applyTableMigration(ref, table, migrationsDir);
     if (!r.ok) {
       return { ok: false, error: r.error, needs_db_scope: r.needs_db_scope, partial: applied };
     }
-    applied.push(r.version);
+    applied.push(r.table);
   }
 
   return { ok: true, applied };

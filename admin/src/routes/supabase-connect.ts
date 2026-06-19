@@ -22,15 +22,25 @@ import {
   listSupabaseProjects,
 } from "../supabase-management";
 import {
-  applyLocalMigration,
-  applyPendingMigrations,
+  applyPendingTables,
+  applyTableMigration,
   browseMigrationsDir,
   getConfiguredMigrationsDir,
   getMigrationStatus,
+  isMigrationsDirReadable,
   listLocalMigrations,
   listMigrationDirCandidates,
   resolveMigrationsDir,
 } from "../supabase-schema";
+import {
+  browseFunctionsDir,
+  deployLocalFunction,
+  deployPendingFunctions,
+  getConfiguredFunctionsDir,
+  getFunctionsStatus,
+  listFunctionDirCandidates,
+  resolveFunctionsDir,
+} from "../supabase-functions";
 import { writeWranglerVars } from "../wrangler-toml-write";
 
 const OAUTH_API = "https://api.supabase.com/v1/oauth/authorize";
@@ -281,8 +291,11 @@ supabaseConnect.get("/migrations/browse", adminAuth, (c) => {
 });
 
 supabaseConnect.get("/migrations/dirs", adminAuth, (c) => {
+  const current = getConfiguredMigrationsDir();
+  const readable = isMigrationsDirReadable(current);
   return c.json({
-    current: getConfiguredMigrationsDir(),
+    current,
+    current_readable: readable,
     candidates: listMigrationDirCandidates(),
   });
 });
@@ -348,7 +361,7 @@ supabaseConnect.get("/migrations/status", adminAuth, async (c) => {
 supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as {
     ref?: string;
-    version?: string;
+    table?: string;
     apply_all?: boolean;
     dir?: string;
   };
@@ -357,7 +370,7 @@ supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
   const migrationsDir = body.dir?.trim() || null;
 
   if (body.apply_all) {
-    const r = await applyPendingMigrations(ref, migrationsDir);
+    const r = await applyPendingTables(ref, migrationsDir);
     if (!r.ok) {
       return c.json(
         {
@@ -371,15 +384,114 @@ supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
     return c.json({ ok: true, applied: r.applied });
   }
 
-  const version = body.version?.trim();
-  if (!version) return c.json({ error: "缺少 version 或 apply_all" }, 400);
+  const table = body.table?.trim();
+  if (!table) return c.json({ error: "缺少 table 或 apply_all" }, 400);
 
-  const r = await applyLocalMigration(ref, version, migrationsDir);
+  const r = await applyTableMigration(ref, table, migrationsDir);
   if (!r.ok) {
     return c.json(
       { error: r.error, needs_db_scope: r.needs_db_scope ?? false },
       r.needs_db_scope ? 403 : 502,
     );
   }
-  return c.json({ ok: true, applied: [r.version] });
+  return c.json({ ok: true, applied: [r.table], skipped: r.skipped ?? false });
+});
+
+supabaseConnect.get("/functions/browse", adminAuth, (c) => {
+  const bindErr = assertLocalFsAccess();
+  if (bindErr) return c.json({ error: bindErr }, 403);
+
+  const browsePath = c.req.query("path")?.trim() || undefined;
+  const result = browseFunctionsDir(browsePath);
+  if (!result.ok) return c.json({ error: result.error }, 400);
+  return c.json(result);
+});
+
+supabaseConnect.get("/functions/dirs", adminAuth, (c) => {
+  return c.json({
+    current: getConfiguredFunctionsDir(),
+    candidates: listFunctionDirCandidates(),
+  });
+});
+
+supabaseConnect.post("/functions/dir", adminAuth, async (c) => {
+  const bindErr = assertLocalFsAccess();
+  if (bindErr) return c.json({ error: bindErr }, 403);
+
+  const body = (await c.req.json().catch(() => ({}))) as { dir?: string };
+  const raw = body.dir?.trim();
+  if (!raw) return c.json({ error: "缺少 dir" }, 400);
+
+  const resolved = resolveFunctionsDir(raw);
+  if (!resolved) {
+    return c.json({ error: "无效的 Functions 目录" }, 400);
+  }
+
+  try {
+    if (!fs.statSync(resolved).isDirectory()) {
+      return c.json({ error: "路径不是目录" }, 400);
+    }
+  } catch {
+    return c.json({ error: "目录不可读" }, 400);
+  }
+
+  if (!setEnvFileValue("SUPABASE_FUNCTIONS_DIR", resolved)) {
+    return c.json({ error: "写入 admin/.env SUPABASE_FUNCTIONS_DIR 失败" }, 500);
+  }
+  reloadEnv({ quiet: false });
+
+  return c.json({ ok: true, dir: resolved });
+});
+
+supabaseConnect.get("/functions/status", adminAuth, async (c) => {
+  const ref = c.req.query("ref")?.trim();
+  if (!ref) return c.json({ error: "缺少 ref" }, 400);
+
+  const status = await getFunctionsStatus(ref, c.req.query("dir")?.trim() || null);
+  if (!status.ok) {
+    return c.json(
+      { error: status.error, needs_functions_scope: status.needs_functions_scope ?? false },
+      status.needs_functions_scope ? 403 : 502,
+    );
+  }
+  return c.json(status);
+});
+
+supabaseConnect.post("/functions/deploy", adminAuth, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    ref?: string;
+    slug?: string;
+    deploy_all?: boolean;
+    dir?: string;
+  };
+  const ref = body.ref?.trim();
+  if (!ref) return c.json({ error: "缺少 ref" }, 400);
+  const functionsDir = body.dir?.trim() || null;
+
+  if (body.deploy_all) {
+    const r = await deployPendingFunctions(ref, functionsDir);
+    if (!r.ok) {
+      return c.json(
+        {
+          error: r.error,
+          needs_functions_scope: r.needs_functions_scope ?? false,
+          partial: r.partial ?? [],
+        },
+        r.needs_functions_scope ? 403 : 502,
+      );
+    }
+    return c.json({ ok: true, deployed: r.deployed });
+  }
+
+  const slug = body.slug?.trim();
+  if (!slug) return c.json({ error: "缺少 slug 或 deploy_all" }, 400);
+
+  const r = await deployLocalFunction(ref, slug, functionsDir);
+  if (!r.ok) {
+    return c.json(
+      { error: r.error, needs_functions_scope: r.needs_functions_scope ?? false },
+      r.needs_functions_scope ? 403 : 502,
+    );
+  }
+  return c.json({ ok: true, deployed: [r.slug] });
 });

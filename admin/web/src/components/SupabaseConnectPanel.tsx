@@ -10,6 +10,8 @@ import {
   disconnectSupabase,
   fetchSupabaseMigrationDirs,
   fetchSupabaseMigrationStatus,
+  fetchSupabaseFunctionsDirs,
+  fetchSupabaseFunctionsStatus,
   fetchSupabaseProjects,
   fetchSupabaseStatus,
   saveSupabaseTestCredentials,
@@ -18,6 +20,8 @@ import {
 import { cn } from "@/lib/utils";
 import { SourceBadge } from "./SourceBadge";
 import { SupabaseSchemaSection } from "./SupabaseSchemaSection";
+import { SupabaseFunctionsSection } from "./SupabaseFunctionsSection";
+import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupStepSidebar";
 import type { FieldMetaEntry } from "@/types";
 
 function StepBadge({
@@ -47,6 +51,7 @@ function StepBadge({
 }
 
 export function SupabaseConnectPanel({
+  variant = "embedded",
   supabaseUrl = null,
   supabaseUrlMeta,
   hasAnonKey = false,
@@ -58,7 +63,10 @@ export function SupabaseConnectPanel({
   accessToken,
   onAccessTokenChange,
   onApplied,
+  activeStep,
 }: {
+  variant?: "embedded" | "page";
+  activeStep?: SupabaseViewMode;
   supabaseUrl?: string | null;
   supabaseUrlMeta?: FieldMetaEntry;
   hasAnonKey?: boolean;
@@ -71,6 +79,10 @@ export function SupabaseConnectPanel({
   onAccessTokenChange: (v: string) => void;
   onApplied?: () => void;
 }) {
+  const isPage = variant === "page";
+  const pageStepMode = isPage && activeStep !== undefined;
+  const showStep = (step: "connect" | "project" | "database" | "functions") =>
+    !pageStepMode || activeStep === "all" || activeStep === step;
   const { token } = useAdminToken();
   const { t, displayError } = useLocale();
   const queryClient = useQueryClient();
@@ -118,6 +130,16 @@ export function SupabaseConnectPanel({
     enabled: Boolean(token),
   });
 
+  const functionsDirsQ = useQuery({
+    queryKey: ["supabase-functions-dirs", token],
+    queryFn: async () => {
+      const r = await fetchSupabaseFunctionsDirs(token);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    enabled: Boolean(token),
+  });
+
   const migrationsQ = useQuery({
     queryKey: ["supabase-migrations", token, appliedProject?.ref, migrationDirsQ.data?.current],
     queryFn: async () => {
@@ -130,6 +152,21 @@ export function SupabaseConnectPanel({
       return r.data;
     },
     enabled: Boolean(token && appliedProject?.ref && hasAnonKey && migrationDirsQ.data?.current),
+    retry: false,
+  });
+
+  const functionsQ = useQuery({
+    queryKey: ["supabase-functions", token, appliedProject?.ref, functionsDirsQ.data?.current],
+    queryFn: async () => {
+      const r = await fetchSupabaseFunctionsStatus(
+        token,
+        appliedProject!.ref,
+        functionsDirsQ.data!.current,
+      );
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    enabled: Boolean(token && appliedProject?.ref && hasAnonKey && functionsDirsQ.data?.current),
     retry: false,
   });
 
@@ -152,7 +189,7 @@ export function SupabaseConnectPanel({
       return r.data;
     },
     onSuccess: () => {
-      setAwaitingTestAccount(true);
+      if (!isPage) setAwaitingTestAccount(true);
       toast.success(t("supabase.toastStep2"));
       void queryClient.invalidateQueries({ queryKey: ["public-config"] });
       void queryClient.invalidateQueries({ queryKey: ["supabase-projects"] });
@@ -216,7 +253,13 @@ export function SupabaseConnectPanel({
     stepApply &&
     Boolean(migrationStatus) &&
     migrationStatus!.pending_count === 0 &&
-    migrationStatus!.migrations.length > 0;
+    migrationStatus!.migration_files.length > 0;
+  const functionsStatus = functionsQ.data;
+  const stepFunctions =
+    stepApply &&
+    Boolean(functionsStatus) &&
+    functionsStatus!.pending_count === 0 &&
+    (functionsStatus!.function_summary?.local ?? 0) > 0;
   const showTestStep = stepApply && !stepTest && (awaitingTestAccount || hasAnonKey);
   const configComplete = stepApply && stepTest;
   const hasSessionAuth =
@@ -235,7 +278,15 @@ export function SupabaseConnectPanel({
   }
 
   return (
-    <div className="min-w-0 space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+    <div
+      className={cn(
+        "min-w-0 space-y-3",
+        !isPage && "rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3",
+        pageStepMode && "space-y-4",
+      )}
+    >
+      {!pageStepMode && (
+        <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-medium text-[var(--color-text)]">{t("supabase.wizardTitle")}</span>
         <span className="text-[10px] text-[var(--color-muted)]">
@@ -252,16 +303,44 @@ export function SupabaseConnectPanel({
           done={stepConnect}
         />
         <StepBadge n={2} label={t("supabase.step2Label")} active={!stepApply} done={stepApply} />
-        <StepBadge n={3} label={t("supabase.step3Label")} active={showTestStep} done={stepTest} />
-        <StepBadge
-          n={4}
-          label={t("supabase.step4Label")}
-          active={stepApply && !stepSchema}
-          done={stepSchema}
-        />
+        {isPage ? (
+          <>
+            <StepBadge
+              n={3}
+              label={t("supabase.step4Label")}
+              active={stepApply && !stepSchema}
+              done={stepSchema}
+            />
+            <StepBadge
+              n={4}
+              label={t("supabase.stepFunctionsLabel")}
+              active={stepApply && stepSchema && !stepFunctions}
+              done={stepFunctions}
+            />
+          </>
+        ) : (
+          <>
+            <StepBadge n={3} label={t("supabase.step3Label")} active={showTestStep} done={stepTest} />
+            <StepBadge
+              n={4}
+              label={t("supabase.step4Label")}
+              active={stepApply && !stepSchema}
+              done={stepSchema}
+            />
+            <StepBadge
+              n={5}
+              label={t("supabase.stepFunctionsLabel")}
+              active={stepApply && stepSchema && !stepFunctions}
+              done={stepFunctions}
+            />
+          </>
+        )}
       </div>
+        </>
+      )}
 
-      {(status?.connected && status.account) || showTestAccountInfo || appliedProject || supabaseUrl ? (
+      {!pageStepMode && !isPage &&
+      ((status?.connected && status.account) || showTestAccountInfo || appliedProject || supabaseUrl) ? (
         <div className="space-y-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-2 text-xs">
           <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.accountInfo")}</p>
           <ul className="space-y-1 text-[var(--color-text)]">
@@ -309,32 +388,41 @@ export function SupabaseConnectPanel({
         </div>
       ) : null}
 
-      {configComplete && (
+      {!pageStepMode && configComplete && !isPage && (
         <p className="text-xs text-emerald-300">{t("supabase.configComplete")}</p>
       )}
 
-      <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.oauthFetchHint")}</p>
-
-      {!status.connected ? (
-        <div className="space-y-2">
-          {status.client_id_hint && (
-            <p className="text-[10px] text-[var(--color-muted)]">
-              {t("supabase.clientIdHint", {
-                clientId: status.client_id_hint,
-                redirect: status.redirect_uri ?? "",
-              })}
+      {showStep("connect") && (
+        <>
+          <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.oauthFetchHint")}</p>
+          {!status.connected ? (
+            <div className="space-y-2">
+              {status.client_id_hint && (
+                <p className="text-[10px] text-[var(--color-muted)]">
+                  {t("supabase.clientIdHint", {
+                    clientId: status.client_id_hint,
+                    redirect: status.redirect_uri ?? "",
+                  })}
+                </p>
+              )}
+              <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.oauthAppHint")}</p>
+              <Button
+                size="sm"
+                disabled={connectM.isPending || !status.local_only}
+                onClick={() => connectM.mutate()}
+              >
+                {connectM.isPending ? t("supabase.redirecting") : t("supabase.connectBtn")}
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-emerald-300">
+              {t("supabase.meta.connectDone", { count: status.account?.projects_count ?? 0 })}
             </p>
           )}
-          <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.oauthAppHint")}</p>
-          <Button
-            size="sm"
-            disabled={connectM.isPending || !status.local_only}
-            onClick={() => connectM.mutate()}
-          >
-            {connectM.isPending ? t("supabase.redirecting") : t("supabase.connectBtn")}
-          </Button>
-        </div>
-      ) : (
+        </>
+      )}
+
+      {showStep("project") && status.connected && (
         <div className="space-y-3">
           {!stepApply || applyM.isPending ? (
             <div className="space-y-2">
@@ -362,10 +450,18 @@ export function SupabaseConnectPanel({
               </div>
             </div>
           ) : (
-            <p className="text-xs text-[var(--color-muted)]">
-              {t("supabase.step2Done")}
-              {appliedProject ? `: ${appliedProject.name}` : ""}
-            </p>
+            <div className="space-y-2 text-xs text-[var(--color-text)]">
+              <p className="text-[var(--color-muted)]">
+                {t("supabase.step2Done")}
+                {appliedProject ? `: ${appliedProject.name}` : ""}
+              </p>
+              {supabaseUrl && (
+                <code className="mono block break-all text-[11px]">{supabaseUrl}</code>
+              )}
+              {hasAnonKey && (
+                <p className="text-emerald-300">{t("supabase.anonKeyConfigured")}</p>
+              )}
+            </div>
           )}
 
           <Button
@@ -379,11 +475,32 @@ export function SupabaseConnectPanel({
         </div>
       )}
 
-      {stepApply && appliedProject?.ref && (
-        <SupabaseSchemaSection token={token} projectRef={appliedProject.ref} />
+      {showStep("database") && stepApply && appliedProject?.ref && (
+        <SupabaseSchemaSection
+          token={token}
+          projectRef={appliedProject.ref}
+          variant={variant}
+          hideTitle={pageStepMode}
+        />
       )}
 
-      {showAuthSection && (
+      {showStep("database") && !stepApply && pageStepMode && (
+        <p className="text-xs text-[var(--color-muted)]">{t("supabase.meta.databaseBlocked")}</p>
+      )}
+
+      {showStep("functions") && stepApply && appliedProject?.ref && (
+        <SupabaseFunctionsSection
+          token={token}
+          projectRef={appliedProject.ref}
+          hideTitle={pageStepMode}
+        />
+      )}
+
+      {showStep("functions") && !stepApply && pageStepMode && (
+        <p className="text-xs text-[var(--color-muted)]">{t("supabase.meta.functionsBlocked")}</p>
+      )}
+
+      {!isPage && showAuthSection && (
         <div className="space-y-2 border-t border-[var(--color-border)] pt-3">
           {!hasTestCredentials && (
             <div

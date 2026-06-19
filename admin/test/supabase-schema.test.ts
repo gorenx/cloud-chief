@@ -3,7 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
-  mergeMigrationStatus,
+  buildMigrationFileRows,
+  buildTableComparison,
+  resolveTableSql,
   parseMigrationFilename,
   listLocalMigrations,
   normalizeMigrationsRelDir,
@@ -11,7 +13,10 @@ import {
   browseMigrationsDir,
   listMigrationDirCandidates,
   defaultMigrationsDir,
+  getConfiguredMigrationsDir,
+  isMigrationsDirReadable,
 } from "../src/supabase-schema";
+import { parseTablesFromSql } from "pg-migration-sql";
 
 describe("supabase-schema", () => {
   let tmpDir: string;
@@ -30,6 +35,24 @@ describe("supabase-schema", () => {
     expect(parseMigrationFilename("001.sql")).toBeNull();
   });
 
+  it("resolveTableSql merges statements from multiple files", () => {
+    const migrations = [
+      {
+        version: "0001_wren_state",
+        filename: "0001_wren_state.sql",
+        sql: "create table wren_state (id uuid);",
+      },
+      {
+        version: "0002_wren_state_policies",
+        filename: "0002_wren_state_policies.sql",
+        sql: 'create policy "owner reads" on public.wren_state for select using (true);',
+      },
+    ];
+    const sql = resolveTableSql(migrations, "wren_state");
+    expect(sql).toContain("create table wren_state");
+    expect(sql).toContain('create policy "owner reads"');
+  });
+
   it("listLocalMigrations reads sorted sql files", () => {
     fs.writeFileSync(path.join(tmpDir, "002_other.sql"), "select 1;");
     fs.writeFileSync(path.join(tmpDir, "001_profiles.sql"), "create table profiles;");
@@ -40,16 +63,42 @@ describe("supabase-schema", () => {
     expect(rows[0].sql).toContain("create table");
   });
 
-  it("mergeMigrationStatus marks applied versions", () => {
+  it("buildMigrationFileRows lists tables per file", () => {
     const local = [
-      { version: "001_a", filename: "001_a.sql", sql: "a" },
-      { version: "002_b", filename: "002_b.sql", sql: "b" },
+      {
+        version: "0001_wren_state",
+        filename: "0001_wren_state.sql",
+        sql: "create table wren_state (id uuid); create table wren_log (id uuid);",
+      },
     ];
-    const merged = mergeMigrationStatus(local, new Set(["001_a"]));
-    expect(merged).toEqual([
-      { version: "001_a", filename: "001_a.sql", applied: true },
-      { version: "002_b", filename: "002_b.sql", applied: false },
-    ]);
+    const files = buildMigrationFileRows(local);
+    expect(files[0].tables).toEqual(["wren_log", "wren_state"]);
+  });
+
+  it("buildTableComparison compares local sql tables with remote db", () => {
+    const rows = buildTableComparison(
+      new Set(["wren_state", "ai_gateway"]),
+      [
+        {
+          name: "wren_state",
+          rls_enabled: true,
+          policy_count: 2,
+          policies: ["owner reads", "owner writes"],
+        },
+        { name: "legacy", rls_enabled: false, policy_count: 0, policies: [] },
+      ],
+      new Map([
+        ["wren_state", ["0001_wren_state.sql"]],
+        ["ai_gateway", ["0002_ai_gateway.sql"]],
+      ]),
+      new Map([["wren_state", ["owner reads"]]]),
+    );
+    const wren = rows.find((r) => r.name === "wren_state");
+    expect(wren?.status).toBe("synced");
+    expect(wren?.local_policies).toEqual(["owner reads"]);
+    expect(wren?.remote_policies).toEqual(["owner reads", "owner writes"]);
+    expect(rows.find((r) => r.name === "ai_gateway")?.status).toBe("local_only");
+    expect(rows.find((r) => r.name === "legacy")?.status).toBe("remote_only");
   });
 
   it("normalizeMigrationsRelDir trims slashes", () => {
@@ -66,7 +115,7 @@ describe("supabase-schema", () => {
   });
 
   it("resolveMigrationsDir accepts repo default migrations dir", () => {
-    const resolved = resolveMigrationsDir("supabase/migrations");
+    const resolved = resolveMigrationsDir("wren-supabase/migrations");
     expect(resolved).toBeTruthy();
     expect(fs.existsSync(resolved!)).toBe(true);
   });
@@ -88,13 +137,27 @@ describe("supabase-schema", () => {
   });
 
   it("browseMigrationsDir navigates with absolute path", () => {
-    const migrationsDir = resolveMigrationsDir("supabase/migrations");
-    expect(migrationsDir).toBeTruthy();
-    const result = browseMigrationsDir(migrationsDir!);
+    const result = browseMigrationsDir(tmpDir);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.path).toBe(migrationsDir);
+    expect(result.path).toBe(tmpDir);
     expect(result.parent).toBeTruthy();
     expect(path.isAbsolute(result.parent!)).toBe(true);
+  });
+
+  it("browseMigrationsDir falls back when explicit path is missing", () => {
+    const missing = path.join(tmpDir, "no-such-migrations");
+    const result = browseMigrationsDir(missing);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.path).not.toBe(missing);
+    expect(isMigrationsDirReadable(result.path)).toBe(true);
+  });
+
+  it("getConfiguredMigrationsDir prefers readable default over missing env path", () => {
+    const defaultDir = defaultMigrationsDir();
+    expect(isMigrationsDirReadable(defaultDir)).toBe(true);
+    const configured = getConfiguredMigrationsDir();
+    expect(isMigrationsDirReadable(configured)).toBe(true);
   });
 });

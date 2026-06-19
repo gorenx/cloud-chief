@@ -229,10 +229,31 @@ export interface SupabaseMigrationRow {
   applied: boolean;
 }
 
+export interface SupabaseMigrationFileRow {
+  version: string;
+  filename: string;
+  tables: string[];
+}
+
+export type SupabaseMigrationSyncStatus = "synced" | "local_only" | "remote_only";
+
+export interface SupabaseTableCompareRow {
+  name: string;
+  local: boolean;
+  remote: boolean;
+  status: SupabaseMigrationSyncStatus;
+  source_files: string[];
+  rls_enabled?: boolean;
+  policy_count?: number;
+  local_policies: string[];
+  remote_policies: string[];
+}
+
 export interface SupabaseTableRlsStatus {
   name: string;
   rls_enabled: boolean;
   policy_count: number;
+  policies: string[];
 }
 
 export interface SupabaseMigrationDirCandidate {
@@ -242,11 +263,19 @@ export interface SupabaseMigrationDirCandidate {
 
 export interface SupabaseMigrationDirs {
   current: string;
+  current_readable?: boolean;
   candidates: SupabaseMigrationDirCandidate[];
 }
 
 export interface SupabaseMigrationStatus {
-  migrations: SupabaseMigrationRow[];
+  migration_files: SupabaseMigrationFileRow[];
+  table_comparison: SupabaseTableCompareRow[];
+  table_summary: {
+    local: number;
+    remote: number;
+    synced: number;
+    pending: number;
+  };
   tables: SupabaseTableRlsStatus[];
   pending_count: number;
   migrations_dir?: string;
@@ -312,18 +341,114 @@ export async function fetchSupabaseMigrationStatus(token: string, ref: string, d
 export async function applySupabaseMigration(
   token: string,
   ref: string,
-  opts: { version?: string; applyAll?: boolean; dir?: string },
+  opts: { table?: string; applyAll?: boolean; dir?: string },
 ) {
   const base = opts.applyAll
     ? { ref, apply_all: true }
-    : { ref, version: opts.version };
+    : { ref, table: opts.table };
+  const body = opts.dir ? { ...base, dir: opts.dir } : base;
+  return adminFetch<{ ok: boolean; applied: string[]; skipped?: boolean; needs_db_scope?: boolean; partial?: string[] }>(
+    token,
+    "POST",
+    "/admin/supabase/migrations/apply",
+    body,
+  );
+}
+
+export type SupabaseFunctionSyncStatus = "synced" | "local_only" | "remote_only";
+
+export interface SupabaseFunctionCompareRow {
+  slug: string;
+  local: boolean;
+  remote: boolean;
+  status: SupabaseFunctionSyncStatus;
+  file_count: number;
+  local_files: string[];
+  entrypoint?: string;
+  remote_status?: string;
+  updated_at?: string | null;
+}
+
+export interface SupabaseFunctionsStatus {
+  function_comparison: SupabaseFunctionCompareRow[];
+  function_summary: {
+    local: number;
+    remote: number;
+    synced: number;
+    pending: number;
+  };
+  pending_count: number;
+  functions_dir?: string;
+  remote_list_limited?: boolean;
+  remote_list_error?: string;
+}
+
+export interface SupabaseFunctionsDirs {
+  current: string;
+  candidates: Array<{ path: string; count: number }>;
+}
+
+export interface SupabaseFunctionsBrowse {
+  path: string;
+  parent: string | null;
+  function_count: number;
+  entries: Array<{ name: string; path: string; has_children: boolean }>;
+}
+
+export async function fetchSupabaseFunctionsBrowse(token: string, path = "") {
+  const q = path ? `?path=${encodeURIComponent(path)}` : "";
+  return adminFetch<SupabaseFunctionsBrowse>(token, "GET", `/admin/supabase/functions/browse${q}`);
+}
+
+export async function fetchSupabaseFunctionsDirs(token: string) {
+  return adminFetch<SupabaseFunctionsDirs>(token, "GET", "/admin/supabase/functions/dirs");
+}
+
+export async function saveSupabaseFunctionsDir(token: string, dir: string) {
+  return adminFetch<{ ok: boolean; dir: string }>(
+    token,
+    "POST",
+    "/admin/supabase/functions/dir",
+    { dir },
+  );
+}
+
+function functionsDirQuery(dir?: string): string {
+  return dir ? `&dir=${encodeURIComponent(dir)}` : "";
+}
+
+export async function fetchSupabaseFunctionsStatus(token: string, ref: string, dir?: string) {
+  const res = await fetch(
+    `/admin/supabase/functions/status?ref=${encodeURIComponent(ref)}${functionsDirQuery(dir)}`,
+    { headers: authHeaders(token) },
+  );
+  const j = await parseJson<
+    SupabaseFunctionsStatus & { error?: string; needs_functions_scope?: boolean }
+  >(res);
+  if (!res.ok) {
+    return {
+      ok: false as const,
+      status: res.status,
+      error: errText(j),
+      needs_functions_scope: Boolean(j?.needs_functions_scope),
+    };
+  }
+  return { ok: true as const, data: j as SupabaseFunctionsStatus };
+}
+
+export async function deploySupabaseFunction(
+  token: string,
+  ref: string,
+  opts: { slug?: string; deployAll?: boolean; dir?: string },
+) {
+  const base = opts.deployAll ? { ref, deploy_all: true } : { ref, slug: opts.slug };
   const body = opts.dir ? { ...base, dir: opts.dir } : base;
   return adminFetch<{
     ok: boolean;
-    applied: string[];
-    needs_db_scope?: boolean;
+    deployed: string[];
+    needs_functions_scope?: boolean;
     partial?: string[];
-  }>(token, "POST", "/admin/supabase/migrations/apply", body);
+  }>(token, "POST", "/admin/supabase/functions/deploy", body);
 }
 
 export async function fetchWorkerDevStatus(token: string, dir?: string) {

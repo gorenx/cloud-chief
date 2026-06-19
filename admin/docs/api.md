@@ -463,10 +463,13 @@ SSE 流：`wrangler deploy` 实时输出。
 
 ```json
 {
-  "current": "/Users/me/Projects/cloud-chief/supabase/migrations",
-  "candidates": [{ "path": "/Users/me/Projects/cloud-chief/supabase/migrations", "count": 1 }]
+  "current": "/Users/me/Projects/cloud-chief/wren-supabase/migrations",
+  "current_readable": true,
+  "candidates": [{ "path": "/Users/me/Projects/cloud-chief/wren-supabase/migrations", "count": 2 }]
 }
 ```
+
+`current_readable` 为 `false` 时表示配置路径不存在或无权读取；服务端会依次尝试 `WORKER_ROOT/wren-supabase/migrations` 与旧路径 `supabase/migrations`，前端应提示用户重新选择目录。
 
 ### `POST /admin/supabase/migrations/dir`
 
@@ -486,22 +489,50 @@ SSE 流：`wrangler deploy` 实时输出。
 
 ### `GET /admin/supabase/migrations/status?ref=abcd1234`
 
-对比本地迁移与远程已应用记录，并查询 `public` 表 RLS 状态。可选 `?dir=`。缺少 Database scope 时 `403` + `needs_db_scope: true`。
+对比本地 SQL 解析出的表与线上 `public` 表。应用在表级别执行。可选 `?dir=`。缺少 Database scope 时 `403` + `needs_db_scope: true`。
 
 ```json
 {
-  "migrations": [{ "version": "001_profiles", "filename": "001_profiles.sql", "applied": false }],
-  "tables": [{ "name": "profiles", "rls_enabled": true, "policy_count": 4 }],
-  "pending_count": 1
+  "migration_files": [
+    {
+      "version": "0001_wren_state",
+      "filename": "0001_wren_state.sql",
+      "tables": ["wren_state", "wren_log"]
+    }
+  ],
+  "table_comparison": [
+    {
+      "name": "wren_state",
+      "local": true,
+      "remote": true,
+      "status": "synced",
+      "source_files": ["0001_wren_state.sql"],
+      "rls_enabled": true,
+      "policy_count": 2,
+      "local_policies": ["owner reads"],
+      "remote_policies": ["owner reads", "owner writes"]
+    },
+    {
+      "name": "ai_gateway",
+      "local": true,
+      "remote": false,
+      "status": "local_only",
+      "source_files": ["0002_ai_gateway.sql"]
+    }
+  ],
+  "table_summary": { "local": 2, "remote": 1, "synced": 1, "pending": 1 },
+  "tables": [{ "name": "wren_state", "rls_enabled": true, "policy_count": 2 }],
+  "pending_count": 1,
+  "migrations_dir": "/Users/me/Projects/cloud-chief/supabase/migrations"
 }
 ```
 
 ### `POST /admin/supabase/migrations/apply`
 
-应用单条或全部待执行迁移。
+按表应用迁移（从相关 SQL 文件提取该表的 create/alter/policy 等语句）。
 
 ```json
-{ "ref": "abcd1234", "version": "001_profiles", "dir": "supabase/migrations" }
+{ "ref": "abcd1234", "table": "wren_state", "dir": "/path/to/migrations" }
 ```
 
 或
@@ -511,6 +542,47 @@ SSE 流：`wrangler deploy` 实时输出。
 ```
 
 响应：`{ "ok": true, "applied": ["001_profiles"] }`；部分失败时含 `partial` 数组。
+
+### Edge Functions
+
+本地目录结构：`{functions_dir}/{slug}/index.ts`（可选 `deno.json`）。默认 `SUPABASE_FUNCTIONS_DIR=wren-supabase/functions`。通过 Supabase Management API `POST /v1/projects/{ref}/functions/deploy` 部署。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/admin/supabase/functions/browse?path=` | 本机目录浏览 |
+| `GET` | `/admin/supabase/functions/dirs` | 当前/候选目录 |
+| `POST` | `/admin/supabase/functions/dir` | 保存 `SUPABASE_FUNCTIONS_DIR` |
+| `GET` | `/admin/supabase/functions/status?ref=` | 本地 vs 线上 functions 对比 |
+| `POST` | `/admin/supabase/functions/deploy` | 部署单个或全部待发布 |
+
+`GET .../status` 响应示例：
+
+```json
+{
+  "function_comparison": [
+    {
+      "slug": "hello-world",
+      "local": true,
+      "remote": false,
+      "status": "local_only",
+      "file_count": 1,
+      "local_files": ["index.ts"],
+      "entrypoint": "index.ts"
+    }
+  ],
+  "function_summary": { "local": 1, "remote": 0, "synced": 0, "pending": 1 },
+  "pending_count": 1,
+  "functions_dir": "/path/to/wren-supabase/functions"
+}
+```
+
+`POST .../deploy` 请求：
+
+```json
+{ "ref": "abcd1234", "slug": "hello-world" }
+```
+
+或 `{ "ref": "abcd1234", "deploy_all": true }`。缺少 Functions 权限时 `403` + `needs_functions_scope: true`。
 
 ---
 

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
+import { TablesCompareList } from "@/components/TablesCompareList";
 import { MigrationsDirPicker } from "@/components/MigrationsDirPicker";
 import { useLocale } from "@/contexts/LocaleContext";
 import {
@@ -16,10 +17,15 @@ import { cn } from "@/lib/utils";
 export function SupabaseSchemaSection({
   token,
   projectRef,
+  variant = "embedded",
+  hideTitle = false,
 }: {
   token: string;
   projectRef: string;
+  variant?: "embedded" | "page";
+  hideTitle?: boolean;
 }) {
+  const isPage = variant === "page";
   const { t, displayError } = useLocale();
   const queryClient = useQueryClient();
   const [activeDir, setActiveDir] = useState("");
@@ -71,17 +77,21 @@ export function SupabaseSchemaSection({
   });
 
   const applyOneM = useMutation({
-    mutationFn: async (version: string) => {
+    mutationFn: async (table: string) => {
       const r = await applySupabaseMigration(token, projectRef, {
-        version,
+        table,
         dir: activeDir,
       });
       if (!r.ok) throw new Error(r.error);
-      return r.data;
+      return { ...r.data, table };
     },
-    onSuccess: () => {
-      toast.success(t("supabase.toastMigrationApplied"));
-      void queryClient.invalidateQueries({
+    onSuccess: async (data) => {
+      toast.success(
+        data.skipped
+          ? t("supabase.toastMigrationAlreadyApplied")
+          : t("supabase.toastTableApplied", { table: data.table }),
+      );
+      await queryClient.refetchQueries({
         queryKey: ["supabase-migrations", token, projectRef, activeDir],
       });
     },
@@ -97,9 +107,9 @@ export function SupabaseSchemaSection({
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
-    onSuccess: (data) => {
-      toast.success(t("supabase.toastMigrationsApplied", { count: data.applied.length }));
-      void queryClient.invalidateQueries({
+    onSuccess: async (data) => {
+      toast.success(t("supabase.toastTablesApplied", { count: data.applied.length }));
+      await queryClient.refetchQueries({
         queryKey: ["supabase-migrations", token, projectRef, activeDir],
       });
     },
@@ -110,11 +120,24 @@ export function SupabaseSchemaSection({
   const needsDbScope = Boolean(err?.needsDbScope);
   const pending = statusQ.data?.pending_count ?? 0;
   const applying = applyOneM.isPending || applyAllM.isPending;
+  const applyingTable = applyOneM.isPending ? applyOneM.variables : undefined;
   const dirLabel = activeDir || t("supabase.migrationsDirPickerRoot");
+  const tableCompareRows = statusQ.data?.table_comparison ?? [];
+  const stepTitle = isPage
+    ? t("supabase.step4Title").replace(/^[④4]\s*/, "③ ")
+    : t("supabase.step4Title");
+  const tableSummary = statusQ.data?.table_summary ?? {
+    local: 0,
+    remote: 0,
+    synced: 0,
+    pending: 0,
+  };
 
   return (
-    <div className="space-y-2 border-t border-[var(--color-border)] pt-3">
-      <p className="text-xs font-medium text-[var(--color-text)]">{t("supabase.step4Title")}</p>
+    <div className={cn("space-y-2", !hideTitle && "border-t border-[var(--color-border)] pt-3")}>
+      {!hideTitle && (
+        <p className="text-xs font-medium text-[var(--color-text)]">{stepTitle}</p>
+      )}
       <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.step4Desc")}</p>
 
       <div className="space-y-1">
@@ -135,12 +158,15 @@ export function SupabaseSchemaSection({
           </Button>
         </div>
         <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.migrationsDirHint")}</p>
+        {dirsQ.data && dirsQ.data.current_readable === false && (
+          <p className="text-[10px] text-amber-200">{t("supabase.migrationsDirUnreadable")}</p>
+        )}
       </div>
 
       <MigrationsDirPicker
         token={token}
         open={pickerOpen}
-        initialPath={activeDir}
+        initialPath={dirsQ.data?.current_readable === false ? "" : activeDir}
         onClose={() => setPickerOpen(false)}
         onSelect={(dir) => saveDirM.mutate(dir)}
       />
@@ -159,69 +185,15 @@ export function SupabaseSchemaSection({
 
       {statusQ.data && (
         <>
-          <div className="space-y-1">
-            {statusQ.data.migrations.length === 0 ? (
-              <p className="text-xs text-[var(--color-muted)]">{t("supabase.noLocalMigrations")}</p>
-            ) : (
-              <ul className="space-y-1 text-xs">
-                {statusQ.data.migrations.map((m) => (
-                  <li
-                    key={m.version}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-2 py-1.5"
-                  >
-                    <span className="min-w-0">
-                      <code className="mono text-[11px]">{m.version}</code>
-                      <span
-                        className={cn(
-                          "ml-2 text-[10px]",
-                          m.applied ? "text-emerald-300" : "text-amber-200",
-                        )}
-                      >
-                        {m.applied ? t("supabase.migrationApplied") : t("supabase.migrationPending")}
-                      </span>
-                    </span>
-                    {!m.applied && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={applying}
-                        onClick={() => applyOneM.mutate(m.version)}
-                      >
-                        {applyOneM.isPending ? t("supabase.migrationApplying") : t("supabase.applyMigration")}
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {pending > 0 && (
-            <Button size="sm" disabled={applying} onClick={() => applyAllM.mutate()}>
-              {applyAllM.isPending
-                ? t("supabase.migrationApplying")
-                : t("supabase.applyAllMigrations", { count: pending })}
-            </Button>
-          )}
-
-          {statusQ.data.tables.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-[10px] text-[var(--color-muted)]">{t("supabase.rlsStatusTitle")}</p>
-              <ul className="space-y-0.5 text-[11px]">
-                {statusQ.data.tables.map((tbl) => (
-                  <li key={tbl.name} className="flex flex-wrap gap-2 text-[var(--color-text)]">
-                    <code className="mono">{tbl.name}</code>
-                    <span className={tbl.rls_enabled ? "text-emerald-300" : "text-amber-200"}>
-                      {tbl.rls_enabled ? t("supabase.rlsOn") : t("supabase.rlsOff")}
-                    </span>
-                    <span className="text-[var(--color-muted)]">
-                      {t("supabase.policyCount", { count: tbl.policy_count })}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <TablesCompareList
+            rows={tableCompareRows}
+            summary={tableSummary}
+            onApply={(table) => applyOneM.mutate(table)}
+            applying={applying}
+            applyingTable={applyingTable}
+            onApplyAll={() => applyAllM.mutate()}
+            pendingCount={pending}
+          />
         </>
       )}
     </div>

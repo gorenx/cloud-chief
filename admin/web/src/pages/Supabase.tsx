@@ -1,14 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 import { SupabaseConnectPanel } from "@/components/SupabaseConnectPanel";
-import { Card } from "@/components/ui/Card";
+import { SupabaseSetupFlow } from "@/components/supabase/SupabaseSetupFlow";
+import { SupabaseSetupWorkspace } from "@/components/supabase/SupabaseSetupWorkspace";
+import { SupabaseStepPanelHeader } from "@/components/supabase/SupabaseStepPanel";
+import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupStepSidebar";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
+import { useSupabaseSetupFlowStatus } from "@/hooks/useSupabaseSetupFlowStatus";
+import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { fetchPublicConfig } from "@/lib/api";
 import { pickFields } from "@/lib/field-meta";
+import { resolveSupabaseSetupCurrent, type SupabaseSetupStep } from "@/lib/supabase-setup-flow";
 
 export function SupabasePage() {
   const { token } = useAdminToken();
@@ -17,6 +23,8 @@ export function SupabasePage() {
   const [testEmail, setTestEmail] = useState("");
   const [testPassword, setTestPassword] = useState("");
   const [accessToken, setAccessToken] = useState("");
+  const [activeStep, setActiveStep] = useState<SupabaseViewMode>("connect");
+  const [activeInit, setActiveInit] = useState(false);
 
   const configQ = useQuery({
     queryKey: ["public-config"],
@@ -26,6 +34,17 @@ export function SupabasePage() {
       return r.data;
     },
   });
+
+  const worker = configQ.data?.worker ?? null;
+  const supabaseUrlMeta = pickFields(configQ.data?._meta)["worker.supabase_url"];
+
+  const { flowStatus } = useSupabaseSetupFlowStatus({
+    token: token ?? "",
+    supabaseUrl: worker?.supabase_url ?? null,
+    hasAnonKey: worker?.has_anon_key ?? false,
+  });
+
+  const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
 
   useEffect(() => {
     const supabase = searchParams.get("supabase");
@@ -42,35 +61,80 @@ export function SupabasePage() {
     setSearchParams(searchParams, { replace: true });
   }, [searchParams, setSearchParams, configQ, t]);
 
+  useEffect(() => {
+    if (activeInit || !configQ.data) return;
+    setActiveStep(resolveSupabaseSetupCurrent(flowStatus));
+    setActiveInit(true);
+  }, [activeInit, configQ.data, flowStatus]);
+
   if (!token) {
     return <NoTokenPrompt />;
   }
 
-  const worker = configQ.data?.worker ?? null;
-  const supabaseUrlMeta = pickFields(configQ.data?._meta)["worker.supabase_url"];
+  const panelProps = {
+    variant: "page" as const,
+    supabaseUrl: worker?.supabase_url,
+    supabaseUrlMeta,
+    hasAnonKey: worker?.has_anon_key ?? false,
+    hasTestCredentials: worker?.has_test_credentials ?? false,
+    testEmail,
+    onTestEmailChange: setTestEmail,
+    testPassword,
+    onTestPasswordChange: setTestPassword,
+    accessToken,
+    onAccessTokenChange: setAccessToken,
+    onApplied: () => void configQ.refetch(),
+  };
+
+  const stepDef = activeStep !== "all" ? steps.find((s) => s.id === activeStep) : null;
+
+  const rightHeader =
+    activeStep === "all" ? (
+      <div>
+        <h3 className="text-sm font-semibold leading-tight">{t("supabase.page.allSteps")}</h3>
+        <p className="mt-1 text-xs text-[var(--color-muted)]">{t("supabase.page.allStepsDesc")}</p>
+      </div>
+    ) : (
+      stepDef && <SupabaseStepPanelHeader step={stepDef} />
+    );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold">{t("supabase.page.title")}</h1>
         <p className="mt-1 text-sm text-[var(--color-muted)]">{t("supabase.page.desc")}</p>
       </div>
 
-      <Card className="p-4">
-        <SupabaseConnectPanel
-          supabaseUrl={worker?.supabase_url}
-          supabaseUrlMeta={supabaseUrlMeta}
-          hasAnonKey={worker?.has_anon_key ?? false}
-          hasTestCredentials={worker?.has_test_credentials ?? false}
-          testEmail={testEmail}
-          onTestEmailChange={setTestEmail}
-          testPassword={testPassword}
-          onTestPasswordChange={setTestPassword}
-          accessToken={accessToken}
-          onAccessTokenChange={setAccessToken}
-          onApplied={() => void configQ.refetch()}
-        />
-      </Card>
+      <SupabaseSetupFlow
+        flowStatus={flowStatus}
+        activeStep={activeStep}
+        onGoToStep={setActiveStep}
+      />
+
+      <SupabaseSetupWorkspace
+        status={flowStatus}
+        activeStep={activeStep}
+        onSelect={setActiveStep}
+        onShowAll={() => setActiveStep("all")}
+        rightHeader={rightHeader}
+      >
+        {activeStep === "all" ? (
+          <div className="space-y-8">
+            {steps.map((def) => (
+              <section key={def.id}>
+                <div className="mb-4">
+                  <SupabaseStepPanelHeader step={def} />
+                </div>
+                <SupabaseConnectPanel {...panelProps} activeStep={def.id} />
+              </section>
+            ))}
+          </div>
+        ) : (
+          stepDef && (
+            <SupabaseConnectPanel {...panelProps} activeStep={activeStep as SupabaseSetupStep} />
+          )
+        )}
+      </SupabaseSetupWorkspace>
     </div>
   );
 }
