@@ -5,6 +5,7 @@ import {
   type JWTPayload,
 } from "jose";
 import type { Env } from "./types";
+import { JWT_AUDIENCE as DEFAULT_JWT_AUDIENCE } from "@cloud-chief/gateway-core";
 
 let cached: { url: string; set: ReturnType<typeof createRemoteJWKSet> } | null = null;
 
@@ -17,7 +18,7 @@ function jwksFor(url: string) {
 
 export async function verifySupabaseJWT(token: string, env: Env): Promise<JWTPayload> {
   const issuer = `${env.SUPABASE_URL}/auth/v1`;
-  const audience = env.JWT_AUDIENCE || undefined;
+  const audience = env.JWT_AUDIENCE?.trim() || DEFAULT_JWT_AUDIENCE;
   const { alg } = decodeProtectedHeader(token);
 
   if (alg === "HS256") {

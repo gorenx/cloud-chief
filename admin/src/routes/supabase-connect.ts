@@ -234,7 +234,10 @@ supabaseConnect.post("/apply", adminAuth, async (c) => {
     return c.json({ error: "写入 admin/.env SUPABASE_ANON_KEY 失败" }, 500);
   }
 
-  const wr = writeWranglerVars(workerDir, { SUPABASE_URL: cfg.config.supabase_url });
+  const wr = writeWranglerVars(workerDir, {
+    SUPABASE_URL: cfg.config.supabase_url,
+    JWT_AUDIENCE: "authenticated",
+  });
   if (!wr.ok) return c.json({ error: `写入 wrangler.toml 失败: ${wr.error}` }, 500);
 
   reloadEnv({ quiet: false });

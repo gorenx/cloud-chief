@@ -11,7 +11,7 @@ import {
   WEBHOOK_FALLBACK_GRANT,
   WEBHOOK_FALLBACK_IGNORE,
   WEBHOOK_FALLBACK_REVOKE,
-  writeWebhookEntitlement,
+  upsertEntitlementFromWebhookEvent,
 } from "@cloud-chief/gateway-core";
 import type { Env } from "./types";
 
@@ -62,7 +62,7 @@ export async function handleRevenueCatWebhook(c: Context<{ Bindings: Env }>) {
       } catch {
         return c.text("revenuecat_read_failed", 500);
       }
-      const response = await writeWebhookEntitlement(
+      const response = await upsertEntitlementFromWebhookEvent(
         admin,
         userId,
         state,
@@ -93,7 +93,7 @@ export async function handleRevenueCatWebhook(c: Context<{ Bindings: Env }>) {
   }
   if (state === null) return c.text("ignored_event", 200);
 
-  const response = await writeWebhookEntitlement(
+  const response = await upsertEntitlementFromWebhookEvent(
     admin,
     appUserId,
     state,

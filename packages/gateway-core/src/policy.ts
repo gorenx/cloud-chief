@@ -8,6 +8,9 @@ export const FREE_MODEL = "qwen-plus";
 export const PLUS_MODEL = "qwen3-max";
 export const PLUS_ENTITLEMENT_ID = "wren Pro";
 
+/** Supabase user access_token `aud` claim; override via wrangler [vars]. */
+export const JWT_AUDIENCE = "authenticated";
+
 /** Per-user daily ceiling for free, authenticated users (UTC day). */
 export const FREE_DAILY_CEILING = 8;
 

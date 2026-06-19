@@ -56,8 +56,9 @@ ai-gateway-worker/
 
 - `CF_ACCOUNT_ID` / `CF_GATEWAY_ID` / `PROVIDER_SLUG`
 - `SUPABASE_URL`
+- `JWT_AUDIENCE`（默认 `authenticated`，与 Supabase 用户 access_token 的 `aud` 一致）
 - `FREE_MODEL` / `PLUS_MODEL`（默认 `qwen-plus` / `qwen3-max`）
-- `JWT_AUDIENCE`、`ALLOWED_SUBS`
+- `ALLOWED_SUBS`
 
 ## Secrets
 

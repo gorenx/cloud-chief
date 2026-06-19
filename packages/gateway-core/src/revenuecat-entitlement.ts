@@ -122,7 +122,8 @@ export async function mirrorEntitlementFromRest(
   return null;
 }
 
-export async function writeWebhookEntitlement(
+/** Upsert `user_entitlements` with webhook event id dedup and timestamp ordering. */
+export async function upsertEntitlementFromWebhookEvent(
   admin: SupabaseClient,
   userId: string,
   state: EntitlementState,

@@ -18,7 +18,7 @@ PLUS_MODEL = "qwen3-max"
 # ===== Supabase 鉴权 + 服务端权威权益/配额 =====
 # 你的 Supabase 项目地址（不要带末尾斜杠），用于拉 JWKS 公钥并校验 iss。
 SUPABASE_URL = "https://hkhdizuncmaghkhtcvvw.supabase.co"
-# Supabase 用户 token 的 aud 默认是 authenticated；如有自定义可改。
+# Supabase 用户 access_token 的 aud；默认 authenticated（见 gateway-core JWT_AUDIENCE）。
 JWT_AUDIENCE = "authenticated"
 # 可选：留空表示允许所有已登录用户；填逗号分隔的用户 UUID 白名单。
 ALLOWED_SUBS = ""
