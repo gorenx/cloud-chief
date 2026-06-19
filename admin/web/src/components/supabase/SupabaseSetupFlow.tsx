@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
 import { Chip } from "@/components/ui/Chip";
@@ -17,15 +17,34 @@ import {
   getLocalizedSupabaseSteps,
 } from "@/i18n/supabase-ui";
 import { cn } from "@/lib/utils";
-import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
+
+function FlowClickTarget({
+  onClick,
+  className,
+  children,
+}: {
+  onClick: () => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={-1}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className={className}
+    >
+      {children}
+    </div>
+  );
+}
 
 export function SupabaseSetupFlow({
   flowStatus,
-  activeStep,
   onGoToStep,
 }: {
   flowStatus: SupabaseSetupStatus;
-  activeStep: SupabaseSetupStep | "all";
   onGoToStep: (step: SupabaseSetupStep) => void;
 }) {
   const t = useT();
@@ -34,8 +53,7 @@ export function SupabaseSetupFlow({
   const action = formatNextSupabaseSetupAction(t, flowStatus);
   const progress = supabaseSetupProgress(flowStatus);
   const warnings = formatSupabaseSetupWarnings(t, flowStatus);
-  const navSelected =
-    activeStep === "all" ? resolveSupabaseSetupCurrent(flowStatus) : activeStep;
+  const navSelected = resolveSupabaseSetupCurrent(flowStatus);
   const [open, setOpen] = useState(!coreDone);
 
   const progressPct = Math.round((progress.totalDone / progress.totalSteps) * 100);
@@ -48,11 +66,9 @@ export function SupabaseSetupFlow({
           open && "border-b border-[var(--color-border)]",
         )}
       >
-        <button
-          type="button"
+        <FlowClickTarget
           onClick={() => setOpen((v) => !v)}
-          {...navButtonFocusProps}
-          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+          className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 text-left"
         >
           <ChevronDown
             className={cn(
@@ -80,9 +96,9 @@ export function SupabaseSetupFlow({
                       key={step.id}
                       className={cn(
                         "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
-                        activeStep === step.id &&
+                        navSelected === step.id &&
                           "bg-[var(--color-accent)]/15 text-[var(--color-accent)]",
-                        activeStep !== step.id && done && "text-emerald-400",
+                        navSelected !== step.id && done && "text-emerald-400",
                       )}
                     >
                       {step.num}. {step.label}
@@ -108,21 +124,19 @@ export function SupabaseSetupFlow({
               />
             </div>
           </div>
-        </button>
+        </FlowClickTarget>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {coreDone && (
             <span className="rounded-full bg-emerald-950/50 px-2.5 py-0.5 text-xs text-emerald-400">
               {t("supabase.flow.allDone")}
             </span>
           )}
-          <button
-            type="button"
+          <FlowClickTarget
             onClick={() => setOpen((v) => !v)}
-            {...navButtonFocusProps}
-            className="rounded-lg px-2 py-1 text-xs text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]"
+            className="cursor-pointer rounded-lg px-2 py-1 text-xs text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]"
           >
             {open ? t("btn.common.collapse") : t("btn.common.expand")}
-          </button>
+          </FlowClickTarget>
         </div>
       </div>
 
@@ -164,14 +178,12 @@ export function SupabaseSetupFlow({
           {action && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel-elevated)]/40 px-3 py-2.5">
               <p className="text-xs text-[var(--color-muted)]">{action.text}</p>
-              <button
-                type="button"
+              <FlowClickTarget
                 onClick={() => onGoToStep(action.step)}
-                {...navButtonFocusProps}
-                className="rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
+                className="cursor-pointer rounded-md border border-[var(--color-border)] px-2.5 py-1 text-xs font-semibold text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
               >
                 {t("btn.common.goTo")}
-              </button>
+              </FlowClickTarget>
             </div>
           )}
 

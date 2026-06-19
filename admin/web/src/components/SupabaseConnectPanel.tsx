@@ -81,7 +81,7 @@ export function SupabaseConnectPanel({
 }) {
   const isPage = variant === "page";
   const pageStepMode = isPage && activeStep !== undefined;
-  const showSchemaFeatures = isPage;
+  const showSchemaFeatures = true;
   const showStep = (step: "connect" | "project" | "database" | "functions") => {
     if (!showSchemaFeatures && (step === "database" || step === "functions")) return false;
     return !pageStepMode || activeStep === "all" || activeStep === step;

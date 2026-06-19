@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Minus } from "lucide-react";
 import { ScrollSafeButton } from "@/components/ui/ScrollSafeButton";
 import { Chip } from "@/components/ui/Chip";
@@ -6,7 +6,7 @@ import { useLocale } from "@/contexts/LocaleContext";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import type { SupabaseFunctionCompareRow } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { runOnMouseDownWithoutScrollJump } from "@/lib/prevent-nav-scroll";
+import { navButtonScrollSafeProps } from "@/lib/prevent-nav-scroll";
 
 function PresenceMark({ on }: { on: boolean }) {
   return on ? (
@@ -133,20 +133,23 @@ export function FunctionsCompareList({
 }) {
   const { t } = useLocale();
   const scrollRef = useScrollContainer();
-  const [selectedOverride, setSelectedOverride] = useState<string | null>(null);
-
-  const selected = useMemo(() => {
-    if (selectedOverride && rows.some((r) => r.slug === selectedOverride)) {
-      return selectedOverride;
-    }
-    if (rows.length === 0) return null;
-    return (rows.find((r) => r.status === "local_only") ?? rows[0]).slug;
-  }, [rows, selectedOverride]);
+  const [selected, setSelected] = useState<string | null>(null);
 
   const selectedRow = useMemo(
     () => rows.find((r) => r.slug === selected) ?? null,
     [rows, selected],
   );
+
+  useEffect(() => {
+    if (rows.length === 0) {
+      setSelected(null);
+      return;
+    }
+    if (!selected || !rows.some((r) => r.slug === selected)) {
+      const prefer = rows.find((r) => r.status === "local_only") ?? rows[0];
+      setSelected(prefer.slug);
+    }
+  }, [rows, selected]);
 
   if (rows.length === 0) {
     return (
@@ -186,9 +189,7 @@ export function FunctionsCompareList({
                 <button
                   key={row.slug}
                   type="button"
-                  onMouseDown={(e) =>
-                    runOnMouseDownWithoutScrollJump(e, scrollRef, () => setSelectedOverride(row.slug))
-                  }
+                  {...navButtonScrollSafeProps(scrollRef, () => setSelected(row.slug))}
                   className={cn(
                     "flex min-w-[7rem] items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition-colors sm:min-w-0 sm:w-full",
                     active

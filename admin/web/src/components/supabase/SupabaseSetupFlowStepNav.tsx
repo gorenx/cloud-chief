@@ -8,7 +8,6 @@ import {
 } from "@/lib/supabase-setup-flow";
 import { formatSupabaseStepMeta, getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { cn } from "@/lib/utils";
-import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
 
 export function SupabaseSetupFlowStepNav({
   status,
@@ -51,11 +50,13 @@ export function SupabaseSetupFlowStepNav({
                       : "border-[var(--color-border)]",
               )}
             >
-              <button
-                type="button"
+              {/* 不用原生 button，避免工作区切换步骤后浏览器把焦点落到流程卡片并滚到顶部 */}
+              <div
+                role="button"
+                tabIndex={-1}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onSelect(step.id)}
-                {...navButtonFocusProps}
-                className="w-full flex-1 text-left"
+                className="w-full flex-1 cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2">
                   <span
@@ -80,7 +81,7 @@ export function SupabaseSetupFlowStepNav({
                 <p className="mt-1.5 text-xs text-[var(--color-muted)]">
                   {formatSupabaseStepMeta(t, step.id, status)}
                 </p>
-              </button>
+              </div>
             </div>
           </div>
         );

@@ -120,26 +120,28 @@ export function SupabaseFunctionsSection({
   const pending = statusQ.data?.pending_count ?? 0;
   const deploying = deployOneM.isPending || deployAllM.isPending;
   const deployingSlug = deployOneM.isPending ? deployOneM.variables : undefined;
-  const scrollBusy = statusQ.isFetching || deploying;
+  const wasDeploying = useRef(false);
 
   useLayoutEffect(() => {
-    if (scrollBusy) {
-      if (scrollLock.current === null) {
-        scrollLock.current = readMainScrollTop(scrollRef);
-      }
+    if (deploying && !wasDeploying.current) {
+      scrollLock.current = readMainScrollTop(scrollRef);
+    }
+    wasDeploying.current = deploying;
+
+    if (deploying && scrollLock.current !== null) {
       restoreMainScrollTop(scrollLock.current, scrollRef);
       return;
     }
-    if (scrollLock.current !== null) {
+    if (!deploying && scrollLock.current !== null) {
       restoreMainScrollTop(scrollLock.current, scrollRef);
       scrollLock.current = null;
     }
-  }, [scrollBusy, statusQ.data, scrollRef]);
+  }, [deploying, statusQ.data, scrollRef]);
 
   useEffect(() => {
-    if (!scrollBusy || scrollLock.current === null) return;
+    if (!deploying || scrollLock.current === null) return;
     return pinScrollTop(scrollLock.current, scrollRef);
-  }, [scrollBusy, statusQ.data, scrollRef]);
+  }, [deploying, statusQ.data, scrollRef]);
 
   const dirLabel = activeDir || t("supabase.functionsDirPickerRoot");
   const compareRows = statusQ.data?.function_comparison ?? [];

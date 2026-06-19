@@ -8,7 +8,8 @@ import {
 } from "@/lib/supabase-setup-flow";
 import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { cn } from "@/lib/utils";
-import { navButtonFocusProps } from "@/lib/prevent-nav-scroll";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
+import { workspaceSidebarButtonProps } from "@/lib/prevent-nav-scroll";
 
 export type SupabaseViewMode = SupabaseSetupStep | "all";
 
@@ -20,11 +21,11 @@ export function SupabaseSetupShowAllButton({
   onClick: () => void;
 }) {
   const t = useT();
+  const scrollRef = useScrollContainer();
   return (
     <button
       type="button"
-      onClick={onClick}
-      {...navButtonFocusProps}
+      {...workspaceSidebarButtonProps(scrollRef, onClick)}
       className={cn(
         "flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-xs font-medium transition-colors",
         active
@@ -48,6 +49,7 @@ export function SupabaseSetupStepList({
   onSelect: (step: SupabaseSetupStep) => void;
 }) {
   const t = useT();
+  const scrollRef = useScrollContainer();
   const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
 
   return (
@@ -63,8 +65,7 @@ export function SupabaseSetupStepList({
           <button
             key={step.id}
             type="button"
-            onClick={() => onSelect(step.id)}
-            {...navButtonFocusProps}
+            {...workspaceSidebarButtonProps(scrollRef, () => onSelect(step.id))}
             className={cn(
               "flex h-9 items-center gap-2 rounded-lg px-2.5 text-left text-xs transition-colors",
               selected

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -7,6 +7,7 @@ import { TablesCompareList } from "@/components/TablesCompareList";
 import { RoutinesCompareList } from "@/components/RoutinesCompareList";
 import { MigrationsDirPicker } from "@/components/MigrationsDirPicker";
 import { useLocale } from "@/contexts/LocaleContext";
+import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import {
   applySupabaseMigration,
   fetchSupabaseMigrationDirs,
@@ -14,6 +15,7 @@ import {
   saveSupabaseMigrationDir,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { pinScrollTop, readMainScrollTop, restoreMainScrollTop } from "@/lib/prevent-nav-scroll";
 
 export function SupabaseSchemaSection({
   token,
@@ -29,6 +31,8 @@ export function SupabaseSchemaSection({
   const isPage = variant === "page";
   const { t, displayError } = useLocale();
   const queryClient = useQueryClient();
+  const scrollRef = useScrollContainer();
+  const scrollLock = useRef<number | null>(null);
   const [activeDir, setActiveDir] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -147,6 +151,29 @@ export function SupabaseSchemaSection({
   const applying = applyOneM.isPending || applyFunctionM.isPending || applyAllM.isPending;
   const applyingTable = applyOneM.isPending ? applyOneM.variables : undefined;
   const applyingFunction = applyFunctionM.isPending ? applyFunctionM.variables : undefined;
+  const wasApplying = useRef(false);
+
+  useLayoutEffect(() => {
+    if (applying && !wasApplying.current) {
+      scrollLock.current = readMainScrollTop(scrollRef);
+    }
+    wasApplying.current = applying;
+
+    if (applying && scrollLock.current !== null) {
+      restoreMainScrollTop(scrollLock.current, scrollRef);
+      return;
+    }
+    if (!applying && scrollLock.current !== null) {
+      restoreMainScrollTop(scrollLock.current, scrollRef);
+      scrollLock.current = null;
+    }
+  }, [applying, statusQ.data, scrollRef]);
+
+  useEffect(() => {
+    if (!applying || scrollLock.current === null) return;
+    return pinScrollTop(scrollLock.current, scrollRef);
+  }, [applying, statusQ.data, scrollRef]);
+
   const dirLabel = activeDir || t("supabase.migrationsDirPickerRoot");
   const tableCompareRows = statusQ.data?.table_comparison ?? [];
   const functionCompareRows = statusQ.data?.function_comparison ?? [];

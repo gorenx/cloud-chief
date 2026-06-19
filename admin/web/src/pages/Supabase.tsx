@@ -11,11 +11,16 @@ import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupStepSi
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
+import {
+  pinScrollTop,
+  readMainScrollTop,
+  restoreMainScrollTop,
+  setFlowInert,
+} from "@/lib/prevent-nav-scroll";
 import { useSupabaseSetupFlowStatus } from "@/hooks/useSupabaseSetupFlowStatus";
 import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { fetchPublicConfig } from "@/lib/api";
 import { pickFields } from "@/lib/field-meta";
-import { readMainScrollTop, restoreMainScrollTop } from "@/lib/prevent-nav-scroll";
 import { resolveSupabaseSetupCurrent, type SupabaseSetupStep } from "@/lib/supabase-setup-flow";
 
 export function SupabasePage() {
@@ -27,19 +32,10 @@ export function SupabasePage() {
   const [accessToken, setAccessToken] = useState("");
   const [activeStep, setActiveStep] = useState<SupabaseViewMode>("connect");
   const [activeInit, setActiveInit] = useState(false);
+  const flowRef = useRef<HTMLDivElement>(null);
   const scrollRef = useScrollContainer();
   const pendingScrollTop = useRef<number | null>(null);
-
-  const selectStep = useCallback((step: SupabaseViewMode) => {
-    pendingScrollTop.current = readMainScrollTop(scrollRef);
-    setActiveStep(step);
-  }, [scrollRef]);
-
-  useLayoutEffect(() => {
-    if (pendingScrollTop.current === null) return;
-    restoreMainScrollTop(pendingScrollTop.current, scrollRef);
-    pendingScrollTop.current = null;
-  }, [activeStep, scrollRef]);
+  const pinStop = useRef<(() => void) | null>(null);
 
   const configQ = useQuery({
     queryKey: ["public-config"],
@@ -58,6 +54,41 @@ export function SupabasePage() {
     supabaseUrl: worker?.supabase_url ?? null,
     hasAnonKey: worker?.has_anon_key ?? false,
   });
+
+  const selectStepFromWorkspace = useCallback(
+    (step: SupabaseViewMode) => {
+      pinStop.current?.();
+      const top = readMainScrollTop(scrollRef);
+      pendingScrollTop.current = top;
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      setFlowInert(flowRef.current, true);
+      pinStop.current = pinScrollTop(top, scrollRef);
+      setActiveStep(step);
+    },
+    [scrollRef],
+  );
+
+  const selectStepFromFlow = useCallback((step: SupabaseSetupStep) => {
+    setActiveStep(step);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (pendingScrollTop.current === null) return;
+    restoreMainScrollTop(pendingScrollTop.current, scrollRef);
+  }, [activeStep, scrollRef]);
+
+  useEffect(() => {
+    if (pendingScrollTop.current === null) return;
+    const id = window.setTimeout(() => {
+      pinStop.current?.();
+      pinStop.current = null;
+      pendingScrollTop.current = null;
+      setFlowInert(flowRef.current, false);
+    }, 600);
+    return () => clearTimeout(id);
+  }, [activeStep, scrollRef]);
 
   const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
 
@@ -120,17 +151,15 @@ export function SupabasePage() {
         <p className="mt-1 text-sm text-[var(--color-muted)]">{t("supabase.page.desc")}</p>
       </div>
 
-      <SupabaseSetupFlow
-        flowStatus={flowStatus}
-        activeStep={activeStep}
-        onGoToStep={selectStep}
-      />
+      <div ref={flowRef}>
+        <SupabaseSetupFlow flowStatus={flowStatus} onGoToStep={selectStepFromFlow} />
+      </div>
 
       <SupabaseSetupWorkspace
         status={flowStatus}
         activeStep={activeStep}
-        onSelect={selectStep}
-        onShowAll={() => selectStep("all")}
+        onSelect={selectStepFromWorkspace}
+        onShowAll={() => selectStepFromWorkspace("all")}
         rightHeader={rightHeader}
       >
         {activeStep === "all" ? (
