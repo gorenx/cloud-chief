@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "postinstall": "bash ../scripts/worker-deps.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

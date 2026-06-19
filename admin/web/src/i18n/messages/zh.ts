@@ -735,6 +735,8 @@ export const zhMessages: Messages = {
       varsOnline: {
         title: "环境变量 · 线上",
         desc: "CF API plain_text 绑定（只读）",
+        scriptMismatch: "当前所选线上脚本与本地 Worker 不一致，请勿直接对比",
+        pendingDeploy: "本地已更新，部署后线上才会同步",
       },
       secretsLocal: {
         title: "私密配置 · 本地",

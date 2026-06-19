@@ -654,7 +654,7 @@ export interface Messages {
       project: { title: string; desc: string };
       deploy: { title: string; desc: string };
       varsLocal: { title: string; desc: string };
-      varsOnline: { title: string; desc: string };
+      varsOnline: { title: string; desc: string; scriptMismatch: string; pendingDeploy: string };
       secretsLocal: { title: string; desc: string };
       secretsOnline: { title: string; desc: string };
       ci: { title: string; desc: string };

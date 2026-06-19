@@ -7,7 +7,7 @@ port = 8789
 
 [vars]
 # RevenueCat 项目 ID（Dashboard → Project Settings）
-RC_PROJECT_ID = "proj_你的项目ID"
+RC_PROJECT_ID = "proj463a2635"
 # Supabase 项目地址（不要带末尾斜杠）
 SUPABASE_URL = "https://hkhdizuncmaghkhtcvvw.supabase.co"
 JWT_AUDIENCE = "authenticated"

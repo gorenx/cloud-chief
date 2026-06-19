@@ -743,6 +743,8 @@ export const enMessages: Messages = {
       varsOnline: {
         title: "Environment variables · online",
         desc: "CF API plain_text bindings (read-only)",
+        scriptMismatch: "Selected online script does not match the local Worker — comparison may be misleading",
+        pendingDeploy: "Local config updated — deploy to sync online",
       },
       secretsLocal: {
         title: "Secrets · local",

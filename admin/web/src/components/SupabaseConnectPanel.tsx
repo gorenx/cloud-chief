@@ -193,6 +193,7 @@ export function SupabaseConnectPanel({
       toast.success(t("supabase.toastStep2"));
       void queryClient.invalidateQueries({ queryKey: ["public-config"] });
       void queryClient.invalidateQueries({ queryKey: ["supabase-projects"] });
+      void queryClient.invalidateQueries({ queryKey: ["worker-status"] });
       onApplied?.();
     },
     onError: (e: Error) => toast.error(displayError(e.message)),

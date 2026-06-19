@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import fs from "node:fs";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { adminAuth } from "../auth";
-import { env, reloadEnv, setEnvFileValue, workerDir } from "../env";
+import { env, reloadEnv, setEnvFileValue, workerRoot } from "../env";
+import { clearWorkerRuntimeCache } from "../worker-runtime";
+import { writeWranglerVarsAll } from "../wrangler-toml-write";
 import { generatePkce, randomOAuthState } from "../supabase-oauth-pkce";
 import {
   oauthCookieSecure,
@@ -43,7 +45,6 @@ import {
   listFunctionDirCandidates,
   resolveFunctionsDir,
 } from "../supabase-functions";
-import { writeWranglerVars } from "../wrangler-toml-write";
 
 const OAUTH_API = "https://api.supabase.com/v1/oauth/authorize";
 const COOKIE_PATH = "/admin/supabase";
@@ -236,13 +237,14 @@ supabaseConnect.post("/apply", adminAuth, async (c) => {
     return c.json({ error: "写入 admin/.env SUPABASE_ANON_KEY 失败" }, 500);
   }
 
-  const wr = writeWranglerVars(workerDir, {
+  const wr = writeWranglerVarsAll(workerRoot, {
     SUPABASE_URL: cfg.config.supabase_url,
     JWT_AUDIENCE: "authenticated",
   });
   if (!wr.ok) return c.json({ error: `写入 wrangler.toml 失败: ${wr.error}` }, 500);
 
   reloadEnv({ quiet: false });
+  clearWorkerRuntimeCache();
 
   return c.json({
     ok: true,
@@ -251,6 +253,7 @@ supabaseConnect.post("/apply", adminAuth, async (c) => {
       name: cfg.config.name,
       supabase_url: cfg.config.supabase_url,
       anon_key_preview: `${cfg.config.anon_key.slice(0, 8)}…`,
+      worker_dirs: wr.updated,
     },
   });
 });

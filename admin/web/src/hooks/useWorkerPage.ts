@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -147,21 +147,35 @@ export function useWorkerPage(token: string) {
 
   const cfScripts = cfDeployedQ.data?.ok ? cfDeployedQ.data.scripts : [];
   const [cfScriptName, setCfScriptName] = useState("");
+  const prevWorkerDirRef = useRef(workerDir);
 
   useEffect(() => {
     const localName = statusQ.data?.worker_name;
-    if (localName && cfScripts.some((s) => s.name === localName)) {
-      setCfScriptName(localName);
+    const workerDirChanged = prevWorkerDirRef.current !== workerDir;
+    prevWorkerDirRef.current = workerDir;
+
+    const pickLocalMatch = () => {
+      if (localName && cfScripts.some((s) => s.name === localName)) {
+        setCfScriptName(localName);
+        return;
+      }
+      setCfScriptName("");
+    };
+
+    if (workerDirChanged) {
+      pickLocalMatch();
       return;
     }
-    if (!cfScriptName && cfScripts.length > 0) {
-      setCfScriptName(cfScripts[0].name);
+
+    if (!cfScriptName) {
+      pickLocalMatch();
       return;
     }
-    if (cfScriptName && !cfScripts.some((s) => s.name === cfScriptName)) {
-      setCfScriptName(cfScripts[0]?.name ?? "");
+
+    if (!cfScripts.some((s) => s.name === cfScriptName)) {
+      pickLocalMatch();
     }
-  }, [statusQ.data?.worker_name, cfScripts, cfScriptName]);
+  }, [statusQ.data?.worker_name, cfScripts, workerDir, cfScriptName]);
 
   const onlineScript = useMemo(
     () => cfScripts.find((s) => s.name === cfScriptName) ?? null,

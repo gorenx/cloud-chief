@@ -55,3 +55,46 @@ export function writeWranglerVars(
     return { ok: false, error: (e as Error).message };
   }
 }
+
+/** 扫描 root 下含 wrangler.toml 的目录，返回绝对路径。 */
+export function discoverWorkerDirs(root: string): string[] {
+  const out: string[] = [];
+  const walk = (abs: string, depth: number): void => {
+    if (depth > 3) return;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(abs, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    if (entries.some((e) => e.isFile() && e.name === "wrangler.toml")) {
+      out.push(abs);
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && e.name !== "node_modules" && !e.name.startsWith(".")) {
+        walk(path.join(abs, e.name), depth + 1);
+      }
+    }
+  };
+  walk(root, 0);
+  return out.sort();
+}
+
+/** 把所有 Worker 目录的 wrangler.toml [vars] 同步为同一组值。 */
+export function writeWranglerVarsAll(
+  workerRoot: string,
+  vars: Record<string, string>,
+): { ok: true; updated: string[] } | { ok: false; error: string; updated: string[] } {
+  const dirs = discoverWorkerDirs(workerRoot);
+  if (dirs.length === 0) {
+    return { ok: false, error: "未找到 wrangler.toml", updated: [] };
+  }
+  const updated: string[] = [];
+  for (const dir of dirs) {
+    const rel = path.relative(workerRoot, dir) || ".";
+    const wr = writeWranglerVars(dir, vars);
+    if (!wr.ok) return { ok: false, error: `${rel}: ${wr.error}`, updated };
+    updated.push(rel);
+  }
+  return { ok: true, updated };
+}
