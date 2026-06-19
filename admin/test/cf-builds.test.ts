@@ -10,14 +10,14 @@ import {
   resolveScriptTag,
 } from "../src/cf-builds";
 
-const workerDir = path.resolve(import.meta.dirname, "../../worker");
+const workerDir = path.resolve(import.meta.dirname, "../../ai-gateway-worker");
 
 describe("cf-builds helpers", () => {
-  it("readCloudflareBuildsConfig loads worker/cloudflare-builds.json", () => {
+  it("readCloudflareBuildsConfig loads ai-gateway-worker/cloudflare-builds.json", () => {
     const cfg = readCloudflareBuildsConfig(workerDir);
     expect(cfg?.worker_name).toBe("ai-gateway-proxy");
-    expect(cfg?.root_directory).toBe("worker");
-    expect(cfg?.path_includes).toEqual(["worker/*"]);
+    expect(cfg?.root_directory).toBe("ai-gateway-worker");
+    expect(cfg?.path_includes).toEqual(["ai-gateway-worker/*", "packages/gateway-core/*"]);
   });
 
   it("isPreviewTrigger detects non-production branch trigger", () => {
@@ -31,7 +31,7 @@ describe("cf-builds helpers", () => {
     const preview = buildTriggerPatch(cfg, { is_preview: true });
     expect(prod.deploy_command).toBe("npx wrangler deploy");
     expect(preview.deploy_command).toBe("npx wrangler versions upload");
-    expect(prod.path_includes).toEqual(["worker/*"]);
+    expect(prod.path_includes).toEqual(["ai-gateway-worker/*", "packages/gateway-core/*"]);
   });
 
   it("resolveScriptTag prefers first matching script name", () => {

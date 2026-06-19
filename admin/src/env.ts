@@ -94,12 +94,49 @@ function applyEnvMap(fromFile: Record<string, string>, force: boolean): void {
   }
 }
 
-function resolveWorkerDir(e: AppEnv): string {
-  return path.isAbsolute(e.WORKER_DIR) ? e.WORKER_DIR : path.resolve(adminRoot, e.WORKER_DIR);
-}
-
 function resolveWorkerRoot(e: AppEnv): string {
   return path.isAbsolute(e.WORKER_ROOT) ? e.WORKER_ROOT : path.resolve(adminRoot, e.WORKER_ROOT);
+}
+
+/** 在 WORKER_ROOT 下扫描含 wrangler.toml 的目录（深度 ≤3），返回绝对路径。 */
+function discoverWorkerDir(root: string): string | null {
+  const rels: string[] = [];
+  const walk = (abs: string, depth: number): void => {
+    if (depth > 3) return;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(abs, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    if (entries.some((e) => e.isFile() && e.name === "wrangler.toml")) {
+      rels.push(path.relative(root, abs) || ".");
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && e.name !== "node_modules" && !e.name.startsWith(".")) {
+        walk(path.join(abs, e.name), depth + 1);
+      }
+    }
+  };
+  walk(root, 0);
+  if (rels.length === 0) return null;
+  rels.sort();
+  return path.join(root, rels[0]);
+}
+
+function resolveWorkerDir(e: AppEnv): string {
+  const root = resolveWorkerRoot(e);
+  const configured = e.WORKER_DIR.trim()
+    ? path.isAbsolute(e.WORKER_DIR)
+      ? e.WORKER_DIR
+      : path.resolve(adminRoot, e.WORKER_DIR)
+    : null;
+  if (configured && fs.existsSync(path.join(configured, "wrangler.toml"))) {
+    return configured;
+  }
+  const discovered = discoverWorkerDir(root);
+  if (discovered) return discovered;
+  return configured ?? root;
 }
 
 function parseProcessEnv(): AppEnv {
@@ -114,7 +151,7 @@ function parseProcessEnv(): AppEnv {
 /** 可变 env 对象；各模块 import 后读取字段即可获得最新值 */
 export const env: AppEnv = {} as AppEnv;
 
-export let workerDir = resolveWorkerDir({ WORKER_DIR: "../worker" } as AppEnv);
+export let workerDir = resolveWorkerDir({ WORKER_DIR: "../worker", WORKER_ROOT: ".." } as AppEnv);
 export let workerRoot = resolveWorkerRoot({ WORKER_ROOT: ".." } as AppEnv);
 
 export const publicDir = path.join(adminRoot, "public");

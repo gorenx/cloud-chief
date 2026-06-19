@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const adminRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const workerDir = path.resolve(adminRoot, "../worker");
+const workerDir = path.resolve(adminRoot, "../ai-gateway-worker");
 
 describe("readWranglerToml", () => {
   it("reads name and SUPABASE_URL from worker wrangler.toml", () => {
