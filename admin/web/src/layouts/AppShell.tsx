@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  MessageSquare,
+  Terminal,
   Network,
   Boxes,
   KeyRound,
@@ -37,7 +37,7 @@ const NAV_SECTIONS: NavSection[] = [
     labelKey: "nav.sectionMonitor",
     items: [
       { to: "/", labelKey: "nav.overview", icon: LayoutDashboard, end: true },
-      { to: "/playground", labelKey: "nav.playground", icon: MessageSquare },
+      { to: "/playground", labelKey: "nav.playground", icon: Terminal },
     ],
   },
   {

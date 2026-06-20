@@ -1,7 +1,7 @@
 import { useRef, useState, type RefObject } from "react";
 import { useLocale } from "@/contexts/LocaleContext";
 import { ChatStreamError, streamChatResponse } from "@/lib/chat-stream";
-import { buildChatRequest, type CallMode, type WorkerTarget } from "@/lib/playground-session";
+import { buildChatRequest, type ChatPath, type WorkerTarget } from "@/lib/playground-session";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -18,14 +18,15 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
   const errorPrefix = t("playground.errorPrefix");
 
   async function send(params: {
-    callMode: CallMode;
+    path: ChatPath;
     effectiveModel: string;
-    gateway: string;
+    gateway?: string;
     providerSlug?: string;
     workerAccessToken: string;
     workerTestEmail?: string;
     workerTestPassword?: string;
     workerTarget?: WorkerTarget;
+    workerDir?: string;
     useWorkerToml: boolean;
   }) {
     const text = input.trim();

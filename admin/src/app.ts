@@ -30,7 +30,8 @@ export function createApp(): Hono {
     const defaultGw = pickDefaultGateway(gateways);
     const defaultProvider = pickDefaultProvider(providers);
     const gatewayId = defaultGw?.id ?? "";
-    const runtime = await getWorkerRuntimeConfig();
+    const workerDirRel = c.req.query("worker_dir") ?? undefined;
+    const runtime = await getWorkerRuntimeConfig({ dir: workerDirRel });
     const routing = buildRouting(
       gatewayId,
       defaultProvider,

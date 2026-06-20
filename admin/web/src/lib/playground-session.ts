@@ -1,6 +1,42 @@
-export type CallMode = "gateway" | "worker";
+export type DebugTab = "chat" | "gateway" | "worker";
+export type ChatPath = "gateway" | "worker";
 export type WorkerConfigSource = "worker" | "ui";
 export type WorkerTarget = "local" | "online";
+
+export const DEBUG_TAB_KEY = "admin-playground-active-tab";
+export const CHAT_PATH_KEY = "admin-playground-chat-path";
+
+export function readDebugTab(): DebugTab {
+  try {
+    const v = localStorage.getItem(DEBUG_TAB_KEY);
+    if (v === "chat" || v === "gateway" || v === "worker") return v;
+  } catch {
+    /* ignore */
+  }
+  return "chat";
+}
+
+export function readChatPath(): ChatPath {
+  try {
+    const v = localStorage.getItem(CHAT_PATH_KEY);
+    if (v === "gateway" || v === "worker") return v;
+  } catch {
+    /* ignore */
+  }
+  return "gateway";
+}
+
+export function resolveInspectTarget(tab: DebugTab, chatPath: ChatPath): "gateway" | "worker" {
+  if (tab === "gateway") return "gateway";
+  if (tab === "worker") return "worker";
+  return chatPath;
+}
+
+export function resolveRequestPath(tab: DebugTab, chatPath: ChatPath): ChatPath {
+  if (tab === "gateway") return "gateway";
+  if (tab === "worker") return "worker";
+  return chatPath;
+}
 
 /** 按切换目标解析展示 / 请求用的 Worker URL */
 export function resolveWorkerDisplayUrl(
@@ -12,7 +48,6 @@ export function resolveWorkerDisplayUrl(
   return worker.local_url ?? worker.url;
 }
 
-/** Playground 派生逻辑所需的最小 config 切片（避免 @/ 路径依赖） */
 export interface PlaygroundConfigSlice {
   model: string;
   provider_slug?: string;
@@ -20,28 +55,26 @@ export interface PlaygroundConfigSlice {
 }
 
 export interface PlaygroundSessionFlags {
-  isWorker: boolean;
   useWorkerToml: boolean;
-  /** 顶栏网关/模型选择器始终展示；Worker 配置模式下只读 */
   modelLocked: boolean;
   gatewayLocked: boolean;
 }
 
 export function deriveSessionFlags(
-  callMode: CallMode,
+  inspectTarget: "gateway" | "worker",
   workerConfigSource: WorkerConfigSource,
 ): PlaygroundSessionFlags {
-  const isWorker = callMode === "worker";
-  const useWorkerToml = isWorker && workerConfigSource === "worker";
+  if (inspectTarget === "gateway") {
+    return { useWorkerToml: false, modelLocked: false, gatewayLocked: false };
+  }
+  const useWorkerToml = workerConfigSource === "worker";
   return {
-    isWorker,
     useWorkerToml,
     modelLocked: useWorkerToml,
     gatewayLocked: useWorkerToml,
   };
 }
 
-/** Worker 配置：wrangler DEFAULT_MODEL；其余：调试界面所选 model */
 export function resolveEffectiveModel(
   config: PlaygroundConfigSlice | null,
   uiModel: string,
@@ -51,7 +84,6 @@ export function resolveEffectiveModel(
   return uiModel;
 }
 
-/** Worker 配置：wrangler CF_GATEWAY_ID；其余：调试界面所选 gateway */
 export function resolveEffectiveGateway(
   config: PlaygroundConfigSlice | null,
   uiGateway: string,
@@ -62,15 +94,16 @@ export function resolveEffectiveGateway(
 }
 
 export interface ChatRequestParams {
-  callMode: CallMode;
+  path: ChatPath;
   effectiveModel: string;
   messages: Array<{ role: string; content: string }>;
-  gateway: string;
+  gateway?: string;
   providerSlug?: string;
-  workerAccessToken: string;
+  workerAccessToken?: string;
   workerTestEmail?: string;
   workerTestPassword?: string;
   workerTarget?: WorkerTarget;
+  workerDir?: string;
   useWorkerToml: boolean;
 }
 
@@ -78,29 +111,31 @@ export function buildChatRequest(params: ChatRequestParams): {
   url: string;
   body: Record<string, unknown>;
 } {
-  if (params.callMode === "worker") {
-    const body: Record<string, unknown> = {
-      model: params.effectiveModel,
-      messages: params.messages,
-      endpoint: "responses",
-      use_worker_config: params.useWorkerToml,
-      worker_target: params.workerTarget ?? "local",
+  if (params.path === "gateway") {
+    return {
+      url: "/api/chat",
+      body: {
+        model: params.effectiveModel,
+        messages: params.messages,
+        gateway: params.gateway || undefined,
+        provider_slug: params.providerSlug || undefined,
+      },
     };
-    const token = params.workerAccessToken.trim();
-    if (token) body.access_token = token;
-    const email = params.workerTestEmail?.trim();
-    const password = params.workerTestPassword;
-    if (email) body.email = email;
-    if (password) body.password = password;
-    return { url: "/api/worker-chat", body };
   }
-  return {
-    url: "/api/chat",
-    body: {
-      model: params.effectiveModel,
-      messages: params.messages,
-      gateway: params.gateway || undefined,
-      provider_slug: params.providerSlug || undefined,
-    },
+
+  const body: Record<string, unknown> = {
+    model: params.effectiveModel,
+    messages: params.messages,
+    endpoint: "responses",
+    use_worker_config: params.useWorkerToml,
+    worker_target: params.workerTarget ?? "local",
   };
+  if (params.workerDir?.trim()) body.worker_dir = params.workerDir.trim();
+  const token = params.workerAccessToken?.trim();
+  if (token) body.access_token = token;
+  const email = params.workerTestEmail?.trim();
+  const password = params.workerTestPassword;
+  if (email) body.email = email;
+  if (password) body.password = password;
+  return { url: "/api/worker-chat", body };
 }

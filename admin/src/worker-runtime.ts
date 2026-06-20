@@ -1,5 +1,6 @@
 import { env, workerDir } from "./env";
 import { resolveWorkerFromCf, mergeWorkerVars } from "./cf-worker-resolve";
+import { resolveWorkerDirQuery } from "./worker-dir";
 import { readWranglerToml } from "./wrangler-vars";
 
 export type WorkerConfigSource = "cf" | "env" | "wrangler" | "default";
@@ -19,7 +20,7 @@ export interface WorkerRuntimeConfig {
 }
 
 const CACHE_MS = 30_000;
-let cache: { at: number; cfg: WorkerRuntimeConfig } | null = null;
+let cache: { at: number; key: string; cfg: WorkerRuntimeConfig } | null = null;
 
 function defaultLocalUrl(): string {
   return "http://127.0.0.1:8788";
@@ -34,9 +35,9 @@ function isLoopbackWorkerUrl(url: string): boolean {
   }
 }
 
-function resolveScriptName(): string | null {
-  const fromToml = readWranglerToml(workerDir).name;
-  return fromToml ?? null;
+function resolveRuntimeWorkerDir(dir?: string | null): string {
+  if (!dir) return workerDir;
+  return resolveWorkerDirQuery(dir) ?? workerDir;
 }
 
 function resolveLocalUrl(): string {
@@ -67,13 +68,23 @@ export function pickWorkerUrl(
 
 export async function getWorkerRuntimeConfig(options?: {
   refresh?: boolean;
+  /** 相对 WORKER_ROOT 的 worker 目录；空则用默认 workerDir */
+  dir?: string | null;
 }): Promise<WorkerRuntimeConfig> {
-  if (!options?.refresh && cache && Date.now() - cache.at < CACHE_MS) {
+  const absDir = resolveRuntimeWorkerDir(options?.dir);
+  const cacheKey = absDir;
+
+  if (
+    !options?.refresh &&
+    cache &&
+    cache.key === cacheKey &&
+    Date.now() - cache.at < CACHE_MS
+  ) {
     return cache.cfg;
   }
 
-  const scriptName = resolveScriptName();
-  const wrangler = readWranglerToml(workerDir);
+  const wrangler = readWranglerToml(absDir);
+  const scriptName = wrangler.name ?? null;
   const cf = scriptName
     ? await resolveWorkerFromCf(scriptName, Boolean(env.CF_API_TOKEN))
     : null;
@@ -86,7 +97,7 @@ export async function getWorkerRuntimeConfig(options?: {
 
   let url = local_url;
   let url_source: WorkerConfigSource = "default";
-  let cf_error = cf?.error ?? null;
+  const cf_error = cf?.error ?? null;
 
   const envUrl = env.WORKER_URL?.trim().replace(/\/$/, "") ?? "";
 
@@ -114,7 +125,7 @@ export async function getWorkerRuntimeConfig(options?: {
     cf_error,
   };
 
-  cache = { at: Date.now(), cfg };
+  cache = { at: Date.now(), key: cacheKey, cfg };
   return cfg;
 }
 

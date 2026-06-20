@@ -1,29 +1,68 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { fetchGatewayContext, fetchPublicConfig, fetchSupabaseStatus, startWorkerDev } from "@/lib/api";
+import {
+  fetchGatewayContext,
+  fetchPublicConfig,
+  fetchSupabaseStatus,
+  fetchWorkerList,
+  startWorkerDev,
+} from "@/lib/api";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
-import type { WorkerConfigSource } from "@/lib/playground-session";
+import type { ChatPath, DebugTab, WorkerConfigSource } from "@/lib/playground-session";
 import { playgroundRouting } from "@/lib/routing";
 import {
+  CHAT_PATH_KEY,
+  DEBUG_TAB_KEY,
   deriveSessionFlags,
+  readChatPath,
+  readDebugTab,
   resolveEffectiveGateway,
   resolveEffectiveModel,
+  resolveInspectTarget,
+  resolveRequestPath,
   resolveWorkerDisplayUrl,
-  type CallMode,
   type WorkerTarget,
 } from "@/lib/playground-session";
 import { resolvePlaygroundDataView } from "@/lib/playground-sources";
 import { pickFields } from "@/lib/field-meta";
 import { toast } from "sonner";
 
+const WORKER_DIR_KEY = "admin-playground-worker-dir";
+
+function readStoredWorkerDir(): string {
+  try {
+    return localStorage.getItem(WORKER_DIR_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function persistTab(tab: DebugTab) {
+  try {
+    localStorage.setItem(DEBUG_TAB_KEY, tab);
+  } catch {
+    /* ignore */
+  }
+}
+
+function persistChatPath(path: ChatPath) {
+  try {
+    localStorage.setItem(CHAT_PATH_KEY, path);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function usePlaygroundSession() {
   const { token } = useAdminToken();
   const { t, displayError } = useLocale();
-  const [callMode, setCallMode] = useState<CallMode>("gateway");
+  const [activeTab, setActiveTabState] = useState<DebugTab>(readDebugTab);
+  const [chatPath, setChatPathState] = useState<ChatPath>(readChatPath);
   const [workerConfigSource, setWorkerConfigSource] =
     useState<WorkerConfigSource>("worker");
   const [workerTarget, setWorkerTarget] = useState<WorkerTarget>("local");
+  const [workerDir, setWorkerDirState] = useState(readStoredWorkerDir);
   const [gateway, setGateway] = useState("");
   const [uiModel, setUiModel] = useState("");
   const [workerAccessToken, setWorkerAccessToken] = useState("");
@@ -32,10 +71,60 @@ export function usePlaygroundSession() {
   const [workerHealthChecking, setWorkerHealthChecking] = useState(false);
   const [workerHealthResult, setWorkerHealthResult] = useState<string | null>(null);
 
-  const configQ = useQuery({
-    queryKey: ["public-config"],
+  const setActiveTab = useCallback((tab: DebugTab) => {
+    setActiveTabState(tab);
+    persistTab(tab);
+  }, []);
+
+  const setChatPath = useCallback((path: ChatPath) => {
+    setChatPathState(path);
+    persistChatPath(path);
+  }, []);
+
+  const setWorkerDir = useCallback((dir: string) => {
+    setWorkerDirState(dir);
+    setWorkerHealthResult(null);
+    try {
+      if (dir) localStorage.setItem(WORKER_DIR_KEY, dir);
+      else localStorage.removeItem(WORKER_DIR_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const inspectTarget = resolveInspectTarget(activeTab, chatPath);
+  const requestPath = resolveRequestPath(activeTab, chatPath);
+  const effectiveWorkerConfigSource: WorkerConfigSource =
+    activeTab === "worker" ? workerConfigSource : "ui";
+
+  const workersQ = useQuery({
+    queryKey: ["worker-list", token],
     queryFn: async () => {
-      const r = await fetchPublicConfig();
+      const r = await fetchWorkerList(token);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    enabled: Boolean(token),
+  });
+
+  const workers = workersQ.data?.workers ?? [];
+  const effectiveWorkerDir =
+    workerDir || workersQ.data?.default || workers[0]?.dir || "";
+
+  useEffect(() => {
+    if (!workersQ.data || workers.length === 0) return;
+    setWorkerDirState((prev) => {
+      if (prev && workers.some((w) => w.dir === prev)) return prev;
+      const stored = readStoredWorkerDir();
+      if (stored && workers.some((w) => w.dir === stored)) return stored;
+      return workersQ.data.default;
+    });
+  }, [workersQ.data, workers]);
+
+  const configQ = useQuery({
+    queryKey: ["public-config", effectiveWorkerDir],
+    queryFn: async () => {
+      const r = await fetchPublicConfig(effectiveWorkerDir || undefined);
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -54,7 +143,7 @@ export function usePlaygroundSession() {
   const testEmailInitialized = useRef(false);
 
   const config = configQ.data ?? null;
-  const flags = deriveSessionFlags(callMode, workerConfigSource);
+  const flags = deriveSessionFlags(inspectTarget, effectiveWorkerConfigSource);
   const effectiveModel = resolveEffectiveModel(config, uiModel, flags.useWorkerToml);
   const effectiveGateway = resolveEffectiveGateway(config, gateway, flags.useWorkerToml);
   const catalogRefetched = useRef(false);
@@ -69,14 +158,10 @@ export function usePlaygroundSession() {
     catalogRefetched.current = true;
     void configQ.refetch();
   }, [config, effectiveModel, configQ]);
+
   const dataView = useMemo(
-    () =>
-      resolvePlaygroundDataView(
-        deriveSessionFlags(callMode, workerConfigSource),
-        pickFields(config?._meta),
-        t,
-      ),
-    [callMode, workerConfigSource, config?._meta, t],
+    () => resolvePlaygroundDataView(inspectTarget, flags, pickFields(config?._meta), t),
+    [inspectTarget, flags, config?._meta, t],
   );
 
   useEffect(() => {
@@ -117,7 +202,7 @@ export function usePlaygroundSession() {
 
   const startLocalDevM = useMutation({
     mutationFn: async () => {
-      const r = await startWorkerDev(token);
+      const r = await startWorkerDev(token, effectiveWorkerDir || undefined);
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -134,7 +219,9 @@ export function usePlaygroundSession() {
     setWorkerHealthChecking(true);
     setWorkerHealthResult(null);
     try {
-      const r = await fetch(`/api/worker-chat/health?target=${workerTarget}`);
+      const params = new URLSearchParams({ target: workerTarget });
+      if (effectiveWorkerDir) params.set("dir", effectiveWorkerDir);
+      const r = await fetch(`/api/worker-chat/health?${params}`);
       const j = (await r.json()) as {
         ok?: boolean;
         body?: string;
@@ -153,14 +240,22 @@ export function usePlaygroundSession() {
 
   return {
     token,
+    activeTab,
+    setActiveTab,
+    chatPath,
+    setChatPath,
+    requestPath,
+    inspectTarget,
     config,
     flags,
-    callMode,
-    setCallMode,
     workerConfigSource,
     setWorkerConfigSource,
     workerTarget,
     setWorkerTarget,
+    workerDir: effectiveWorkerDir,
+    setWorkerDir,
+    workers,
+    workersLoading: workersQ.isLoading,
     effectiveWorkerUrl,
     gateway,
     setGateway,

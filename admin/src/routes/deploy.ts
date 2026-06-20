@@ -20,6 +20,7 @@ import {
   triggerWorkerBuild,
   validateWorkerBuilderToken,
 } from "../cf-builds";
+import { listWorkerEntries, resolveWorkerDirQuery } from "../worker-dir";
 import {
   secretSet,
   workerVarsUpdate,
@@ -46,41 +47,9 @@ function readFileSafe(file: string): string | null {
 
 const readToml = (dir: string) => readFileSafe(tomlPath(dir));
 
-// 把请求里的 dir 解析为绝对路径，并强制限制在 WORKER_ROOT 白名单内（防目录穿越）。
-// 返回 null 表示非法（越界或不含 wrangler.toml）。dir 为空时回退到默认 workerDir。
+// 把请求里的 dir 解析为绝对路径（见 worker-dir.ts）
 function resolveWorkerDir(dir?: string | null): string | null {
-  if (!dir) return workerDir;
-  const abs = path.resolve(workerRoot, dir);
-  const rel = path.relative(workerRoot, abs);
-  if (rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
-    return null;
-  }
-  if (!fs.existsSync(tomlPath(abs))) return null;
-  return abs;
-}
-
-// 扫描 WORKER_ROOT 下含 wrangler.toml 的目录，返回相对路径（用于下拉选择）。
-function listWorkers(): string[] {
-  const out: string[] = [];
-  const walk = (abs: string, depth: number): void => {
-    if (depth > 3) return;
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(abs, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    if (entries.some((e) => e.isFile() && e.name === "wrangler.toml")) {
-      out.push(path.relative(workerRoot, abs) || ".");
-    }
-    for (const e of entries) {
-      if (e.isDirectory() && e.name !== "node_modules" && !e.name.startsWith(".")) {
-        walk(path.join(abs, e.name), depth + 1);
-      }
-    }
-  };
-  walk(workerRoot, 0);
-  return out;
+  return resolveWorkerDirQuery(dir);
 }
 
 // 私密配置清单：从 .dev.vars.example 解析出 secret 名（注释行视为可选）。
@@ -203,18 +172,10 @@ function setVars(toml: string, vars: Record<string, string>): string {
 
 // 可选 worker 目录列表（相对 WORKER_ROOT）+ wrangler name + 当前默认
 deploy.get("/workers", (c) => {
-  const workers = listWorkers().map((rel) => {
-    const abs = path.resolve(workerRoot, rel === "." ? workerRoot : path.join(workerRoot, rel));
-    const toml = readToml(abs);
-    return {
-      dir: rel,
-      script_name: toml ? parseName(toml) : null,
-    };
-  });
   return c.json({
     root: workerRoot,
     default: path.relative(workerRoot, workerDir) || ".",
-    workers,
+    workers: listWorkerEntries(),
   });
 });
 

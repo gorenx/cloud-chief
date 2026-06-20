@@ -243,6 +243,20 @@ export interface Messages {
   playground: {
     title: string;
     desc: string;
+    debugBadge: string;
+    consoleLabel: string;
+    inspectorLabel: string;
+    hideInspector: string;
+    tabChat: string;
+    tabGateway: string;
+    tabWorker: string;
+    configLabel: string;
+    chatPathLabel: string;
+    workerTargetLabel: string;
+    workerConfigSourceLabel: string;
+    selectWorker: string;
+    selectWorkerPlaceholder: string;
+    selectWorkerNoToken: string;
     directGateway: string;
     viaWorker: string;
     gatewayLockedTitle: string;

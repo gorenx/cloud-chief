@@ -24,7 +24,7 @@ export function SegmentedControl<T extends string>({
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            "rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-all duration-200",
+            "flex-1 rounded-[calc(var(--radius-md)-2px)] px-3 py-1.5 text-sm font-medium transition-all duration-200",
             value === opt.value
               ? "bg-[var(--color-accent-glow)] text-[var(--color-accent)] shadow-[inset_0_0_0_1px_rgba(212,160,84,0.2)]"
               : "text-[var(--color-muted)] hover:text-[var(--color-text)]",

@@ -3,6 +3,8 @@ import {
   deriveSessionFlags,
   resolveEffectiveGateway,
   resolveEffectiveModel,
+  resolveInspectTarget,
+  resolveRequestPath,
   buildChatRequest,
   type PlaygroundConfigSlice,
 } from "../web/src/lib/playground-session";
@@ -27,13 +29,25 @@ const FIELDS = {
   "chat.authorization": { source: "env" as const, key: "DASHSCOPE_API_KEY" },
 };
 
+describe("resolveInspectTarget / resolveRequestPath", () => {
+  it("maps tabs to gateway or worker inspect targets", () => {
+    expect(resolveInspectTarget("gateway", "worker")).toBe("gateway");
+    expect(resolveInspectTarget("worker", "gateway")).toBe("worker");
+    expect(resolveInspectTarget("chat", "gateway")).toBe("gateway");
+    expect(resolveInspectTarget("chat", "worker")).toBe("worker");
+  });
+
+  it("maps tabs to request paths", () => {
+    expect(resolveRequestPath("gateway", "worker")).toBe("gateway");
+    expect(resolveRequestPath("worker", "gateway")).toBe("worker");
+    expect(resolveRequestPath("chat", "worker")).toBe("worker");
+  });
+});
+
 describe("resolvePlaygroundDataView", () => {
   it("worker toml mode uses wrangler sources", () => {
-    const view = resolvePlaygroundDataView(
-      { isWorker: true, useWorkerToml: true, modelLocked: true, gatewayLocked: true },
-      FIELDS,
-      t,
-    );
+    const flags = deriveSessionFlags("worker", "worker");
+    const view = resolvePlaygroundDataView("worker", flags, FIELDS, t);
     expect(view.routingSection).toBe("worker");
     expect(view.controls.model.source).toBe("wrangler");
     expect(view.controls.gateway?.source).toBe("wrangler");
@@ -41,11 +55,8 @@ describe("resolvePlaygroundDataView", () => {
   });
 
   it("gateway mode uses cf and env", () => {
-    const view = resolvePlaygroundDataView(
-      { isWorker: false, useWorkerToml: false, modelLocked: false, gatewayLocked: false },
-      FIELDS,
-      t,
-    );
+    const flags = deriveSessionFlags("gateway", "ui");
+    const view = resolvePlaygroundDataView("gateway", flags, FIELDS, t);
     expect(view.controls.request.source).toBe("env");
     expect(view.controls.gateway?.source).toBe("cf");
     expect(view.controls.model.source).toBe("env");
@@ -55,7 +66,6 @@ describe("resolvePlaygroundDataView", () => {
 describe("playground-session", () => {
   it("deriveSessionFlags for worker toml mode", () => {
     expect(deriveSessionFlags("worker", "worker")).toEqual({
-      isWorker: true,
       useWorkerToml: true,
       modelLocked: true,
       gatewayLocked: true,
@@ -64,7 +74,14 @@ describe("playground-session", () => {
 
   it("deriveSessionFlags for worker ui mode", () => {
     expect(deriveSessionFlags("worker", "ui")).toEqual({
-      isWorker: true,
+      useWorkerToml: false,
+      modelLocked: false,
+      gatewayLocked: false,
+    });
+  });
+
+  it("deriveSessionFlags for gateway inspect target", () => {
+    expect(deriveSessionFlags("gateway", "worker")).toEqual({
       useWorkerToml: false,
       modelLocked: false,
       gatewayLocked: false,
@@ -81,9 +98,23 @@ describe("playground-session", () => {
     expect(resolveEffectiveGateway(baseConfig, "other-gw", false)).toBe("other-gw");
   });
 
+  it("buildChatRequest for gateway path", () => {
+    const r = buildChatRequest({
+      path: "gateway",
+      effectiveModel: "qwen-plus",
+      messages: [{ role: "user", content: "hi" }],
+      gateway: "my-gw",
+      providerSlug: "dashscope",
+      useWorkerToml: false,
+    });
+    expect(r.url).toBe("/api/chat");
+    expect(r.body.gateway).toBe("my-gw");
+    expect(r.body.provider_slug).toBe("dashscope");
+  });
+
   it("buildChatRequest for worker with use_worker_config", () => {
     const r = buildChatRequest({
-      callMode: "worker",
+      path: "worker",
       effectiveModel: "qwen3-plus",
       messages: [],
       gateway: "gw",

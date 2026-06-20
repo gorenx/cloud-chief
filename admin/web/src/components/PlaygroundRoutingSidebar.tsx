@@ -2,7 +2,7 @@ import { useT } from "@/contexts/LocaleContext";
 import type { GatewayContext, ModelMeta, ResponseMeta, RoutingInfo, WorkerDebugInfo, WorkerRoutingInfo } from "@/types";
 import { pickFields } from "@/lib/field-meta";
 import type { PlaygroundDataView } from "@/lib/playground-sources";
-import type { WorkerTarget } from "@/lib/playground-session";
+import type { ChatPath, WorkerTarget } from "@/lib/playground-session";
 import { ByokKeysCard, AdminTokenHintCard, GatewayStatusCard, RoutingWarnings } from "./GatewayDetailPanel";
 import { RoutingFieldList } from "./RoutingFieldList";
 import { RoutingMismatchNotice, RoutingSectionHeader, RoutingSourceLegend } from "./RoutingSectionHeader";
@@ -23,7 +23,6 @@ export function PlaygroundRoutingSidebar({
   hasAdminToken,
   configMeta,
   dataView,
-  isWorker,
   workerInfo,
   workerAccessToken,
   onWorkerAccessTokenChange,
@@ -37,6 +36,8 @@ export function PlaygroundRoutingSidebar({
   workerTarget,
   effectiveWorkerUrl,
   onConfigRefresh,
+  requestPath,
+  depth = "full",
 }: {
   routing: RoutingInfo;
   workerRouting: WorkerRoutingInfo | null;
@@ -47,7 +48,6 @@ export function PlaygroundRoutingSidebar({
   hasAdminToken: boolean;
   configMeta?: ResponseMeta;
   dataView: PlaygroundDataView;
-  isWorker: boolean;
   workerInfo: WorkerDebugInfo | null;
   workerAccessToken: string;
   onWorkerAccessTokenChange: (v: string) => void;
@@ -61,17 +61,21 @@ export function PlaygroundRoutingSidebar({
   workerTarget: WorkerTarget;
   effectiveWorkerUrl: string;
   onConfigRefresh?: () => void;
+  requestPath: ChatPath;
+  depth?: "compact" | "full";
 }) {
   const t = useT();
   const routingFields = pickFields(configMeta);
   const { controls } = dataView;
-  const showWorkerRouting = dataView.routingSection === "worker";
-  const showCfRouting = dataView.routingSection === "cf";
+  const isWorkerRequest = requestPath === "worker";
+  const showWorkerRouting = isWorkerRequest && dataView.routingSection === "worker";
+  const showCfRouting = !isWorkerRequest || dataView.routingSection === "cf";
   const hasByok = (gatewayContext?.keys.length ?? 0) > 0;
+  const compact = depth === "compact";
 
   return (
     <div className="space-y-4 page-enter page-enter-delay-1">
-      {isWorker && workerInfo && (
+      {isWorkerRequest && workerInfo && (
         <WorkerChatNotice
           workerUrl={effectiveWorkerUrl}
           workerTarget={workerTarget}
@@ -88,28 +92,29 @@ export function PlaygroundRoutingSidebar({
       </Card>
 
       <Card className="p-4">
-        <CardTitle desc={isWorker ? t("routing.requestDescWorker") : t("routing.requestDescGateway")}>
+        <CardTitle
+          desc={
+            isWorkerRequest
+              ? t("routing.requestDescWorker")
+              : t("routing.requestDescGateway")
+          }
+        >
           {t("routing.requestTitle")}
         </CardTitle>
         <div className="min-w-0 space-y-2 text-xs">
           <div className="rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] px-3 py-2 ring-1 ring-[var(--color-border-subtle)]">
             <code className="mono text-[var(--color-ice)]/90">
-              {isWorker ? "POST /api/worker-chat" : "POST /api/chat"}
+              POST {isWorkerRequest ? "/api/worker-chat" : "/api/chat"}
             </code>
           </div>
-          {!isWorker && (
-            <p className="text-[var(--color-muted)]">
-              {t("routing.requestBody", { gateway: gateway || "—" })}
-            </p>
-          )}
-          {isWorker && workerInfo ? (
+          {isWorkerRequest && workerInfo ? (
             <>
-              {workerInfo.cf_error && (
+              {!compact && workerInfo.cf_error && (
                 <p className="text-xs text-[var(--color-warn)]">
                   {t("routing.cfWorkerParse", { error: workerInfo.cf_error })}
                 </p>
               )}
-              {workerInfo.vars_source && workerInfo.vars_source !== "wrangler" && (
+              {!compact && workerInfo.vars_source && workerInfo.vars_source !== "wrangler" && (
                 <p className="text-[10px] text-[var(--color-muted)]">
                   {t("routing.varsSource")}
                   {workerInfo.vars_source === "cf"
@@ -133,102 +138,106 @@ export function PlaygroundRoutingSidebar({
               />
             </>
           ) : (
-            <ChatAuthPathNotice chatAuthMeta={controls.request} hasByok={hasByok} />
+            !isWorkerRequest && (
+              <ChatAuthPathNotice chatAuthMeta={controls.request} hasByok={hasByok} />
+            )
           )}
         </div>
       </Card>
 
-      <Card className="p-4">
-        <div className="mb-3 space-y-2">
-          <RoutingSectionHeader
-            title={t("routing.chainTitle")}
-            badge={showWorkerRouting ? "Worker" : "CF"}
-            desc={
-              showWorkerRouting
-                ? "wrangler.toml [vars]"
-                : isWorker
-                  ? t("routing.chainDescUi")
-                  : t("routing.chainDescCf")
-            }
-          />
-          <RoutingSourceLegend showWorker={showWorkerRouting} />
-        </div>
-        <div className="space-y-3">
-          {dataView.showRoutingMismatch && (
-            <RoutingMismatchNotice
-              cfGateway={gateway}
-              workerGateway={workerRouting?.gateway ?? ""}
-              cfSlug={routing.provider_slug}
-              workerSlug={workerRouting?.provider_slug ?? ""}
-            />
-          )}
-          {showCfRouting && (
-            <RoutingFieldList
-              section="cf"
-              fieldPrefix="routing"
-              routing={{
-                invoke_url: routing.invoke_url,
-                gateway,
-                provider_slug: routing.provider_slug,
-                path: routing.path,
-                base_url: routing.base_url,
-                provider: routing.provider,
-              }}
-              fields={routingFields}
-            />
-          )}
-          {showWorkerRouting && workerRouting && (
-            <RoutingFieldList
-              section="worker"
-              fieldPrefix="worker_routing"
-              routing={{
-                invoke_url: workerRouting.invoke_url,
-                gateway: workerRouting.gateway,
-                provider_slug: workerRouting.provider_slug,
-                path: workerRouting.path,
-                base_url: workerRouting.base_url,
-                provider: workerRouting.provider,
-                account_id: workerRouting.account_id,
-                default_model: workerRouting.default_model,
-              }}
-              fields={routingFields}
-            />
-          )}
-        </div>
-      </Card>
-
-      <ModelDetailCard
-        modelId={routing.model}
-        modelMeta={modelMeta}
-        routing={routing}
-        fieldMeta={routingFields}
-        compact
-        showWorker={showWorkerRouting}
-        workerModel={workerRouting?.default_model}
-      />
-
-      {!hasAdminToken ? (
-        <AdminTokenHintCard />
-      ) : dataView.showGatewayContext ? (
+      {!compact && (
         <>
-          {gatewayContextLoading && (
-            <Card className="p-4">
-              <p className="text-sm text-[var(--color-muted)]">{t("gatewayDetail.loadingGw")}</p>
-            </Card>
-          )}
-          {gatewayContext && (
-            <>
-              <GatewayStatusCard ctx={gatewayContext} />
-              <RoutingWarnings ctx={gatewayContext} />
-            </>
-          )}
-          <ByokKeysCard
-            ctx={gatewayContext}
-            loading={gatewayContextLoading}
-            fieldMeta={gatewayContext?._meta.fields.keys}
+          <Card className="p-4">
+            <div className="mb-3 space-y-2">
+              <RoutingSectionHeader
+                title={t("routing.chainTitle")}
+                badge={showWorkerRouting ? "Worker" : "CF"}
+                desc={
+                  showWorkerRouting
+                    ? "wrangler.toml [vars]"
+                    : t("routing.chainDescUi")
+                }
+              />
+              <RoutingSourceLegend showWorker={showWorkerRouting} />
+            </div>
+            <div className="space-y-3">
+              {dataView.showRoutingMismatch && (
+                <RoutingMismatchNotice
+                  cfGateway={gateway}
+                  workerGateway={workerRouting?.gateway ?? ""}
+                  cfSlug={routing.provider_slug}
+                  workerSlug={workerRouting?.provider_slug ?? ""}
+                />
+              )}
+              {showCfRouting && (
+                <RoutingFieldList
+                  section="cf"
+                  fieldPrefix="routing"
+                  routing={{
+                    invoke_url: routing.invoke_url,
+                    gateway,
+                    provider_slug: routing.provider_slug,
+                    path: routing.path,
+                    base_url: routing.base_url,
+                    provider: routing.provider,
+                  }}
+                  fields={routingFields}
+                />
+              )}
+              {showWorkerRouting && workerRouting && (
+                <RoutingFieldList
+                  section="worker"
+                  fieldPrefix="worker_routing"
+                  routing={{
+                    invoke_url: workerRouting.invoke_url,
+                    gateway: workerRouting.gateway,
+                    provider_slug: workerRouting.provider_slug,
+                    path: workerRouting.path,
+                    base_url: workerRouting.base_url,
+                    provider: workerRouting.provider,
+                    account_id: workerRouting.account_id,
+                    default_model: workerRouting.default_model,
+                  }}
+                  fields={routingFields}
+                />
+              )}
+            </div>
+          </Card>
+
+          <ModelDetailCard
+            modelId={routing.model}
+            modelMeta={modelMeta}
+            routing={routing}
+            fieldMeta={routingFields}
+            compact
+            showWorker={showWorkerRouting}
+            workerModel={workerRouting?.default_model}
           />
+
+          {!hasAdminToken ? (
+            <AdminTokenHintCard />
+          ) : dataView.showGatewayContext ? (
+            <>
+              {gatewayContextLoading && (
+                <Card className="p-4">
+                  <p className="text-sm text-[var(--color-muted)]">{t("gatewayDetail.loadingGw")}</p>
+                </Card>
+              )}
+              {gatewayContext && (
+                <>
+                  <GatewayStatusCard ctx={gatewayContext} />
+                  <RoutingWarnings ctx={gatewayContext} />
+                </>
+              )}
+              <ByokKeysCard
+                ctx={gatewayContext}
+                loading={gatewayContextLoading}
+                fieldMeta={gatewayContext?._meta.fields.keys}
+              />
+            </>
+          ) : null}
         </>
-      ) : null}
+      )}
     </div>
   );
 }

@@ -71,8 +71,9 @@ export async function fetchGatewayContext(token: string, id: string) {
   return adminFetch<GatewayContext>(token, "GET", `/admin/gateways/${encodeURIComponent(id)}/context`);
 }
 
-export async function fetchPublicConfig() {
-  const res = await fetch("/config");
+export async function fetchPublicConfig(workerDir?: string) {
+  const q = workerDir ? `?worker_dir=${encodeURIComponent(workerDir)}` : "";
+  const res = await fetch(`/config${q}`);
   const j = await parseJson<PublicConfig>(res);
   if (!res.ok || !j) return { ok: false as const, status: res.status, error: "common.configReadError" };
   return { ok: true as const, data: j };

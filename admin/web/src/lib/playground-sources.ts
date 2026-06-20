@@ -13,13 +13,9 @@ export interface FieldMetaSlice {
 export type PlaygroundFields = Record<string, FieldMetaSlice | undefined>;
 
 export interface PlaygroundDataView {
-  /** 侧栏路由链展示 Worker 还是 CF */
   routingSection: "cf" | "worker";
-  /** 是否拉取网关/BYOK 上下文 */
   showGatewayContext: boolean;
-  /** Worker+调试界面时展示与 wrangler 差异 */
   showRoutingMismatch: boolean;
-  /** 顶栏与侧栏各字段的来源 meta */
   controls: {
     gateway?: FieldMetaSlice;
     model: FieldMetaSlice;
@@ -27,7 +23,6 @@ export interface PlaygroundDataView {
     workerUrl?: FieldMetaSlice;
     supabaseUrl?: FieldMetaSlice;
   };
-  /** 侧栏顶部一行摘要 */
   summary: Array<{ label: string; meta: FieldMetaSlice }>;
 }
 
@@ -43,15 +38,35 @@ function pick(fields: PlaygroundFields, key: string, fallback: FieldMetaSlice): 
   return fields[key] ?? fallback;
 }
 
-/** 按 Playground 当前模式解析各控件数据来源（单一事实来源） */
 export function resolvePlaygroundDataView(
+  inspectTarget: "gateway" | "worker",
   flags: PlaygroundSessionFlags,
   fields: PlaygroundFields,
   t: TranslateFn,
 ): PlaygroundDataView {
   const labels = getPlaygroundSourceLabels(t);
 
-  if (flags.isWorker && flags.useWorkerToml) {
+  if (inspectTarget === "gateway") {
+    const model = pick(fields, "models", { source: "env", key: "MODEL_CATALOG" });
+    const request = pick(fields, "chat.authorization", FALLBACK.env);
+    return {
+      routingSection: "cf",
+      showGatewayContext: true,
+      showRoutingMismatch: false,
+      controls: {
+        gateway: pick(fields, "gateways", FALLBACK.cf),
+        model,
+        request,
+      },
+      summary: [
+        { label: labels.model, meta: model },
+        { label: labels.routing, meta: pick(fields, "gateway", FALLBACK.cf) },
+        { label: labels.auth, meta: request },
+      ],
+    };
+  }
+
+  if (flags.useWorkerToml) {
     const gateway = pick(fields, "worker_routing.gateway", FALLBACK.wrangler);
     const model = pick(fields, "worker_routing.default_model", FALLBACK.wrangler);
     const request = pick(fields, "worker.authorization", FALLBACK.derived);
@@ -74,42 +89,22 @@ export function resolvePlaygroundDataView(
     };
   }
 
-  if (flags.isWorker) {
-    const model = pick(fields, "models", { source: "env", key: "MODEL_CATALOG" });
-    const request = pick(fields, "worker.authorization", FALLBACK.derived);
-    return {
-      routingSection: "cf",
-      showGatewayContext: true,
-      showRoutingMismatch: true,
-      controls: {
-        gateway: pick(fields, "gateways", FALLBACK.cf),
-        model,
-        request,
-        workerUrl: fields["worker.url"],
-        supabaseUrl: fields["worker.supabase_url"],
-      },
-      summary: [
-        { label: labels.model, meta: model },
-        { label: labels.routingCompare, meta: pick(fields, "gateway", FALLBACK.cf) },
-        { label: labels.auth, meta: request },
-      ],
-    };
-  }
-
   const model = pick(fields, "models", { source: "env", key: "MODEL_CATALOG" });
-  const request = pick(fields, "chat.authorization", FALLBACK.env);
+  const request = pick(fields, "worker.authorization", FALLBACK.derived);
   return {
     routingSection: "cf",
     showGatewayContext: true,
-    showRoutingMismatch: false,
+    showRoutingMismatch: true,
     controls: {
       gateway: pick(fields, "gateways", FALLBACK.cf),
       model,
       request,
+      workerUrl: fields["worker.url"],
+      supabaseUrl: fields["worker.supabase_url"],
     },
     summary: [
       { label: labels.model, meta: model },
-      { label: labels.routing, meta: pick(fields, "gateway", FALLBACK.cf) },
+      { label: labels.routingCompare, meta: pick(fields, "gateway", FALLBACK.cf) },
       { label: labels.auth, meta: request },
     ],
   };

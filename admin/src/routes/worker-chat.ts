@@ -10,7 +10,8 @@ import { getWorkerRuntimeConfig, parseWorkerTarget, pickWorkerUrl } from "../wor
 export const workerChat = new Hono();
 
 workerChat.get("/health", async (c) => {
-  const runtime = await getWorkerRuntimeConfig();
+  const dir = c.req.query("dir") ?? undefined;
+  const runtime = await getWorkerRuntimeConfig({ dir });
   const target = parseWorkerTarget(c.req.query("target"));
   const picked = pickWorkerUrl(runtime, target);
   if (picked.error) {
@@ -46,9 +47,12 @@ workerChat.post("/", async (c) => {
     endpoint?: string;
     use_worker_config?: boolean;
     worker_target?: string;
+    worker_dir?: string;
   };
 
-  const runtime = await getWorkerRuntimeConfig();
+  const runtime = await getWorkerRuntimeConfig({
+    dir: typeof payload.worker_dir === "string" ? payload.worker_dir : undefined,
+  });
   const target = parseWorkerTarget(payload.worker_target);
   const picked = pickWorkerUrl(runtime, target);
   if (picked.error) return c.json({ error: picked.error }, 400);
@@ -110,6 +114,7 @@ workerChat.post("/", async (c) => {
 });
 
 workerChat.get("/info", async (c) => {
-  const runtime = await getWorkerRuntimeConfig();
+  const dir = c.req.query("dir") ?? undefined;
+  const runtime = await getWorkerRuntimeConfig({ dir });
   return c.json(buildWorkerDebugInfo(runtime));
 });
