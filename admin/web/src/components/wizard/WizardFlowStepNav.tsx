@@ -1,36 +1,34 @@
-import { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
 import { ClickTarget } from "@/components/ui/ClickTarget";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
-import {
-  supabaseStepDone,
-  type SupabaseSetupStatus,
-  type SupabaseSetupStep,
-} from "@/lib/supabase-setup-flow";
-import { formatSupabaseStepMeta, getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
 import { SetupStepBadge, setupStepCardClasses } from "@/components/ui/SetupStepBadge";
+import type { WizardLocalizedStep, WizardStepHandlers } from "@/components/wizard/types";
 
-export function SupabaseSetupFlowStepNav({
+export function WizardFlowStepNav<TStep extends string, TStatus>({
+  steps,
   status,
   selectedStep,
   onSelect,
+  stepDone,
+  stepWarn,
+  formatStepMeta,
+  optionalLabel,
 }: {
-  status: SupabaseSetupStatus;
-  selectedStep: SupabaseSetupStep;
-  onSelect: (step: SupabaseSetupStep) => void;
-}) {
+  steps: WizardLocalizedStep<TStep>[];
+  status: TStatus;
+  selectedStep: TStep;
+  onSelect: (step: TStep) => void;
+  optionalLabel?: string;
+} & WizardStepHandlers<TStep, TStatus>) {
   const t = useT();
   const scrollRef = useScrollContainer();
-  const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
 
   return (
     <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
       {steps.map((step, i) => {
-        const done = supabaseStepDone(step.id, status);
-        const warn =
-          (step.id === "database" && status.needsDbScope && !done) ||
-          (step.id === "functions" && status.needsFunctionsScope && !done);
+        const done = stepDone(step.id, status);
+        const warn = stepWarn?.(step.id, status) ?? false;
         const isSelected = step.id === selectedStep;
 
         return (
@@ -50,12 +48,17 @@ export function SupabaseSetupFlowStepNav({
                 <div className="flex items-center gap-2">
                   <SetupStepBadge done={done} warn={warn} selected={isSelected} num={step.num} />
                   <span className="font-medium">{step.label}</span>
+                  {step.optional && optionalLabel && (
+                    <span className="rounded bg-[var(--color-panel-elevated)] px-1.5 py-0.5 text-[10px] text-[var(--color-muted)]">
+                      {optionalLabel}
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-[var(--color-muted)]">
                   {step.summary}
                 </p>
                 <p className="mt-1.5 text-xs text-[var(--color-muted)]">
-                  {formatSupabaseStepMeta(t, step.id, status)}
+                  {formatStepMeta(t, step.id, status)}
                 </p>
               </ClickTarget>
             </div>

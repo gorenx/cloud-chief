@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { SourceBadge } from "./SourceBadge";
 import { SupabaseSchemaSection } from "./SupabaseSchemaSection";
 import { SupabaseFunctionsSection } from "./SupabaseFunctionsSection";
-import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupStepSidebar";
+import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupWorkspace";
 import type { FieldMetaEntry } from "@/types";
 
 function StepBadge({

@@ -1,11 +1,15 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
+import { WizardPageWorkspace } from "@/components/wizard/WizardPageWorkspace";
+import type { WizardViewMode } from "@/components/wizard/types";
 import {
-  SupabaseSetupShowAllButton,
-  SupabaseSetupStepList,
-  type SupabaseViewMode,
-} from "@/components/supabase/SupabaseSetupStepSidebar";
-import { WizardWorkspace } from "@/components/ui/WizardWorkspace";
-import type { SupabaseSetupStatus, SupabaseSetupStep } from "@/lib/supabase-setup-flow";
+  supabaseStepDone,
+  type SupabaseSetupStatus,
+  type SupabaseSetupStep,
+} from "@/lib/supabase-setup-flow";
+import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
+import { useT } from "@/contexts/LocaleContext";
+
+export type SupabaseViewMode = WizardViewMode<SupabaseSetupStep>;
 
 export function SupabaseSetupWorkspace({
   status,
@@ -24,18 +28,25 @@ export function SupabaseSetupWorkspace({
   children: ReactNode;
   scrollMain?: boolean;
 }) {
+  const t = useT();
+  const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
+
   return (
-    <WizardWorkspace
-      scrollMain={scrollMain}
-      sidebarTop={
-        <SupabaseSetupShowAllButton active={activeStep === "all"} onClick={onShowAll} />
-      }
-      sidebar={
-        <SupabaseSetupStepList status={status} activeStep={activeStep} onSelect={onSelect} />
-      }
+    <WizardPageWorkspace
+      steps={steps}
+      status={status}
+      activeStep={activeStep}
+      onSelect={onSelect}
+      onShowAll={onShowAll}
       rightHeader={rightHeader}
+      scrollMain={scrollMain}
+      stepDone={supabaseStepDone}
+      stepWarn={(step, s) =>
+        (step === "database" && s.needsDbScope && !supabaseStepDone(step, s)) ||
+        (step === "functions" && s.needsFunctionsScope && !supabaseStepDone(step, s))
+      }
     >
       {children}
-    </WizardWorkspace>
+    </WizardPageWorkspace>
   );
 }

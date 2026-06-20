@@ -8,7 +8,7 @@ import { SupabaseSetupFlow } from "@/components/supabase/SupabaseSetupFlow";
 import { SupabaseSetupWorkspace } from "@/components/supabase/SupabaseSetupWorkspace";
 import { SupabaseStepPanelHeader } from "@/components/supabase/SupabaseStepPanel";
 import { SupabaseStepContent, type SupabasePanelProps } from "@/components/supabase/SupabaseStepContent";
-import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupStepSidebar";
+import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupWorkspace";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";

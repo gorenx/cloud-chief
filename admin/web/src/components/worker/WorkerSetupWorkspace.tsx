@@ -1,11 +1,11 @@
-import type { ReactNode } from "react";
-import {
-  WorkerSetupShowAllButton,
-  WorkerSetupStepList,
-  type WorkerViewMode,
-} from "@/components/worker/WorkerSetupStepSidebar";
-import { WizardWorkspace } from "@/components/ui/WizardWorkspace";
-import type { WorkerSetupStatus, WorkerSetupStep } from "@/lib/worker-setup-flow";
+import { useMemo, type ReactNode } from "react";
+import { useT } from "@/contexts/LocaleContext";
+import { WizardPageWorkspace } from "@/components/wizard/WizardPageWorkspace";
+import type { WizardViewMode } from "@/components/wizard/types";
+import { workerStepDone, type WorkerSetupStatus, type WorkerSetupStep } from "@/lib/worker-setup-flow";
+import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
+
+export type WorkerViewMode = WizardViewMode<WorkerSetupStep>;
 
 export function WorkerSetupWorkspace({
   status,
@@ -24,18 +24,23 @@ export function WorkerSetupWorkspace({
   children: ReactNode;
   scrollMain?: boolean;
 }) {
+  const t = useT();
+  const steps = useMemo(() => getLocalizedWorkerSteps(t), [t]);
+
   return (
-    <WizardWorkspace
-      scrollMain={scrollMain}
-      sidebarTop={
-        <WorkerSetupShowAllButton active={activeStep === "all"} onClick={onShowAll} />
-      }
-      sidebar={
-        <WorkerSetupStepList status={status} activeStep={activeStep} onSelect={onSelect} />
-      }
+    <WizardPageWorkspace
+      steps={steps}
+      status={status}
+      activeStep={activeStep}
+      onSelect={onSelect}
+      onShowAll={onShowAll}
       rightHeader={rightHeader}
+      scrollMain={scrollMain}
+      optionalLabel={t("worker.status.optionalTag")}
+      stepDone={workerStepDone}
+      stepWarn={(step, s) => step === "ci" && s.ciWarn && !workerStepDone(step, s)}
     >
       {children}
-    </WizardWorkspace>
+    </WizardPageWorkspace>
   );
 }

@@ -9,7 +9,7 @@ import { WorkerStepContent } from "@/components/worker/WorkerStepContent";
 import { WorkerStepPanelHeader } from "@/components/worker/WorkerStepPanel";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 import { PageHeader } from "@/components/ui/PageHeader";
-import type { WorkerViewMode } from "@/components/worker/WorkerSetupStepSidebar";
+import type { WorkerViewMode } from "@/components/worker/WorkerSetupWorkspace";
 import { resolveWorkerSetupCurrent, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
