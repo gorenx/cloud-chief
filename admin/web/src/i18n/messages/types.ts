@@ -100,6 +100,8 @@ export interface Messages {
     tokenOff: string;
     brandSub: string;
     brandTitle: string;
+    collapseSidebar: string;
+    expandSidebar: string;
   };
   dashboard: {
     title: string;

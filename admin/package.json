@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@10.12.4",
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,green \"tsx watch src/index.ts\" \"bash scripts/pm.sh web dev\"",
+    "dev": "concurrently -n api,web -c blue,green \"ADMIN_DEV=1 tsx watch src/index.ts\" \"bash scripts/pm.sh web dev\"",
     "dev:api": "tsx watch src/index.ts",
     "dev:web": "bash scripts/pm.sh web dev",
     "install:all": "bash scripts/pm.sh install",

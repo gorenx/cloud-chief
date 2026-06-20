@@ -99,8 +99,10 @@ export const enMessages: Messages = {
     settings: "Settings",
     tokenOn: "Token configured",
     tokenOff: "No token",
-    brandSub: "Cloud Chief",
-    brandTitle: "AI Gateway Admin",
+    brandTitle: "Cloud Chief",
+    brandSub: "AI Gateway Admin",
+    collapseSidebar: "Collapse sidebar",
+    expandSidebar: "Expand sidebar",
   },
   dashboard: {
     title: "Overview",

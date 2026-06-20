@@ -99,8 +99,10 @@ export const zhMessages: Messages = {
     settings: "设置",
     tokenOn: "已配置令牌",
     tokenOff: "未配置令牌",
-    brandSub: "Cloud Chief",
-    brandTitle: "AI Gateway Admin",
+    brandTitle: "Cloud Chief",
+    brandSub: "AI Gateway Admin",
+    collapseSidebar: "收起侧栏",
+    expandSidebar: "展开侧栏",
   },
   dashboard: {
     title: "概览",
