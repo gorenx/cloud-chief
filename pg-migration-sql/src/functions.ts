@@ -38,7 +38,7 @@ export function extractFunctionSql(sql: string, functionName: string): string {
 
   const start = startMatch.index;
   const afterCreate = sql.slice(start);
-  const bodyMatch = afterCreate.match(/as\s+\$\$[\s\S]*?\$\$;/i);
+  const bodyMatch = afterCreate.match(/\bas\s+(\$[a-zA-Z0-9_]*\$)[\s\S]*?\1\s*;/i);
   if (!bodyMatch) return "";
 
   const chunks: string[] = [];

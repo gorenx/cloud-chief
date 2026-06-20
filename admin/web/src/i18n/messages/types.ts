@@ -457,6 +457,7 @@ export interface Messages {
     applyRoutine: string;
     applyAllRoutines: string;
     toastRoutineApplied: string;
+    toastRoutinesApplied: string;
     toastMigrationsApplied: string;
     migrationColVersion: string;
     migrationColLocal: string;

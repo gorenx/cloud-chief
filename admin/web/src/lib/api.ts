@@ -357,13 +357,15 @@ export async function fetchSupabaseMigrationStatus(token: string, ref: string, d
 export async function applySupabaseMigration(
   token: string,
   ref: string,
-  opts: { table?: string; function?: string; applyAll?: boolean; dir?: string },
+  opts: { table?: string; function?: string; applyAll?: boolean; applyFunctions?: boolean; dir?: string },
 ) {
   const base = opts.applyAll
     ? { ref, apply_all: true }
-    : opts.function
-      ? { ref, function: opts.function }
-      : { ref, table: opts.table };
+    : opts.applyFunctions
+      ? { ref, apply_functions: true }
+      : opts.function
+        ? { ref, function: opts.function }
+        : { ref, table: opts.table };
   const body = opts.dir ? { ...base, dir: opts.dir } : base;
   return adminFetch<{
     ok: boolean;

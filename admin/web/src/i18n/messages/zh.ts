@@ -508,6 +508,7 @@ export const zhMessages: Messages = {
     applyRoutine: "应用",
     applyAllRoutines: "应用全部待同步存储过程 ({count})",
     toastRoutineApplied: "存储过程 {name} 已应用",
+    toastRoutinesApplied: "已应用 {count} 个存储过程",
     toastMigrationsApplied: "已应用 {tables} 张表、{functions} 个存储过程",
     migrationColVersion: "版本",
     migrationColLocal: "本地",

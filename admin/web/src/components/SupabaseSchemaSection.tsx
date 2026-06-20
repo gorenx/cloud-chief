@@ -145,10 +145,29 @@ export function SupabaseSchemaSection({
     onError: (e: Error) => toast.error(displayError(e.message)),
   });
 
+  const applyFunctionsAllM = useMutation({
+    mutationFn: async () => {
+      const r = await applySupabaseMigration(token, projectRef, {
+        applyFunctions: true,
+        dir: activeDir,
+      });
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    onSuccess: async (data) => {
+      const count = data.applied_functions?.length ?? data.applied?.length ?? 0;
+      toast.success(t("supabase.toastRoutinesApplied", { count }));
+      await queryClient.refetchQueries({
+        queryKey: ["supabase-migrations", token, projectRef, activeDir],
+      });
+    },
+    onError: (e: Error) => toast.error(displayError(e.message)),
+  });
+
   const err = statusQ.error as (Error & { needsDbScope?: boolean }) | null;
   const needsDbScope = Boolean(err?.needsDbScope);
   const pending = statusQ.data?.pending_count ?? 0;
-  const applying = applyOneM.isPending || applyFunctionM.isPending || applyAllM.isPending;
+  const applying = applyOneM.isPending || applyFunctionM.isPending || applyAllM.isPending || applyFunctionsAllM.isPending;
   const applyingTable = applyOneM.isPending ? applyOneM.variables : undefined;
   const applyingFunction = applyFunctionM.isPending ? applyFunctionM.variables : undefined;
   const wasApplying = useRef(false);
@@ -260,6 +279,8 @@ export function SupabaseSchemaSection({
             onApply={(name) => applyFunctionM.mutate(name)}
             applying={applying}
             applyingName={applyingFunction}
+            onApplyAll={() => applyFunctionsAllM.mutate()}
+            pendingCount={functionSummary.pending}
           />
         </>
       )}

@@ -309,10 +309,11 @@ export async function fetchRemoteRoutineNames(
 > {
   const q = await runProjectDatabaseQuery(
     ref,
-    `select routine_name
-     from information_schema.routines
-     where routine_schema = 'public'
-       and routine_type = 'FUNCTION'
+    `select distinct p.proname as routine_name
+     from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public'
+       and p.prokind in ('f', 'p')
      order by routine_name`,
     { readOnly: true },
   );
@@ -320,7 +321,7 @@ export async function fetchRemoteRoutineNames(
 
   const names = new Set<string>();
   for (const row of asRows(q.result)) {
-    const name = String(row.routine_name ?? "").trim().toLowerCase();
+    const name = String(row.routine_name ?? row.name ?? "").trim().toLowerCase();
     if (name) names.add(name);
   }
   return { ok: true, names };

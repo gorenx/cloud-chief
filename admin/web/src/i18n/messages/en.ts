@@ -514,6 +514,7 @@ export const enMessages: Messages = {
     applyRoutine: "Apply",
     applyAllRoutines: "Apply all pending routines ({count})",
     toastRoutineApplied: "Routine {name} applied",
+    toastRoutinesApplied: "Applied {count} routines",
     toastMigrationsApplied: "Applied {tables} tables and {functions} routines",
     migrationColVersion: "Version",
     migrationColLocal: "Local",

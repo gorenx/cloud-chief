@@ -23,7 +23,7 @@ describe("pg-migration-sql functions", () => {
     const sql = extractFunctionSql(rpcMigration, "spend_free_ai_credit");
     expect(sql).toContain("create or replace function public.spend_free_ai_credit");
     expect(sql).toContain("grant execute on function");
-    expect(sql).toContain("savepoint spend");
+    expect(sql).toContain("revoke all on function");
   });
 
   it("extractFunctionSqlFromSources merges migration files", () => {

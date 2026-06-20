@@ -25,6 +25,7 @@ import {
 } from "../supabase-management";
 import {
   applyFunctionMigration,
+  applyPendingFunctions,
   applyPendingMigrations,
   applyPendingTables,
   applyTableMigration,
@@ -372,6 +373,7 @@ supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
     table?: string;
     function?: string;
     apply_all?: boolean;
+    apply_functions?: boolean;
     dir?: string;
   };
   const ref = body.ref?.trim();
@@ -396,6 +398,25 @@ supabaseConnect.post("/migrations/apply", adminAuth, async (c) => {
       applied: [...r.applied_tables, ...r.applied_functions],
       applied_tables: r.applied_tables,
       applied_functions: r.applied_functions,
+    });
+  }
+
+  if (body.apply_functions) {
+    const r = await applyPendingFunctions(ref, migrationsDir);
+    if (!r.ok) {
+      return c.json(
+        {
+          error: r.error,
+          needs_db_scope: r.needs_db_scope ?? false,
+          partial_functions: r.partial ?? [],
+        },
+        r.needs_db_scope ? 403 : 502,
+      );
+    }
+    return c.json({
+      ok: true,
+      applied: r.applied,
+      applied_functions: r.applied,
     });
   }
 

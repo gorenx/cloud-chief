@@ -382,7 +382,7 @@ export async function applyDatabaseMigration(
 }
 
 function isSafeMigrationVersion(version: string): boolean {
-  return /^(?:\d+_[\w.-]+|tbl_[\w.-]+)$/i.test(version);
+  return /^(?:\d+_[\w.-]+|tbl_[\w.-]+|fn_[\w.-]+)$/i.test(version);
 }
 
 async function recordMigrationVersion(ref: string, version: string): Promise<void> {
