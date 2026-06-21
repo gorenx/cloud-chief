@@ -3,24 +3,32 @@ import { PanelRightClose, PanelRightOpen, Route } from "lucide-react";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { useT } from "@/contexts/LocaleContext";
-import { emptyChatHint } from "@/i18n/playground-ui";
 import { PlaygroundRoutingSidebar } from "@/components/PlaygroundRoutingSidebar";
 import {
   PlaygroundChatToolbar,
   PlaygroundGatewayToolbar,
   PlaygroundWorkerToolbar,
 } from "@/components/PlaygroundToolbar";
+import { PlaygroundChatConsole } from "@/components/PlaygroundChatConsole";
+import { PlaygroundWorkerMainPanel } from "@/components/PlaygroundWorkerMainPanel";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { usePlaygroundChat } from "@/hooks/usePlaygroundChat";
 import { usePlaygroundSession } from "@/hooks/usePlaygroundSession";
 import type { DebugTab } from "@/lib/playground-session";
-import { cn } from "@/lib/utils";
+import {
+  buildWorkerUpstreamUrl,
+  readWorkerConsoleMode,
+  type WorkerConsoleMode,
+} from "@/lib/worker-http-routes";
 
 export function PlaygroundPage() {
   const t = useT();
   const chatRef = useRef<HTMLDivElement>(null);
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [workerConsoleMode, setWorkerConsoleMode] = useState<WorkerConsoleMode>(readWorkerConsoleMode);
+  const [workerApiMethod, setWorkerApiMethod] = useState("POST");
+  const [workerApiPath, setWorkerApiPath] = useState("/v1/responses");
 
   const session = usePlaygroundSession();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -116,6 +124,33 @@ export function PlaygroundPage() {
     });
   }
 
+  function handleWorkerChatSend() {
+    void send({
+      path: "worker",
+      effectiveModel,
+      gateway: effectiveGateway,
+      providerSlug: routing?.provider_slug,
+      workerAccessToken,
+      workerTestEmail,
+      workerTestPassword,
+      workerTarget,
+      workerDir,
+      useWorkerToml: flags.useWorkerToml,
+    });
+  }
+
+  const workerInspectorEndpoint =
+    workerConsoleMode === "chat"
+      ? "POST /api/worker-chat"
+      : `${workerApiMethod} ${buildWorkerUpstreamUrl(effectiveWorkerUrl, workerApiPath)}`;
+
+  const inspectorEndpoint =
+    activeTab === "worker"
+      ? workerInspectorEndpoint
+      : requestPath === "worker"
+        ? "POST /api/worker-chat"
+        : "POST /api/chat";
+
   const inspectorToggle = routing ? (
     <Button
       variant="ghost"
@@ -206,80 +241,48 @@ export function PlaygroundPage() {
             </aside>
 
             <section className="flex min-w-0 flex-1 flex-col">
-              <div className="shrink-0 border-b border-[var(--color-border-subtle)] px-4 py-2 sm:px-5">
-                <span className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-muted)]/75">
-                  {t("playground.consoleLabel")}
-                </span>
-              </div>
-
-              <div ref={chatRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-                {messages.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-[var(--color-muted)]">
-                    {emptyChatHint(t, requestPath, flags)}
-                  </p>
-                ) : (
-                  <div className="mx-auto max-w-2xl space-y-3">
-                    {messages.map((msg, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "flex gap-3",
-                          msg.role === "user" ? "justify-end" : "justify-start",
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "max-w-[85%] rounded-[var(--radius-lg)] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                            msg.role === "user"
-                              ? "bg-[var(--color-accent-glow)] text-[var(--color-text)] ring-1 ring-[var(--color-accent)]/20"
-                              : "bg-[var(--color-bg-elevated)] text-[var(--color-text)] ring-1 ring-[var(--color-border-subtle)]",
-                            msg.content.startsWith(errorPrefixes.requestFailedPrefix) ||
-                              msg.content.startsWith(errorPrefixes.errorPrefix)
-                              ? "text-[var(--color-err)] ring-[var(--color-err)]/30"
-                              : "",
-                          )}
-                        >
-                          {msg.content}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="shrink-0 border-t border-[var(--color-border-subtle)] bg-[var(--color-panel-elevated)]/20 px-4 py-3 sm:px-5">
-                <div className="mx-auto flex max-w-2xl gap-2">
-                  <textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    rows={1}
-                    placeholder={t("playground.sendPlaceholder")}
-                    className="flex-1 resize-none rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-2 text-sm outline-none transition-colors focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent-glow)]"
-                  />
-                  <Button disabled={sending || !input.trim()} onClick={handleSend}>
-                    {t("playground.send")}
-                  </Button>
-                </div>
-              </div>
+              {activeTab === "worker" ? (
+                <PlaygroundWorkerMainPanel
+                  chatRef={chatRef}
+                  messages={messages}
+                  input={input}
+                  onInputChange={setInput}
+                  sending={sending}
+                  onSendChat={handleWorkerChatSend}
+                  flags={flags}
+                  errorPrefixes={errorPrefixes}
+                  workerDir={workerDir}
+                  workerTarget={workerTarget}
+                  workerAccessToken={workerAccessToken}
+                  workerTestEmail={workerTestEmail}
+                  workerTestPassword={workerTestPassword}
+                  effectiveWorkerUrl={effectiveWorkerUrl}
+                  onModeChange={setWorkerConsoleMode}
+                  onApiRequestChange={(method, path) => {
+                    setWorkerApiMethod(method);
+                    setWorkerApiPath(path);
+                  }}
+                />
+              ) : (
+                <PlaygroundChatConsole
+                  chatRef={chatRef}
+                  messages={messages}
+                  input={input}
+                  onInputChange={setInput}
+                  sending={sending}
+                  onSend={handleSend}
+                  hintPath={requestPath}
+                  flags={flags}
+                  errorPrefixes={errorPrefixes}
+                />
+              )}
             </section>
           </div>
         </div>
 
         {inspectorOpen && routing && (
           <aside
-            className={cn(
-              "relative flex w-[min(100%,21rem)] shrink-0 flex-col",
-              "border-l border-[var(--color-border-subtle)]",
-              "bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-panel)_96%,var(--color-ice)_4%)_0%,var(--color-panel)_42%,color-mix(in_srgb,var(--color-panel)_98%,black)_100%)]",
-              "shadow-[-12px_0_32px_rgba(0,0,0,0.28)]",
-              "before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-[linear-gradient(180deg,transparent_0%,color-mix(in_srgb,var(--color-ice)_35%,transparent)_18%,color-mix(in_srgb,var(--color-accent)_45%,transparent)_50%,color-mix(in_srgb,var(--color-ice)_25%,transparent)_82%,transparent_100%)]",
-            )}
+            className="relative flex w-[min(100%,21rem)] shrink-0 flex-col border-l border-[var(--color-border-subtle)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-panel)_96%,var(--color-ice)_4%)_0%,var(--color-panel)_42%,color-mix(in_srgb,var(--color-panel)_98%,black)_100%)] shadow-[-12px_0_32px_rgba(0,0,0,0.28)] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-[linear-gradient(180deg,transparent_0%,color-mix(in_srgb,var(--color-ice)_35%,transparent)_18%,color-mix(in_srgb,var(--color-accent)_45%,transparent)_50%,color-mix(in_srgb,var(--color-ice)_25%,transparent)_82%,transparent_100%)]"
           >
             <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-[var(--color-border-subtle)] bg-[var(--color-panel-elevated)]/55 px-4 py-3 backdrop-blur-sm">
               <div className="flex min-w-0 items-center gap-2">
@@ -291,7 +294,7 @@ export function PlaygroundPage() {
                     {t("playground.inspectorLabel")}
                   </span>
                   <span className="block truncate text-[10px] text-[var(--color-muted)]/70">
-                    {requestPath === "worker" ? "POST /api/worker-chat" : "POST /api/chat"}
+                    {inspectorEndpoint}
                   </span>
                 </div>
               </div>
@@ -322,7 +325,7 @@ export function PlaygroundPage() {
                 workerTarget={workerTarget}
                 effectiveWorkerUrl={effectiveWorkerUrl}
                 onConfigRefresh={() => void refetchConfig()}
-                requestPath={requestPath}
+                requestPath={activeTab === "worker" || requestPath === "worker" ? "worker" : "gateway"}
                 depth={activeTab === "chat" ? "compact" : "full"}
               />
             </div>

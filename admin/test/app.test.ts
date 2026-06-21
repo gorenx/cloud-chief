@@ -231,6 +231,17 @@ describe("worker chat", () => {
     expect(j.url).toBeTruthy();
     expect(j.endpoints.length).toBe(2);
   });
+
+  it("POST /api/worker-chat/proxy rejects invalid path", async () => {
+    const res = await app.request("/api/worker-chat/proxy", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: "../health", method: "GET" }),
+    });
+    expect(res.status).toBe(400);
+    const j = (await res.json()) as { error: string };
+    expect(j.error).toMatch(/无效路径/);
+  });
 });
 
 describe("spa static", () => {
