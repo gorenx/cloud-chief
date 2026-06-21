@@ -30,24 +30,42 @@ app.get("/health", (c) => c.text("ok"));
 
 app.post("/webhooks/revenuecat", handleRevenueCatWebhook);
 
+function clientIp(req: Request): string {
+  const cf = req.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+  const xff = (req.headers.get("x-forwarded-for") ?? "").split(",")[0]?.trim();
+  return xff || "unknown";
+}
+
+async function enforceRateLimit(
+  limiter: Env["RATE_LIMITER"],
+  key: string,
+): Promise<void> {
+  if (!limiter) return;
+  const { success } = await limiter.limit({ key });
+  if (!success) throw new HTTPException(429, { message: "rate limit exceeded" });
+}
+
 app.use("/v1/*", async (c, next) => {
+  await enforceRateLimit(c.env.RATE_LIMITER, `ip:${clientIp(c.req.raw)}`);
+
   const auth = c.req.header("authorization") ?? "";
   const m = auth.match(/^Bearer\s+(.+)$/i);
   if (!m) throw new HTTPException(401, { message: "missing bearer token" });
 
+  let claims;
   try {
-    const claims = await verifySupabaseJWT(m[1].trim(), c.env);
-    c.set("claims", claims);
+    claims = await verifySupabaseJWT(m[1].trim(), c.env);
   } catch (e) {
-    throw new HTTPException(401, { message: `invalid token: ${(e as Error).message}` });
+    console.error("jwt verification failed", e);
+    throw new HTTPException(401, { message: "invalid token" });
   }
 
-  const claims = c.get("claims");
-  if (c.env.RATE_LIMITER && claims.sub) {
-    const { success } = await c.env.RATE_LIMITER.limit({ key: claims.sub });
-    if (!success) throw new HTTPException(429, { message: "rate limit exceeded" });
+  if (claims.sub) {
+    await enforceRateLimit(c.env.RATE_LIMITER, `sub:${claims.sub}`);
   }
 
+  c.set("claims", claims);
   await next();
 });
 

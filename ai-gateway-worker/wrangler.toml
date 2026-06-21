@@ -2,6 +2,17 @@ name = "ai-gateway-proxy"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+
 # 仅影响本地 `wrangler dev`（线上不涉及端口）。避免与 admin 服务的 8787 冲突。
 [dev]
 port = 8788

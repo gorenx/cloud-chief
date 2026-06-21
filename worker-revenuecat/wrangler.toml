@@ -2,6 +2,17 @@ name = "revenuecat-proxy"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+
 [dev]
 port = 8789
 

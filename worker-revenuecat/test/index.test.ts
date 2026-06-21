@@ -23,7 +23,7 @@ describe("revenuecat-proxy", () => {
     });
     expect(res.status).toBe(401);
     const body = (await res.json()) as { error: string };
-    expect(body.error).toMatch(/invalid token/);
+    expect(body.error).toBe("invalid token");
   });
 
   it("rejects /v1/metrics/overview without admin whitelist", async () => {
