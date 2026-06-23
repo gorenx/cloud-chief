@@ -6,6 +6,7 @@ import { Select } from "@/components/ui/Select";
 import { WorkerHttpRoutePicker } from "@/components/WorkerHttpRoutePicker";
 import { usePlaygroundWorkerHttp } from "@/hooks/usePlaygroundWorkerHttp";
 import type { WorkerTarget } from "@/lib/playground-session";
+import type { WorkerCapabilities } from "@/lib/playground-session";
 import {
   formatResponseBody,
   persistActiveWorkerRouteId,
@@ -23,6 +24,7 @@ const METHODS: WorkerHttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 export function PlaygroundWorkerHttpConsole({
   workerDir,
   workerTarget,
+  workerCapabilities = { supports_chat: true },
   workerAccessToken,
   workerTestEmail,
   workerTestPassword,
@@ -31,6 +33,7 @@ export function PlaygroundWorkerHttpConsole({
 }: {
   workerDir: string;
   workerTarget: WorkerTarget;
+  workerCapabilities?: Pick<WorkerCapabilities, "supports_chat">;
   workerAccessToken: string;
   workerTestEmail: string;
   workerTestPassword: string;
@@ -40,14 +43,30 @@ export function PlaygroundWorkerHttpConsole({
   const t = useT();
   const { sending, result, send } = usePlaygroundWorkerHttp();
   const workerBase = effectiveWorkerUrl.replace(/\/$/, "");
-  const [routes, setRoutes] = useState<WorkerHttpRoute[]>(() => readWorkerHttpRoutes());
+  const [routes, setRoutes] = useState<WorkerHttpRoute[]>(() =>
+    readWorkerHttpRoutes(workerCapabilities),
+  );
   const initialRoute =
-    routes.find((r) => r.id === readActiveWorkerRouteId()) ?? routes[0];
+    routes.find((r) => r.id === readActiveWorkerRouteId(workerCapabilities)) ?? routes[0];
   const [activeId, setActiveId] = useState(initialRoute?.id ?? "");
-  const [method, setMethod] = useState<WorkerHttpMethod>(initialRoute?.method ?? "POST");
-  const [path, setPath] = useState(initialRoute?.path ?? "/v1/responses");
+  const [method, setMethod] = useState<WorkerHttpMethod>(initialRoute?.method ?? "GET");
+  const [path, setPath] = useState(initialRoute?.path ?? "/health");
   const [body, setBody] = useState(initialRoute?.body ?? "");
   const [pathError, setPathError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nextRoutes = readWorkerHttpRoutes(workerCapabilities);
+    setRoutes(nextRoutes);
+    const route =
+      nextRoutes.find((r) => r.id === readActiveWorkerRouteId(workerCapabilities)) ?? nextRoutes[0];
+    if (route) {
+      setActiveId(route.id);
+      setMethod(route.method);
+      setPath(route.path);
+      setBody(route.body);
+      setPathError(null);
+    }
+  }, [workerCapabilities.supports_chat]);
 
   const resolvedPath = useMemo(() => {
     const r = resolveWorkerHttpPath(workerBase, path);

@@ -229,7 +229,8 @@ describe("worker chat", () => {
     expect(res.status).toBe(200);
     const j = (await res.json()) as { url: string; endpoints: string[] };
     expect(j.url).toBeTruthy();
-    expect(j.endpoints.length).toBe(2);
+    expect(j.endpoints.length).toBeGreaterThanOrEqual(2);
+    expect(j.capabilities).toBeDefined();
   });
 
   it("POST /api/worker-chat/proxy rejects invalid path", async () => {

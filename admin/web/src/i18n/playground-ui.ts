@@ -8,7 +8,8 @@ export function emptyChatHint(
   flags: PlaygroundSessionFlags,
 ): string {
   if (path === "gateway") return t("playground.chatHintGateway");
-  if (flags.useWorkerToml) return t("playground.chatHintWorkerToml");
+  if (flags.hideGatewayModel && !flags.supportsChat) return t("playground.chatHintApiWorker");
+  if (flags.workerModelEnforced) return t("playground.chatHintWorkerEnforced");
   return t("playground.chatHintWorkerUi");
 }
 
@@ -19,5 +20,6 @@ export function getPlaygroundSourceLabels(t: TranslateFn) {
     auth: t("playground.sourceAuth"),
     routingCompare: t("playground.sourceRoutingCompare"),
     routing: t("playground.sourceRouting"),
+    workerUrl: t("playground.sourceWorkerUrl"),
   };
 }

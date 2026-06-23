@@ -13,6 +13,8 @@ export interface RoutingFieldValues {
   provider?: { slug: string; base_url: string; enable?: boolean } | null;
   account_id?: string;
   default_model?: string | null;
+  free_model?: string | null;
+  plus_model?: string | null;
 }
 
 export function RoutingFieldList({
@@ -63,10 +65,20 @@ export function RoutingFieldList({
           <div className="mono mt-0.5">{routing.provider_slug || "—"}</div>
         </div>
         {section === "worker" && (
-          <div>
-            <FieldLabel label="DEFAULT_MODEL" meta={fields["worker_routing.default_model"]} />
-            <div className="mono mt-0.5">{routing.default_model || "—"}</div>
-          </div>
+          <>
+            <div>
+              <FieldLabel label="FREE_MODEL" meta={fields["worker_routing.free_model"]} />
+              <div className="mono mt-0.5">{routing.free_model || routing.default_model || "—"}</div>
+            </div>
+            <div>
+              <FieldLabel label="PLUS_MODEL" meta={fields["worker_routing.plus_model"]} />
+              <div className="mono mt-0.5">{routing.plus_model || "—"}</div>
+            </div>
+            <div>
+              <FieldLabel label="DEFAULT_MODEL" meta={fields["worker_routing.default_model"]} />
+              <div className="mono mt-0.5 text-[var(--color-muted)]">{routing.default_model || "—"}</div>
+            </div>
+          </>
         )}
         <div>
           <FieldLabel label="API path" meta={fields[`${fieldPrefix}.path`]} />

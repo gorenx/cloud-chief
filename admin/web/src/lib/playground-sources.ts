@@ -13,12 +13,13 @@ export interface FieldMetaSlice {
 export type PlaygroundFields = Record<string, FieldMetaSlice | undefined>;
 
 export interface PlaygroundDataView {
-  routingSection: "cf" | "worker";
+  routingSection: "cf" | "worker" | "api";
   showGatewayContext: boolean;
   showRoutingMismatch: boolean;
+  hideGatewayModel: boolean;
   controls: {
     gateway?: FieldMetaSlice;
-    model: FieldMetaSlice;
+    model?: FieldMetaSlice;
     request: FieldMetaSlice;
     workerUrl?: FieldMetaSlice;
     supabaseUrl?: FieldMetaSlice;
@@ -53,6 +54,7 @@ export function resolvePlaygroundDataView(
       routingSection: "cf",
       showGatewayContext: true,
       showRoutingMismatch: false,
+      hideGatewayModel: false,
       controls: {
         gateway: pick(fields, "gateways", FALLBACK.cf),
         model,
@@ -66,14 +68,34 @@ export function resolvePlaygroundDataView(
     };
   }
 
+  if (flags.hideGatewayModel) {
+    const request = pick(fields, "worker.authorization", FALLBACK.derived);
+    return {
+      routingSection: "api",
+      showGatewayContext: false,
+      showRoutingMismatch: false,
+      hideGatewayModel: true,
+      controls: {
+        request,
+        workerUrl: fields["worker.url"],
+        supabaseUrl: fields["worker.supabase_url"],
+      },
+      summary: [
+        { label: labels.workerUrl, meta: fields["worker.url"] ?? FALLBACK.wrangler },
+        { label: labels.auth, meta: request },
+      ],
+    };
+  }
+
   if (flags.useWorkerToml) {
     const gateway = pick(fields, "worker_routing.gateway", FALLBACK.wrangler);
-    const model = pick(fields, "worker_routing.default_model", FALLBACK.wrangler);
+    const model = pick(fields, "models", { source: "env", key: "MODEL_CATALOG" });
     const request = pick(fields, "worker.authorization", FALLBACK.derived);
     return {
       routingSection: "worker",
       showGatewayContext: false,
       showRoutingMismatch: false,
+      hideGatewayModel: false,
       controls: {
         gateway,
         model,
@@ -95,6 +117,7 @@ export function resolvePlaygroundDataView(
     routingSection: "cf",
     showGatewayContext: true,
     showRoutingMismatch: true,
+    hideGatewayModel: false,
     controls: {
       gateway: pick(fields, "gateways", FALLBACK.cf),
       model,

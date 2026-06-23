@@ -3,6 +3,7 @@ import type { GatewayContext, ModelMeta, ResponseMeta, RoutingInfo, WorkerDebugI
 import { pickFields } from "@/lib/field-meta";
 import type { PlaygroundDataView } from "@/lib/playground-sources";
 import type { ChatPath, WorkerTarget } from "@/lib/playground-session";
+import { resolveWorkerTierModels } from "@/lib/playground-session";
 import { ByokKeysCard, AdminTokenHintCard, GatewayStatusCard, RoutingWarnings } from "./GatewayDetailPanel";
 import { RoutingFieldList } from "./RoutingFieldList";
 import { RoutingMismatchNotice, RoutingSectionHeader, RoutingSourceLegend } from "./RoutingSectionHeader";
@@ -39,7 +40,7 @@ export function PlaygroundRoutingSidebar({
   requestPath,
   depth = "full",
 }: {
-  routing: RoutingInfo;
+  routing: RoutingInfo | null;
   workerRouting: WorkerRoutingInfo | null;
   modelMeta: ModelMeta | null;
   gateway: string;
@@ -68,10 +69,15 @@ export function PlaygroundRoutingSidebar({
   const routingFields = pickFields(configMeta);
   const { controls } = dataView;
   const isWorkerRequest = requestPath === "worker";
+  const isApiOnlyWorker = dataView.routingSection === "api";
   const showWorkerRouting = isWorkerRequest && dataView.routingSection === "worker";
-  const showCfRouting = !isWorkerRequest || dataView.routingSection === "cf";
+  const showCfRouting = routing && (!isWorkerRequest || dataView.routingSection === "cf");
   const hasByok = (gatewayContext?.keys.length ?? 0) > 0;
   const compact = depth === "compact";
+  const tierModels =
+    isWorkerRequest && !isApiOnlyWorker
+      ? resolveWorkerTierModels({ worker_routing: workerRouting ?? undefined })
+      : null;
 
   return (
     <div className="space-y-4 page-enter page-enter-delay-1">
@@ -145,7 +151,42 @@ export function PlaygroundRoutingSidebar({
         </div>
       </Card>
 
-      {!compact && (
+      {!compact && isApiOnlyWorker && workerInfo && (
+        <Card className="p-4">
+          <CardTitle desc={t("playground.apiWorkerDesc")}>{t("playground.apiWorkerTitle")}</CardTitle>
+          <div className="space-y-2 text-xs text-[var(--color-muted)]">
+            <p>{t("playground.apiWorkerCapabilities")}</p>
+            <ul className="space-y-1">
+              <li>
+                {t("playground.capGateway")}:{" "}
+                <code className="mono">{workerInfo.capabilities.uses_gateway ? "✓" : "—"}</code>
+              </li>
+              <li>
+                {t("playground.capModel")}:{" "}
+                <code className="mono">{workerInfo.capabilities.uses_model ? "✓" : "—"}</code>
+              </li>
+              <li>
+                {t("playground.capChat")}:{" "}
+                <code className="mono">{workerInfo.capabilities.supports_chat ? "✓" : "—"}</code>
+              </li>
+            </ul>
+            {workerInfo.endpoints.length > 0 && (
+              <div>
+                <span className="font-medium text-[var(--color-text)]">{t("playground.suggestedEndpoints")}</span>
+                <ul className="mt-1.5 space-y-1">
+                  {workerInfo.endpoints.map((ep) => (
+                    <li key={ep}>
+                      <code className="mono text-[var(--color-ice)]/90">{ep}</code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {!compact && routing && !isApiOnlyWorker && (
         <>
           <Card className="p-4">
             <div className="mb-3 space-y-2">
@@ -197,6 +238,8 @@ export function PlaygroundRoutingSidebar({
                     provider: workerRouting.provider,
                     account_id: workerRouting.account_id,
                     default_model: workerRouting.default_model,
+                    free_model: workerRouting.free_model,
+                    plus_model: workerRouting.plus_model,
                   }}
                   fields={routingFields}
                 />
@@ -206,12 +249,13 @@ export function PlaygroundRoutingSidebar({
 
           <ModelDetailCard
             modelId={routing.model}
-            modelMeta={modelMeta}
+            modelMeta={tierModels ? null : modelMeta}
             routing={routing}
             fieldMeta={routingFields}
             compact
-            showWorker={showWorkerRouting}
+            showWorker={showWorkerRouting && !tierModels}
             workerModel={workerRouting?.default_model}
+            tierModels={tierModels}
           />
 
           {!hasAdminToken ? (

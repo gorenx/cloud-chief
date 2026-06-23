@@ -306,7 +306,9 @@ export const enMessages: Messages = {
     directGateway: "Direct Gateway",
     viaWorker: "Via Worker",
     gatewayLockedTitle: "Worker config: wrangler CF_GATEWAY_ID",
-    modelLockedTitle: "Worker config: wrangler DEFAULT_MODEL",
+    modelLockedTitle: "Worker enforces model by tier; not selectable here",
+    modelInputPlaceholder: "Select or type model ID",
+    modelEnforcedHint: "Request body model is overwritten; Free uses FREE_MODEL, Plus uses PLUS_MODEL.",
     startingLocal: "Starting…",
     localReady: "Local ready",
     startLocalWorker: "Start local Worker",
@@ -318,9 +320,13 @@ export const enMessages: Messages = {
     errorPrefix: "Error",
     requestFailedPrefix: "Request failed",
     chatHintGateway: "Chat via Cloudflare AI Gateway — type a message to start.",
+    chatHintWorkerEnforced:
+      "Chat via Worker: model is enforced by tier (FREE_MODEL / PLUS_MODEL), not the debug UI selection.",
+    chatHintApiWorker:
+      "This Worker has no gateway/model vars and does not support chat debugging. Use the Worker tab for HTTP API testing.",
     chatHintWorkerToml: "Chat via Worker using DEFAULT_MODEL from wrangler.toml.",
     chatHintWorkerUi:
-      "Chat via Worker; model and gateway come from the UI (Worker routing still uses wrangler).",
+      "Chat via Worker; gateway can be chosen in the UI; model is still enforced by Worker tier.",
     toastSupabaseStep1: "Step 1 done: select project → apply config → fill test account",
     toastSupabaseError: "Supabase authorization failed: {reason}",
     workerConfig: "Worker config",
@@ -345,6 +351,7 @@ export const enMessages: Messages = {
     sourceAuth: "Auth",
     sourceRoutingCompare: "Routing (compare)",
     sourceRouting: "Routing",
+    sourceWorkerUrl: "Worker URL",
     chatPageTitle: "This page chat",
     chatPageDesc:
       "POST /api/chat always reads DASHSCOPE_API_KEY for upstream Authorization, not BYOK.",
@@ -357,6 +364,13 @@ export const enMessages: Messages = {
       "Sidebar BYOK list is for invoke_url reference only; chat on this page does not use those keys.",
     workerAlreadyRunning: "Local Worker already running",
     workerStarted: "Local Worker started (:8788)",
+    apiWorkerTitle: "API Worker",
+    apiWorkerDesc: "No AI Gateway / model vars detected in wrangler",
+    apiWorkerCapabilities: "wrangler [vars] capability detection:",
+    capGateway: "CF_GATEWAY_ID",
+    capModel: "DEFAULT_MODEL / FREE_MODEL / PLUS_MODEL",
+    capChat: "Chat proxy",
+    suggestedEndpoints: "Suggested routes",
     noContent: "(no content returned)",
   },
   invoke: {
@@ -634,6 +648,11 @@ export const enMessages: Messages = {
     apiType: "API type",
     workerDefaultModel: "Worker default model",
     workerMismatch: "Worker DEFAULT_MODEL ({workerModel}) differs from current model",
+    workerEnforcedTitle: "Worker server models",
+    workerEnforcedDesc:
+      "Ignores request body model; picks FREE_MODEL or PLUS_MODEL from user_entitlements.",
+    tierFree: "Free tier",
+    tierPlus: "Plus tier",
     noVersionWarn:
       "Responses API does not support unversioned qwen-max; verify the model ID.",
   },

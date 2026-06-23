@@ -274,6 +274,8 @@ export interface Messages {
     viaWorker: string;
     gatewayLockedTitle: string;
     modelLockedTitle: string;
+    modelInputPlaceholder: string;
+    modelEnforcedHint: string;
     startingLocal: string;
     localReady: string;
     startLocalWorker: string;
@@ -285,6 +287,8 @@ export interface Messages {
     errorPrefix: string;
     requestFailedPrefix: string;
     chatHintGateway: string;
+    chatHintWorkerEnforced: string;
+    chatHintApiWorker: string;
     chatHintWorkerToml: string;
     chatHintWorkerUi: string;
     toastSupabaseStep1: string;
@@ -310,6 +314,7 @@ export interface Messages {
     sourceAuth: string;
     sourceRoutingCompare: string;
     sourceRouting: string;
+    sourceWorkerUrl: string;
     chatPageTitle: string;
     chatPageDesc: string;
     invokeDirectTitle: string;
@@ -320,6 +325,13 @@ export interface Messages {
     byokSidebarWarn: string;
     workerAlreadyRunning: string;
     workerStarted: string;
+    apiWorkerTitle: string;
+    apiWorkerDesc: string;
+    apiWorkerCapabilities: string;
+    capGateway: string;
+    capModel: string;
+    capChat: string;
+    suggestedEndpoints: string;
     noContent: string;
   };
   invoke: {
@@ -574,6 +586,10 @@ export interface Messages {
     apiType: string;
     workerDefaultModel: string;
     workerMismatch: string;
+    workerEnforcedTitle: string;
+    workerEnforcedDesc: string;
+    tierFree: string;
+    tierPlus: string;
     noVersionWarn: string;
   };
   routing: {

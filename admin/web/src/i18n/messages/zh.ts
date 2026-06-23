@@ -303,7 +303,9 @@ export const zhMessages: Messages = {
     directGateway: "直连 Gateway",
     viaWorker: "经 Worker",
     gatewayLockedTitle: "Worker 配置：wrangler CF_GATEWAY_ID",
-    modelLockedTitle: "Worker 配置：wrangler DEFAULT_MODEL",
+    modelLockedTitle: "Worker 服务端按 tier 强制模型，不可在此选择",
+    modelInputPlaceholder: "选择或输入 model ID",
+    modelEnforcedHint: "请求体中的 model 会被 Worker 覆盖；Free 用 FREE_MODEL，Plus 用 PLUS_MODEL。",
     startingLocal: "启动中…",
     localReady: "本地已就绪",
     startLocalWorker: "启动本地 Worker",
@@ -315,9 +317,13 @@ export const zhMessages: Messages = {
     errorPrefix: "错误",
     requestFailedPrefix: "请求失败",
     chatHintGateway: "通过 Cloudflare AI Gateway 对话，输入消息开始。",
+    chatHintWorkerEnforced:
+      "经 Worker 对话：模型由 Worker 按用户 tier 强制（FREE_MODEL / PLUS_MODEL），非调试页所选模型。",
+    chatHintApiWorker:
+      "当前 Worker 未配置网关/模型变量，不支持聊天式调试。请切换到 Worker Tab，使用 HTTP API 调试。",
     chatHintWorkerToml: "经 Worker 对话，使用 wrangler.toml 中的 DEFAULT_MODEL。",
     chatHintWorkerUi:
-      "经 Worker 对话，模型与网关由调试界面选择（Worker 仍固定 wrangler 路由）。",
+      "经 Worker 对话，网关可在调试界面选择；模型仍由 Worker 按 tier 强制。",
     toastSupabaseStep1: "步骤 1 完成：请选择项目 → 应用配置 → 填写测试账号",
     toastSupabaseError: "Supabase 授权失败：{reason}",
     workerConfig: "Worker 配置",
@@ -342,6 +348,7 @@ export const zhMessages: Messages = {
     sourceAuth: "鉴权",
     sourceRoutingCompare: "路由(对照)",
     sourceRouting: "路由",
+    sourceWorkerUrl: "Worker 地址",
     chatPageTitle: "本页聊天",
     chatPageDesc:
       "POST /api/chat 的上游 Authorization 固定读 DASHSCOPE_API_KEY，不经 BYOK。",
@@ -353,6 +360,13 @@ export const zhMessages: Messages = {
     byokSidebarWarn: "侧栏 BYOK 列表仅供 invoke_url 直连参考；本页发送聊天不会使用这些密钥。",
     workerAlreadyRunning: "本地 Worker 已在运行",
     workerStarted: "本地 Worker 已启动（:8788）",
+    apiWorkerTitle: "API Worker",
+    apiWorkerDesc: "未检测到 AI Gateway / 模型 wrangler 变量",
+    apiWorkerCapabilities: "wrangler [vars] 能力检测：",
+    capGateway: "CF_GATEWAY_ID",
+    capModel: "DEFAULT_MODEL / FREE_MODEL / PLUS_MODEL",
+    capChat: "聊天代理",
+    suggestedEndpoints: "建议路由",
     noContent: "(无内容返回)",
   },
   invoke: {
@@ -628,6 +642,10 @@ export const zhMessages: Messages = {
     apiType: "API 类型",
     workerDefaultModel: "Worker 默认模型",
     workerMismatch: "Worker DEFAULT_MODEL（{workerModel}）与当前模型不一致",
+    workerEnforcedTitle: "Worker 服务端模型",
+    workerEnforcedDesc: "忽略请求体 model；按 user_entitlements 选择 FREE_MODEL 或 PLUS_MODEL。",
+    tierFree: "Free tier",
+    tierPlus: "Plus tier",
     noVersionWarn: "Responses API 不支持无版本 qwen-max；请确认模型 ID 正确。",
   },
   routing: {

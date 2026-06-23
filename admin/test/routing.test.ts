@@ -12,5 +12,7 @@ describe("buildWorkerRouting", () => {
     expect(r.provider?.base_url).toBe("https://example.maas.aliyuncs.com");
     expect(r.invoke_url).toContain("/qwen-gw/custom-qwen-beijing-maas");
     expect(r.default_model).toBeTruthy();
+    expect(r.free_model).toBeTruthy();
+    expect(r.plus_model).toBeTruthy();
   });
 });

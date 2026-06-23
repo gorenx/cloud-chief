@@ -55,6 +55,7 @@ export function PlaygroundPage() {
     setGateway,
     setUiModel,
     effectiveModel,
+    workerTierModels,
     effectiveGateway,
     modelMeta,
     routing,
@@ -73,6 +74,7 @@ export function PlaygroundPage() {
     startLocalDev,
     startingLocalDev,
     catalogSynced,
+    workerCapabilities,
     refetchConfig,
   } = session;
 
@@ -106,6 +108,10 @@ export function PlaygroundPage() {
     onGatewayChange: setGateway,
     effectiveModel,
     onModelChange: setUiModel,
+    workerTierModels,
+    workerHasGatewayModelVars: workerCapabilities
+      ? workerCapabilities.uses_gateway || workerCapabilities.uses_model
+      : false,
     catalogSynced,
   };
 
@@ -139,19 +145,24 @@ export function PlaygroundPage() {
     });
   }
 
+  const isApiOnlyWorker = flags.hideGatewayModel;
+  const showInspectorPanel = Boolean(routing || isApiOnlyWorker);
+
   const workerInspectorEndpoint =
-    workerConsoleMode === "chat"
-      ? "POST /api/worker-chat"
-      : `${workerApiMethod} ${buildWorkerUpstreamUrl(effectiveWorkerUrl, workerApiPath)}`;
+    !flags.supportsChat || workerConsoleMode === "api"
+      ? `${workerApiMethod} ${buildWorkerUpstreamUrl(effectiveWorkerUrl, workerApiPath)}`
+      : "POST /api/worker-chat";
 
   const inspectorEndpoint =
     activeTab === "worker"
       ? workerInspectorEndpoint
       : requestPath === "worker"
-        ? "POST /api/worker-chat"
+        ? !flags.supportsChat
+          ? `${workerApiMethod} ${buildWorkerUpstreamUrl(effectiveWorkerUrl, workerApiPath)}`
+          : "POST /api/worker-chat"
         : "POST /api/chat";
 
-  const inspectorToggle = routing ? (
+  const inspectorToggle = showInspectorPanel ? (
     <Button
       variant="ghost"
       size="sm"
@@ -263,6 +274,12 @@ export function PlaygroundPage() {
                     setWorkerApiPath(path);
                   }}
                 />
+              ) : requestPath === "worker" && !flags.supportsChat ? (
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+                  <p className="max-w-md text-sm leading-relaxed text-[var(--color-muted)]">
+                    {t("playground.chatHintApiWorker")}
+                  </p>
+                </div>
               ) : (
                 <PlaygroundChatConsole
                   chatRef={chatRef}
@@ -280,7 +297,7 @@ export function PlaygroundPage() {
           </div>
         </div>
 
-        {inspectorOpen && routing && (
+        {inspectorOpen && showInspectorPanel && (
           <aside
             className="relative flex w-[min(100%,21rem)] shrink-0 flex-col border-l border-[var(--color-border-subtle)] bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-panel)_96%,var(--color-ice)_4%)_0%,var(--color-panel)_42%,color-mix(in_srgb,var(--color-panel)_98%,black)_100%)] shadow-[-12px_0_32px_rgba(0,0,0,0.28)] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-[linear-gradient(180deg,transparent_0%,color-mix(in_srgb,var(--color-ice)_35%,transparent)_18%,color-mix(in_srgb,var(--color-accent)_45%,transparent)_50%,color-mix(in_srgb,var(--color-ice)_25%,transparent)_82%,transparent_100%)]"
           >

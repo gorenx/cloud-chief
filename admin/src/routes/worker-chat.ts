@@ -134,9 +134,12 @@ workerChat.post("/", async (c) => {
     payload.endpoint === "chat" ? "chat/completions" : "responses";
   const url = `${auth.base}/v1/${endpoint}`;
   const useWorkerConfig = payload.use_worker_config === true;
-  const model = useWorkerConfig
-    ? vars.DEFAULT_MODEL || env.MODEL
-    : payload.model || vars.DEFAULT_MODEL || env.MODEL;
+  const payloadModel = typeof payload.model === "string" ? payload.model.trim() : "";
+  const model =
+    payloadModel ||
+    (useWorkerConfig ? vars.DEFAULT_MODEL : undefined) ||
+    vars.DEFAULT_MODEL ||
+    env.MODEL;
   const messages = payload.messages || payload.input || [];
 
   const upstreamBody =

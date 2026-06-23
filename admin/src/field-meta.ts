@@ -71,7 +71,17 @@ export function routingFieldsMeta(): Record<string, FieldMetaEntry> {
     "worker_routing.default_model": {
       source: "wrangler",
       key: "DEFAULT_MODEL",
-      hint: "worker/wrangler.toml [vars]",
+      hint: "worker/wrangler.toml [vars]；FREE_MODEL 未设时的回退",
+    },
+    "worker_routing.free_model": {
+      source: "wrangler",
+      key: "FREE_MODEL",
+      hint: "Free tier 服务端强制模型（enforce.ts）",
+    },
+    "worker_routing.plus_model": {
+      source: "wrangler",
+      key: "PLUS_MODEL",
+      hint: "Plus tier 服务端强制模型（enforce.ts）",
     },
     "worker_routing.provider": {
       source: "cf",
@@ -141,6 +151,11 @@ export function configMeta(): ResponseMeta {
         key: "SUPABASE_URL",
         hint: "worker/wrangler.toml [vars]",
       },
+      "worker.rc_project_id": {
+        source: "wrangler",
+        key: "RC_PROJECT_ID",
+        hint: "worker/wrangler.toml [vars]（可选）",
+      },
       "worker.authorization": {
         source: "derived",
         hint: "Supabase access_token（Admin 代换或请求体传入）",
@@ -155,6 +170,8 @@ const WORKER_ROUTING_CF_KEYS = [
   "worker_routing.gateway",
   "worker_routing.provider_slug",
   "worker_routing.default_model",
+  "worker_routing.free_model",
+  "worker_routing.plus_model",
 ] as const;
 
 /** 按 Worker 运行时来源覆盖 _meta（CF 部署优先） */
@@ -185,6 +202,11 @@ export function patchWorkerRuntimeMeta(
       key: "SUPABASE_URL",
       hint: "Worker plain_text 绑定（CF API）",
     };
+    fields["worker.rc_project_id"] = {
+      source: "cf",
+      key: "RC_PROJECT_ID",
+      hint: "Worker plain_text 绑定（CF API）",
+    };
     for (const key of WORKER_ROUTING_CF_KEYS) {
       const short = key.replace("worker_routing.", "").toUpperCase();
       if (short === "ACCOUNT_ID") {
@@ -195,6 +217,10 @@ export function patchWorkerRuntimeMeta(
         fields[key] = { source: "cf", key: "PROVIDER_SLUG", hint: "Worker plain_text 绑定" };
       } else if (short === "DEFAULT_MODEL") {
         fields[key] = { source: "cf", key: "DEFAULT_MODEL", hint: "Worker plain_text 绑定" };
+      } else if (short === "FREE_MODEL") {
+        fields[key] = { source: "cf", key: "FREE_MODEL", hint: "Worker plain_text 绑定" };
+      } else if (short === "PLUS_MODEL") {
+        fields[key] = { source: "cf", key: "PLUS_MODEL", hint: "Worker plain_text 绑定" };
       }
     }
   }

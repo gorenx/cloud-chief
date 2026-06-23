@@ -1,7 +1,13 @@
 import { env } from "./env";
 import type { WorkerRuntimeConfig } from "./worker-runtime";
+import {
+  detectWorkerCapabilities,
+  inferWorkerEndpoints,
+  type WorkerCapabilities,
+} from "./worker-capabilities";
 
 export interface WorkerDebugInfo {
+  capabilities: WorkerCapabilities;
   url: string;
   local_url: string;
   online_url: string | null;
@@ -15,11 +21,13 @@ export interface WorkerDebugInfo {
   cf_error: string | null;
   has_anon_key: boolean;
   has_test_credentials: boolean;
-  endpoints: ["/v1/responses", "/v1/chat/completions"];
+  endpoints: readonly string[];
 }
 
 export function buildWorkerDebugInfo(runtime: WorkerRuntimeConfig): WorkerDebugInfo {
+  const capabilities = detectWorkerCapabilities(runtime.vars);
   return {
+    capabilities,
     url: runtime.url,
     local_url: runtime.local_url,
     online_url: runtime.online_url,
@@ -35,6 +43,6 @@ export function buildWorkerDebugInfo(runtime: WorkerRuntimeConfig): WorkerDebugI
     has_test_credentials: Boolean(
       env.SUPABASE_ANON_KEY && env.SUPABASE_TEST_EMAIL && env.SUPABASE_TEST_PASSWORD,
     ),
-    endpoints: ["/v1/responses", "/v1/chat/completions"],
+    endpoints: inferWorkerEndpoints(capabilities),
   };
 }

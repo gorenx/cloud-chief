@@ -40,10 +40,12 @@ function resolveRuntimeWorkerDir(dir?: string | null): string {
   return resolveWorkerDirQuery(dir) ?? workerDir;
 }
 
-function resolveLocalUrl(): string {
+function resolveLocalUrl(absDir: string): string {
   const envUrl = env.WORKER_URL?.trim().replace(/\/$/, "") ?? "";
   if (envUrl && isLoopbackWorkerUrl(envUrl)) return envUrl;
-  return defaultLocalUrl();
+  const wrangler = readWranglerToml(absDir);
+  const port = wrangler.dev_port ?? 8788;
+  return `http://127.0.0.1:${port}`;
 }
 
 export function parseWorkerTarget(raw: string | null | undefined): WorkerTarget {
@@ -91,7 +93,7 @@ export async function getWorkerRuntimeConfig(options?: {
 
   const { vars, source: vars_source } = mergeWorkerVars(cf?.vars ?? {}, wrangler.vars);
 
-  const local_url = resolveLocalUrl();
+  const local_url = resolveLocalUrl(absDir);
   const online_url = cf?.ok && cf.url ? cf.url : null;
   const online_available = Boolean(online_url);
 

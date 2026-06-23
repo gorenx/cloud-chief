@@ -6,6 +6,12 @@ export type WorkerTarget = "local" | "online";
 export const DEBUG_TAB_KEY = "admin-playground-active-tab";
 export const CHAT_PATH_KEY = "admin-playground-chat-path";
 
+export interface WorkerCapabilities {
+  uses_gateway: boolean;
+  uses_model: boolean;
+  supports_chat: boolean;
+}
+
 export function readDebugTab(): DebugTab {
   try {
     const v = localStorage.getItem(DEBUG_TAB_KEY);
@@ -38,7 +44,6 @@ export function resolveRequestPath(tab: DebugTab, chatPath: ChatPath): ChatPath 
   return chatPath;
 }
 
-/** 按切换目标解析展示 / 请求用的 Worker URL */
 export function resolveWorkerDisplayUrl(
   worker: { local_url?: string; online_url?: string | null; url: string } | null,
   target: WorkerTarget,
@@ -51,37 +56,104 @@ export function resolveWorkerDisplayUrl(
 export interface PlaygroundConfigSlice {
   model: string;
   provider_slug?: string;
-  worker_routing?: { gateway: string; default_model: string | null };
+  worker_routing?: {
+    gateway: string;
+    default_model: string | null;
+    free_model: string | null;
+    plus_model: string | null;
+  };
 }
 
 export interface PlaygroundSessionFlags {
   useWorkerToml: boolean;
   modelLocked: boolean;
   gatewayLocked: boolean;
+  workerModelEnforced: boolean;
+  hideGatewayModel: boolean;
+  supportsChat: boolean;
+}
+
+function autoShowGatewayModel(caps: WorkerCapabilities | null): boolean {
+  if (!caps) return false;
+  return caps.uses_gateway || caps.uses_model;
+}
+
+/** Worker 是否具备网关/模型 wrangler 变量（决定是否渲染该控件区） */
+export function workerHasGatewayModelVars(caps: WorkerCapabilities | null): boolean {
+  return autoShowGatewayModel(caps);
+}
+
+/** 是否展示网关 / 模型控件（Worker 路径：按 wrangler vars 自动判断） */
+export function resolveShowGatewayModelControls(
+  inspectTarget: "gateway" | "worker",
+  caps: WorkerCapabilities | null,
+): boolean {
+  if (inspectTarget === "gateway") return true;
+  return autoShowGatewayModel(caps);
 }
 
 export function deriveSessionFlags(
   inspectTarget: "gateway" | "worker",
   workerConfigSource: WorkerConfigSource,
+  caps: WorkerCapabilities | null,
 ): PlaygroundSessionFlags {
+  const showGatewayModel = resolveShowGatewayModelControls(inspectTarget, caps);
+  const supportsChat = caps?.supports_chat ?? false;
+
   if (inspectTarget === "gateway") {
-    return { useWorkerToml: false, modelLocked: false, gatewayLocked: false };
+    return {
+      useWorkerToml: false,
+      modelLocked: false,
+      gatewayLocked: false,
+      workerModelEnforced: false,
+      hideGatewayModel: false,
+      supportsChat: true,
+    };
   }
+
+  if (!showGatewayModel) {
+    return {
+      useWorkerToml: false,
+      modelLocked: false,
+      gatewayLocked: false,
+      workerModelEnforced: false,
+      hideGatewayModel: true,
+      supportsChat,
+    };
+  }
+
   const useWorkerToml = workerConfigSource === "worker";
   return {
     useWorkerToml,
-    modelLocked: useWorkerToml,
+    modelLocked: false,
     gatewayLocked: useWorkerToml,
+    workerModelEnforced: supportsChat,
+    hideGatewayModel: false,
+    supportsChat,
   };
+}
+
+export function resolveWorkerTierModels(
+  config: Pick<PlaygroundConfigSlice, "worker_routing"> | null,
+): { free: string; plus: string } | null {
+  const wr = config?.worker_routing;
+  if (!wr) return null;
+  const free = wr.free_model ?? wr.default_model;
+  const plus = wr.plus_model ?? free;
+  if (!free && !plus) return null;
+  return { free: free ?? "", plus: plus ?? free ?? "" };
 }
 
 export function resolveEffectiveModel(
   config: PlaygroundConfigSlice | null,
   uiModel: string,
-  useWorkerToml: boolean,
+  flags: Pick<PlaygroundSessionFlags, "useWorkerToml">,
 ): string {
-  if (useWorkerToml) return config?.worker_routing?.default_model ?? "";
-  return uiModel;
+  if (uiModel.trim()) return uiModel.trim();
+  if (flags.useWorkerToml) {
+    return config?.worker_routing?.default_model ?? config?.model ?? "";
+  }
+  return config?.model ?? "";
 }
 
 export function resolveEffectiveGateway(

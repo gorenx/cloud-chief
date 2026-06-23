@@ -27,7 +27,12 @@ export interface WorkerRoutingInfo {
   account_id: string;
   gateway: string;
   provider_slug: string;
+  /** Legacy fallback when FREE_MODEL unset */
   default_model: string | null;
+  /** Free tier enforced model (ai-gateway-worker enforce.ts) */
+  free_model: string | null;
+  /** Plus tier enforced model */
+  plus_model: string | null;
   provider: ProviderInfo | null;
   path: string;
   invoke_url: string;
@@ -54,11 +59,17 @@ export function buildWorkerRouting(
       ? gatewayUrlWithAccount(accountId, gateway, slug, pathStr)
       : "";
 
+  const defaultModel = vars.DEFAULT_MODEL ?? null;
+  const freeModel = vars.FREE_MODEL?.trim() || defaultModel;
+  const plusModel = vars.PLUS_MODEL?.trim() || null;
+
   return {
     account_id: accountId,
     gateway,
     provider_slug: slug,
-    default_model: vars.DEFAULT_MODEL ?? null,
+    default_model: defaultModel,
+    free_model: freeModel,
+    plus_model: plusModel,
     provider,
     path: pathStr,
     invoke_url: invokeUrl,

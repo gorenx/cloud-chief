@@ -2,7 +2,7 @@ import type { FieldMetaEntry, FieldSource } from "@/types";
 import { useT } from "@/contexts/LocaleContext";
 import type { MessageKey } from "@/i18n";
 import { cn } from "@/lib/utils";
-import type { SelectHTMLAttributes } from "react";
+import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
 
 const SOURCE_LABEL_KEYS: Record<FieldSource, MessageKey> = {
   env: "source.env",
@@ -93,6 +93,38 @@ export function SelectWithSourceBadge({
       </select>
       {meta && (
         <span className="pointer-events-none absolute right-7 top-1/2 -translate-y-1/2">
+          <SourceBadge meta={meta} />
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function InputWithSourceBadge({
+  meta,
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { meta?: FieldMetaEntry }) {
+  const badgePad =
+    meta?.source === "env" ? "pr-[6.5rem]" : meta ? "pr-[4.5rem]" : "pr-3";
+
+  return (
+    <div
+      className={cn(
+        "relative min-w-0 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] focus-within:border-[var(--color-accent)]",
+        props.disabled && "opacity-60",
+      )}
+    >
+      <input
+        className={cn(
+          "w-full rounded-lg border-0 bg-transparent py-2 pl-3 text-sm text-[var(--color-text)] outline-none placeholder:text-[var(--color-muted)]/60",
+          badgePad,
+          className,
+        )}
+        {...props}
+      />
+      {meta && (
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
           <SourceBadge meta={meta} />
         </span>
       )}

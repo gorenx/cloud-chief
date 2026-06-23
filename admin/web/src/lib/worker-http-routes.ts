@@ -1,3 +1,5 @@
+import type { WorkerCapabilities } from "./playground-session";
+
 export {
   buildWorkerUpstreamUrl,
   resolveWorkerHttpPath,
@@ -20,15 +22,7 @@ export const WORKER_CONSOLE_MODE_KEY = "admin-playground-worker-console-mode";
 
 export type WorkerConsoleMode = "chat" | "api";
 
-const DEFAULT_ROUTES: WorkerHttpRoute[] = [
-  {
-    id: "health",
-    label: "GET /health",
-    method: "GET",
-    path: "/health",
-    body: "",
-    builtin: true,
-  },
+const CHAT_ROUTES: WorkerHttpRoute[] = [
   {
     id: "responses",
     label: "POST /v1/responses",
@@ -63,21 +57,40 @@ const DEFAULT_ROUTES: WorkerHttpRoute[] = [
   },
 ];
 
-function mergeRoutes(custom: WorkerHttpRoute[]): WorkerHttpRoute[] {
-  const builtins = DEFAULT_ROUTES.map((r) => ({ ...r }));
+const HEALTH_ROUTE: WorkerHttpRoute = {
+  id: "health",
+  label: "GET /health",
+  method: "GET",
+  path: "/health",
+  body: "",
+  builtin: true,
+};
+
+export function defaultRoutesForCapabilities(
+  caps: Pick<WorkerCapabilities, "supports_chat"> = { supports_chat: true },
+): WorkerHttpRoute[] {
+  const routes = [HEALTH_ROUTE];
+  if (caps.supports_chat) routes.push(...CHAT_ROUTES);
+  return routes;
+}
+
+function mergeRoutes(custom: WorkerHttpRoute[], caps: Pick<WorkerCapabilities, "supports_chat">): WorkerHttpRoute[] {
+  const builtins = defaultRoutesForCapabilities(caps).map((r) => ({ ...r }));
   const customOnly = custom.filter((r) => !r.builtin && !builtins.some((b) => b.id === r.id));
   return [...builtins, ...customOnly];
 }
 
-export function readWorkerHttpRoutes(): WorkerHttpRoute[] {
+export function readWorkerHttpRoutes(
+  caps: Pick<WorkerCapabilities, "supports_chat"> = { supports_chat: true },
+): WorkerHttpRoute[] {
   try {
     const raw = localStorage.getItem(WORKER_HTTP_ROUTES_KEY);
-    if (!raw) return DEFAULT_ROUTES;
+    if (!raw) return defaultRoutesForCapabilities(caps);
     const custom = JSON.parse(raw) as WorkerHttpRoute[];
-    if (!Array.isArray(custom)) return DEFAULT_ROUTES;
-    return mergeRoutes(custom);
+    if (!Array.isArray(custom)) return defaultRoutesForCapabilities(caps);
+    return mergeRoutes(custom, caps);
   } catch {
-    return DEFAULT_ROUTES;
+    return defaultRoutesForCapabilities(caps);
   }
 }
 
@@ -90,11 +103,14 @@ export function persistCustomWorkerRoutes(routes: WorkerHttpRoute[]) {
   }
 }
 
-export function readActiveWorkerRouteId(): string {
+export function readActiveWorkerRouteId(
+  caps: Pick<WorkerCapabilities, "supports_chat"> = { supports_chat: true },
+): string {
+  const defaults = defaultRoutesForCapabilities(caps);
   try {
-    return localStorage.getItem(WORKER_HTTP_ACTIVE_KEY) ?? DEFAULT_ROUTES[1]!.id;
+    return localStorage.getItem(WORKER_HTTP_ACTIVE_KEY) ?? defaults[0]!.id;
   } catch {
-    return DEFAULT_ROUTES[1]!.id;
+    return defaults[0]!.id;
   }
 }
 

@@ -22,6 +22,7 @@ import {
   resolveInspectTarget,
   resolveRequestPath,
   resolveWorkerDisplayUrl,
+  resolveWorkerTierModels,
   type WorkerTarget,
 } from "@/lib/playground-session";
 import { resolvePlaygroundDataView } from "@/lib/playground-sources";
@@ -143,8 +144,14 @@ export function usePlaygroundSession() {
   const testEmailInitialized = useRef(false);
 
   const config = configQ.data ?? null;
-  const flags = deriveSessionFlags(inspectTarget, effectiveWorkerConfigSource);
-  const effectiveModel = resolveEffectiveModel(config, uiModel, flags.useWorkerToml);
+  const workerCapabilities = config?.worker?.capabilities ?? null;
+  const flags = deriveSessionFlags(
+    inspectTarget,
+    effectiveWorkerConfigSource,
+    workerCapabilities,
+  );
+  const effectiveModel = resolveEffectiveModel(config, uiModel, flags);
+  const workerTierModels = resolveWorkerTierModels(config);
   const effectiveGateway = resolveEffectiveGateway(config, gateway, flags.useWorkerToml);
   const catalogRefetched = useRef(false);
 
@@ -196,9 +203,10 @@ export function usePlaygroundSession() {
   });
 
   const modelMeta = config?.models.find((m) => m.id === effectiveModel) ?? null;
-  const routing = config
-    ? playgroundRouting(config, effectiveGateway, effectiveModel)
-    : null;
+  const routing =
+    config && !flags.hideGatewayModel
+      ? playgroundRouting(config, effectiveGateway, effectiveModel)
+      : null;
 
   const startLocalDevM = useMutation({
     mutationFn: async () => {
@@ -248,6 +256,7 @@ export function usePlaygroundSession() {
     inspectTarget,
     config,
     flags,
+    workerCapabilities,
     workerConfigSource,
     setWorkerConfigSource,
     workerTarget,
@@ -262,6 +271,7 @@ export function usePlaygroundSession() {
     uiModel,
     setUiModel,
     effectiveModel,
+    workerTierModels,
     effectiveGateway,
     modelMeta,
     routing,

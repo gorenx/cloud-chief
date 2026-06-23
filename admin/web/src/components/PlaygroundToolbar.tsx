@@ -1,7 +1,7 @@
 import { useT } from "@/contexts/LocaleContext";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { FieldLabel, SelectWithSourceBadge } from "@/components/SourceBadge";
+import { FieldLabel, InputWithSourceBadge, SelectWithSourceBadge } from "@/components/SourceBadge";
 import { WorkerConfigSourceToggle } from "@/components/WorkerConfigSourceToggle";
 import { WorkerTargetToggle } from "@/components/WorkerTargetToggle";
 import { PlaygroundWorkerSelect } from "@/components/PlaygroundWorkerSelect";
@@ -11,6 +11,7 @@ import type {
   WorkerConfigSource,
   WorkerTarget,
 } from "@/lib/playground-session";
+import { resolveWorkerTierModels } from "@/lib/playground-session";
 import type { PlaygroundDataView } from "@/lib/playground-sources";
 import type { FieldMetaEntry, PublicConfig, WorkerListEntry } from "@/types";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,10 @@ function gatewayOptions(
   return [effectiveGateway, ...base];
 }
 
+function modelListId(layout: ToolbarLayout) {
+  return layout === "sidebar" ? "playground-model-options-sidebar" : "playground-model-options-bar";
+}
+
 type ToolbarLayout = "sidebar" | "bar";
 
 type GatewayModelToolbarProps = {
@@ -35,6 +40,8 @@ type GatewayModelToolbarProps = {
   onGatewayChange: (gateway: string) => void;
   effectiveModel: string;
   onModelChange: (model: string) => void;
+  workerTierModels?: { free: string; plus: string } | null;
+  workerHasGatewayModelVars?: boolean;
   catalogSynced?: string[];
 };
 
@@ -47,6 +54,7 @@ function GatewayModelFields({
   onGatewayChange,
   effectiveModel,
   onModelChange,
+  workerTierModels,
   catalogSynced,
 }: GatewayModelToolbarProps) {
   const t = useT();
@@ -54,6 +62,7 @@ function GatewayModelFields({
   const modelOptions = config?.models ?? [];
   const gatewayOpts = gatewayOptions(config?.gateways, effectiveGateway);
   const sidebar = layout === "sidebar";
+  const tierModels = workerTierModels ?? resolveWorkerTierModels(config);
 
   const gatewaySelect = (
     <SelectWithSourceBadge
@@ -73,43 +82,53 @@ function GatewayModelFields({
   );
 
   const modelSelect = (
-    <SelectWithSourceBadge
-      meta={controls.model as FieldMetaEntry}
-      value={effectiveModel}
-      onChange={(e) => onModelChange(e.target.value)}
-      disabled={flags.modelLocked}
-      title={flags.modelLocked ? t("playground.modelLockedTitle") : undefined}
-      className="min-w-0 w-full disabled:opacity-60"
-    >
-      {modelOptions.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.display_name || m.id}
-        </option>
-      ))}
-    </SelectWithSourceBadge>
+    <>
+      <InputWithSourceBadge
+        meta={controls.model as FieldMetaEntry}
+        list={modelListId(layout)}
+        value={effectiveModel}
+        onChange={(e) => onModelChange(e.target.value)}
+        disabled={flags.modelLocked}
+        placeholder={t("playground.modelInputPlaceholder")}
+        title={flags.modelLocked ? t("playground.modelLockedTitle") : undefined}
+        className="min-w-0 w-full"
+      />
+      <datalist id={modelListId(layout)}>
+        {modelOptions.map((m) => (
+          <option key={m.id} value={m.id} label={m.display_name || m.id} />
+        ))}
+      </datalist>
+      {flags.workerModelEnforced && tierModels ? (
+        <p className="mt-1.5 text-[10px] leading-relaxed text-[var(--color-muted)]">
+          {t("playground.modelEnforcedHint")}
+        </p>
+      ) : null}
+    </>
   );
 
   return (
     <>
-      {sidebar ? (
-        <>
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <FieldLabel label={t("playground.sourceGateway")} meta={controls.gateway as FieldMetaEntry} />
+      {!flags.hideGatewayModel && (
+        sidebar ? (
+          <>
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <FieldLabel label={t("playground.sourceGateway")} meta={controls.gateway as FieldMetaEntry} />
+              {gatewaySelect}
+            </label>
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <FieldLabel label={t("playground.sourceModel")} meta={controls.model as FieldMetaEntry} />
+              {modelSelect}
+            </label>
+          </>
+        ) : (
+          <>
             {gatewaySelect}
-          </label>
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <FieldLabel label={t("playground.sourceModel")} meta={controls.model as FieldMetaEntry} />
             {modelSelect}
-          </label>
-        </>
-      ) : (
-        <>
-          {gatewaySelect}
-          {modelSelect}
-        </>
+          </>
+        )
       )}
 
-      {catalogSynced && catalogSynced.length > 0 && (
+      {!flags.hideGatewayModel && catalogSynced && catalogSynced.length > 0 && (
         <p className={cn("text-xs text-[var(--color-ice)]/90", !sidebar && "col-span-full")}>
           {t("playground.catalogSynced", {
             models: catalogSynced.join(t("common.listSeparator")),
@@ -190,9 +209,11 @@ export function PlaygroundChatToolbar({
         />
       )}
 
-      <div className={sidebar ? sidebarStack : barGrid}>
-        <GatewayModelFields layout={layout} {...gatewayModelProps} />
-      </div>
+      {(chatPath !== "worker" || gatewayModelProps.workerHasGatewayModelVars) && (
+        <div className={sidebar ? sidebarStack : barGrid}>
+          <GatewayModelFields layout={layout} {...gatewayModelProps} />
+        </div>
+      )}
     </div>
   );
 }
@@ -256,20 +277,26 @@ export function PlaygroundWorkerToolbar({
           />
         </div>
 
-        <div className={sidebar ? "space-y-1.5" : undefined}>
-          {sidebar && (
-            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-muted)]/75">
-              {t("playground.workerConfigSourceLabel")}
-            </span>
-          )}
-          <WorkerConfigSourceToggle
-            value={workerConfigSource}
-            onChange={onWorkerConfigSourceChange}
-            className={sidebar ? "w-full" : undefined}
-          />
-        </div>
+        {gatewayModelProps.workerHasGatewayModelVars &&
+          !gatewayModelProps.flags.hideGatewayModel && (
+          <div className={sidebar ? "space-y-1.5" : undefined}>
+            {sidebar && (
+              <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-muted)]/75">
+                {t("playground.workerConfigSourceLabel")}
+              </span>
+            )}
+            <WorkerConfigSourceToggle
+              value={workerConfigSource}
+              onChange={onWorkerConfigSourceChange}
+              className={sidebar ? "w-full" : undefined}
+            />
+          </div>
+        )}
 
-        <GatewayModelFields layout={layout} {...gatewayModelProps} />
+        {gatewayModelProps.workerHasGatewayModelVars &&
+          !gatewayModelProps.flags.hideGatewayModel && (
+          <GatewayModelFields layout={layout} {...gatewayModelProps} />
+        )}
 
         {workerTarget === "local" && onStartLocalDev ? (
           <Button

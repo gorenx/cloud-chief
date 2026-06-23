@@ -53,6 +53,8 @@ export interface WorkerRoutingInfo {
   gateway: string;
   provider_slug: string;
   default_model: string | null;
+  free_model: string | null;
+  plus_model: string | null;
   provider: { slug: string; base_url: string; enable?: boolean } | null;
   path: string;
   invoke_url: string;
@@ -92,6 +94,11 @@ export interface ByokKey {
 }
 
 export interface WorkerDebugInfo {
+  capabilities: {
+    uses_gateway: boolean;
+    uses_model: boolean;
+    supports_chat: boolean;
+  };
   url: string;
   local_url: string;
   online_url: string | null;
@@ -105,7 +112,7 @@ export interface WorkerDebugInfo {
   cf_error?: string | null;
   has_anon_key: boolean;
   has_test_credentials: boolean;
-  endpoints: ["/v1/responses", "/v1/chat/completions"];
+  endpoints: readonly string[];
 }
 
 export interface PublicConfig {
