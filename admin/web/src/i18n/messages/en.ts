@@ -294,6 +294,7 @@ export const enMessages: Messages = {
     workerModeApi: "API debug",
     httpRouteLabel: "API route",
     httpHostLabel: "Host",
+    httpHostPlaceholder: "https://api.example.com or http://127.0.0.1:8788",
     httpPathLabel: "Path",
     httpRequestUrl: "Request URL",
     httpAddRoute: "Add route",

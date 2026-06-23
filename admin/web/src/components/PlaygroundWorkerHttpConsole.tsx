@@ -9,6 +9,7 @@ import type { WorkerTarget } from "@/lib/playground-session";
 import type { WorkerCapabilities } from "@/lib/playground-session";
 import {
   formatResponseBody,
+  normalizeWorkerBaseUrl,
   persistActiveWorkerRouteId,
   persistCustomWorkerRoutes,
   readActiveWorkerRouteId,
@@ -30,6 +31,7 @@ export function PlaygroundWorkerHttpConsole({
   workerTestPassword,
   effectiveWorkerUrl,
   onRequestChange,
+  onHostChange,
 }: {
   workerDir: string;
   workerTarget: WorkerTarget;
@@ -39,10 +41,28 @@ export function PlaygroundWorkerHttpConsole({
   workerTestPassword: string;
   effectiveWorkerUrl: string;
   onRequestChange?: (method: WorkerHttpMethod, path: string) => void;
+  onHostChange?: (host: string) => void;
 }) {
   const t = useT();
   const { sending, result, send } = usePlaygroundWorkerHttp();
-  const workerBase = effectiveWorkerUrl.replace(/\/$/, "");
+  const defaultBase = effectiveWorkerUrl.replace(/\/$/, "");
+  const [hostBase, setHostBase] = useState(defaultBase);
+  const [hostError, setHostError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHostBase(defaultBase);
+    setHostError(null);
+  }, [defaultBase, workerDir]);
+
+  useEffect(() => {
+    onHostChange?.(hostBase);
+  }, [hostBase, onHostChange]);
+
+  const workerBase = useMemo(() => {
+    const normalized = normalizeWorkerBaseUrl(hostBase);
+    if ("error" in normalized) return hostBase.replace(/\/$/, "");
+    return normalized.url;
+  }, [hostBase]);
   const [routes, setRoutes] = useState<WorkerHttpRoute[]>(() =>
     readWorkerHttpRoutes(workerCapabilities),
   );
@@ -104,8 +124,20 @@ export function PlaygroundWorkerHttpConsole({
     }
   }
 
+  function resolveHostBase(): string | null {
+    const normalized = normalizeWorkerBaseUrl(hostBase);
+    if ("error" in normalized) {
+      setHostError(normalized.error);
+      return null;
+    }
+    setHostError(null);
+    return normalized.url;
+  }
+
   function handleSaveRoute() {
-    const resolved = resolveWorkerHttpPath(workerBase, path);
+    const base = resolveHostBase();
+    if (!base) return;
+    const resolved = resolveWorkerHttpPath(base, path);
     if ("error" in resolved) {
       setPathError(resolved.error);
       return;
@@ -151,7 +183,9 @@ export function PlaygroundWorkerHttpConsole({
   }
 
   function handleSend() {
-    const resolved = resolveWorkerHttpPath(workerBase, path);
+    const base = resolveHostBase();
+    if (!base) return;
+    const resolved = resolveWorkerHttpPath(base, path);
     if ("error" in resolved) {
       setPathError(resolved.error);
       return;
@@ -163,6 +197,7 @@ export function PlaygroundWorkerHttpConsole({
       body,
       workerDir,
       workerTarget,
+      workerBase: base,
       workerAccessToken,
       workerTestEmail,
       workerTestPassword,
@@ -174,12 +209,23 @@ export function PlaygroundWorkerHttpConsole({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 space-y-2 border-b border-[var(--color-border-subtle)] px-4 py-3 sm:px-5">
-        <div className="flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/40 px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/40 px-3 py-2 focus-within:border-[var(--color-accent)]">
           <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-muted)]/75">
             {t("playground.httpHostLabel")}
           </span>
-          <code className="mono min-w-0 flex-1 truncate text-xs text-[var(--color-ice)]/90">{workerBase}</code>
+          <input
+            value={hostBase}
+            onChange={(e) => {
+              setHostBase(e.target.value);
+              setHostError(null);
+            }}
+            placeholder={t("playground.httpHostPlaceholder")}
+            spellCheck={false}
+            aria-label={t("playground.httpHostLabel")}
+            className="mono min-w-0 flex-1 bg-transparent text-xs text-[var(--color-ice)] outline-none placeholder:text-[var(--color-muted)]/50"
+          />
         </div>
+        {hostError && <p className="text-xs text-[var(--color-err)]">{hostError}</p>}
 
         <div className="flex min-w-0 items-stretch overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)]/60 focus-within:border-[var(--color-accent)]">
           <Select

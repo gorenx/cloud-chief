@@ -8,6 +8,21 @@ function parseBaseUrl(base: string): URL | null {
   }
 }
 
+/** 规范化 Playground 输入的 Worker 基址（仅 origin，无路径） */
+export function normalizeWorkerBaseUrl(raw: string): { url: string } | { error: string } {
+  const trimmed = raw.trim();
+  if (!trimmed) return { error: "Host 不能为空" };
+
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const u = new URL(withScheme);
+    if (u.username || u.password) return { error: "无效 Host" };
+    return { url: `${u.protocol}//${u.host}` };
+  } catch {
+    return { error: "无效 Host" };
+  }
+}
+
 function finalizeWorkerPath(path: string): { path: string } | { error: string } {
   if (path.includes("..") || path.includes("\\") || path.includes("://")) {
     return { error: "无效路径" };

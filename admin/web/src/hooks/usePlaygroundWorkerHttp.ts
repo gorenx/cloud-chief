@@ -25,6 +25,7 @@ export function usePlaygroundWorkerHttp() {
       body: string;
       workerDir?: string;
       workerTarget: WorkerTarget;
+      workerBase?: string;
       workerAccessToken: string;
       workerTestEmail?: string;
       workerTestPassword?: string;
@@ -59,6 +60,7 @@ export function usePlaygroundWorkerHttp() {
             body: parsedBody,
             worker_dir: params.workerDir || undefined,
             worker_target: params.workerTarget,
+            worker_base: params.workerBase?.trim() || undefined,
             access_token: params.workerAccessToken.trim() || undefined,
             email: params.workerTestEmail?.trim() || undefined,
             password: params.workerTestPassword || undefined,

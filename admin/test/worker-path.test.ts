@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  normalizeWorkerBaseUrl,
   normalizeWorkerPath,
   parseWorkerHttpMethod,
   resolveWorkerHttpPath,
@@ -30,6 +31,17 @@ describe("resolveWorkerHttpPath", () => {
 
   it("rejects unsafe paths", () => {
     expect(resolveWorkerHttpPath(BASE, "../etc/passwd")).toEqual({ error: "无效路径" });
+  });
+});
+
+describe("normalizeWorkerBaseUrl", () => {
+  it("adds https scheme and strips path", () => {
+    expect(normalizeWorkerBaseUrl("api.example.com")).toEqual({ url: "https://api.example.com" });
+    expect(normalizeWorkerBaseUrl("http://127.0.0.1:8788")).toEqual({ url: "http://127.0.0.1:8788" });
+  });
+
+  it("rejects empty host", () => {
+    expect(normalizeWorkerBaseUrl("  ")).toEqual({ error: "Host 不能为空" });
   });
 });
 

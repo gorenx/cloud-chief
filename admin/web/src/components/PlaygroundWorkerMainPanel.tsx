@@ -29,6 +29,7 @@ export function PlaygroundWorkerMainPanel({
   effectiveWorkerUrl,
   onModeChange,
   onApiRequestChange,
+  onApiHostChange,
 }: {
   chatRef: RefObject<HTMLDivElement | null>;
   messages: ChatMessage[];
@@ -46,6 +47,7 @@ export function PlaygroundWorkerMainPanel({
   effectiveWorkerUrl: string;
   onModeChange?: (mode: WorkerConsoleMode) => void;
   onApiRequestChange?: (method: string, path: string) => void;
+  onApiHostChange?: (host: string) => void;
 }) {
   const t = useT();
   const supportsChat = flags.supportsChat;
@@ -97,6 +99,7 @@ export function PlaygroundWorkerMainPanel({
           workerTestPassword={workerTestPassword}
           effectiveWorkerUrl={effectiveWorkerUrl}
           onRequestChange={onApiRequestChange}
+          onHostChange={onApiHostChange}
         />
       )}
     </div>

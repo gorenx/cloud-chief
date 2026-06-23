@@ -2,6 +2,7 @@ import type { WorkerCapabilities } from "./playground-session";
 
 export {
   buildWorkerUpstreamUrl,
+  normalizeWorkerBaseUrl,
   resolveWorkerHttpPath,
 } from "@admin/worker-path";
 

@@ -291,6 +291,7 @@ export const zhMessages: Messages = {
     workerModeApi: "API 调试",
     httpRouteLabel: "API 路由",
     httpHostLabel: "Host",
+    httpHostPlaceholder: "https://api.example.com 或 http://127.0.0.1:8788",
     httpPathLabel: "Path",
     httpRequestUrl: "请求 URL",
     httpAddRoute: "添加路由",

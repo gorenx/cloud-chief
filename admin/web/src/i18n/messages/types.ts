@@ -261,6 +261,7 @@ export interface Messages {
     workerModeApi: string;
     httpRouteLabel: string;
     httpHostLabel: string;
+    httpHostPlaceholder: string;
     httpPathLabel: string;
     httpRequestUrl: string;
     httpAddRoute: string;

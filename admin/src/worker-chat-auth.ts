@@ -1,9 +1,11 @@
 import { fetchSupabaseAccessToken } from "./supabase-auth";
+import { normalizeWorkerBaseUrl } from "./worker-path";
 import { getWorkerRuntimeConfig, parseWorkerEndpoint, pickWorkerUrl } from "./worker-runtime";
 
 export type WorkerChatAuthPayload = {
   worker_dir?: string;
   worker_target?: string;
+  worker_base?: string;
   access_token?: string;
   email?: string;
   password?: string;
@@ -26,10 +28,20 @@ export async function resolveWorkerChatAuth(
     dir: typeof payload.worker_dir === "string" ? payload.worker_dir : undefined,
   });
   const endpoint = parseWorkerEndpoint(payload.worker_target);
+  const customBase = typeof payload.worker_base === "string" ? payload.worker_base.trim() : "";
   const picked = pickWorkerUrl(runtime, endpoint);
-  if (picked.error) return { ok: false, error: picked.error, status: 400 };
+  if (picked.error && !customBase) {
+    return { ok: false, error: picked.error, status: 400 };
+  }
 
-  const base = picked.url.replace(/\/$/, "");
+  let base = picked.url.replace(/\/$/, "");
+  if (customBase) {
+    const normalized = normalizeWorkerBaseUrl(customBase);
+    if ("error" in normalized) {
+      return { ok: false, error: normalized.error, status: 400 };
+    }
+    base = normalized.url;
+  }
   const requireToken = options?.requireToken !== false;
 
   if (!requireToken) {

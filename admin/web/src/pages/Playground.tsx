@@ -29,6 +29,7 @@ export function PlaygroundPage() {
   const [workerConsoleMode, setWorkerConsoleMode] = useState<WorkerConsoleMode>(readWorkerConsoleMode);
   const [workerApiMethod, setWorkerApiMethod] = useState("POST");
   const [workerApiPath, setWorkerApiPath] = useState("/v1/responses");
+  const [workerApiHost, setWorkerApiHost] = useState("");
 
   const session = usePlaygroundSession();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -77,6 +78,10 @@ export function PlaygroundPage() {
     workerCapabilities,
     refetchConfig,
   } = session;
+
+  useEffect(() => {
+    setWorkerApiHost(effectiveWorkerUrl.replace(/\/$/, ""));
+  }, [effectiveWorkerUrl, workerDir]);
 
   useEffect(() => {
     const supabase = searchParams.get("supabase");
@@ -148,9 +153,11 @@ export function PlaygroundPage() {
   const isApiOnlyWorker = flags.hideGatewayModel;
   const showInspectorPanel = Boolean(routing || isApiOnlyWorker);
 
+  const apiWorkerBase = workerApiHost || effectiveWorkerUrl;
+
   const workerInspectorEndpoint =
     !flags.supportsChat || workerConsoleMode === "api"
-      ? `${workerApiMethod} ${buildWorkerUpstreamUrl(effectiveWorkerUrl, workerApiPath)}`
+      ? `${workerApiMethod} ${buildWorkerUpstreamUrl(apiWorkerBase, workerApiPath)}`
       : "POST /api/worker-chat";
 
   const inspectorEndpoint =
@@ -158,7 +165,7 @@ export function PlaygroundPage() {
       ? workerInspectorEndpoint
       : requestPath === "worker"
         ? !flags.supportsChat
-          ? `${workerApiMethod} ${buildWorkerUpstreamUrl(effectiveWorkerUrl, workerApiPath)}`
+          ? `${workerApiMethod} ${buildWorkerUpstreamUrl(apiWorkerBase, workerApiPath)}`
           : "POST /api/worker-chat"
         : "POST /api/chat";
 
@@ -276,6 +283,7 @@ export function PlaygroundPage() {
                     setWorkerApiMethod(method);
                     setWorkerApiPath(path);
                   }}
+                  onApiHostChange={setWorkerApiHost}
                 />
               ) : requestPath === "worker" && !flags.supportsChat ? (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-12 text-center">
