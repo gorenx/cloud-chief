@@ -85,6 +85,7 @@ export function PlaygroundRoutingSidebar({
         <WorkerChatNotice
           workerUrl={effectiveWorkerUrl}
           workerTarget={workerTarget}
+          workerEndpoints={workerInfo.url_endpoints}
           workerUrlMeta={controls.workerUrl}
           onHealthCheck={onWorkerHealthCheck}
           healthChecking={workerHealthChecking}

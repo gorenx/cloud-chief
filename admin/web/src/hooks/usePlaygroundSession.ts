@@ -17,6 +17,10 @@ import {
   deriveSessionFlags,
   readChatPath,
   readDebugTab,
+  readWorkerEndpoint,
+  persistWorkerEndpoint,
+  parseWorkerEndpoint,
+  WORKER_ENDPOINT_LOCAL,
   resolveEffectiveGateway,
   resolveEffectiveModel,
   resolveInspectTarget,
@@ -62,7 +66,13 @@ export function usePlaygroundSession() {
   const [chatPath, setChatPathState] = useState<ChatPath>(readChatPath);
   const [workerConfigSource, setWorkerConfigSource] =
     useState<WorkerConfigSource>("worker");
-  const [workerTarget, setWorkerTarget] = useState<WorkerTarget>("local");
+  const [workerTarget, setWorkerTargetState] = useState<WorkerTarget>(readWorkerEndpoint);
+
+  const setWorkerTarget = useCallback((endpoint: WorkerTarget) => {
+    const parsed = parseWorkerEndpoint(endpoint);
+    setWorkerTargetState(parsed);
+    persistWorkerEndpoint(parsed);
+  }, []);
   const [workerDir, setWorkerDirState] = useState(readStoredWorkerDir);
   const [gateway, setGateway] = useState("");
   const [uiModel, setUiModel] = useState("");
@@ -185,10 +195,14 @@ export function usePlaygroundSession() {
   }, [supabaseStatusQ.isSuccess, supabaseStatusQ.data]);
 
   useEffect(() => {
-    if (config && !config.worker.online_available) {
-      setWorkerTarget((prev) => (prev === "online" ? "local" : prev));
-    }
-  }, [config?.worker.online_available]);
+    const endpoints = config?.worker.url_endpoints;
+    if (!endpoints?.length) return;
+    setWorkerTargetState((prev) => {
+      const parsed = parseWorkerEndpoint(prev);
+      if (endpoints.some((e) => e.id === parsed)) return parsed;
+      return WORKER_ENDPOINT_LOCAL;
+    });
+  }, [config?.worker.url_endpoints]);
 
   const effectiveWorkerUrl = resolveWorkerDisplayUrl(config?.worker ?? null, workerTarget);
 

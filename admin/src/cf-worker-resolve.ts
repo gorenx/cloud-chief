@@ -156,6 +156,38 @@ export function findCfWorkerByName(
   return scripts.find((s) => s.name === scriptName) ?? null;
 }
 
+/** 列出绑定到指定 Worker 脚本的 Custom Domain 主机名 */
+export async function listWorkerCustomDomains(
+  scriptName: string,
+  hasApiToken: boolean,
+): Promise<{ ok: boolean; hostnames: string[]; error?: string }> {
+  if (!hasApiToken) {
+    return { ok: false, hostnames: [], error: "未配置 CF_API_TOKEN" };
+  }
+  if (!scriptName) {
+    return { ok: false, hostnames: [], error: "缺少 worker 脚本名" };
+  }
+
+  const res = await cfApi(
+    "GET",
+    `/workers/domains?service=${encodeURIComponent(scriptName)}`,
+  );
+
+  if (!res.json.success) {
+    const msg =
+      (res.json.errors as Array<{ message?: string }> | undefined)?.[0]?.message ??
+      `Worker domains HTTP ${res.status}`;
+    return { ok: false, hostnames: [], error: msg };
+  }
+
+  const rows = Array.isArray(res.json.result) ? res.json.result : [];
+  const hostnames = rows
+    .map((row) => (row as { hostname?: string }).hostname)
+    .filter((h): h is string => typeof h === "string" && h.length > 0);
+
+  return { ok: true, hostnames };
+}
+
 /** 从 Cloudflare API 解析已部署 Worker 的 workers.dev URL 与 [vars] 明文绑定 */
 export async function resolveWorkerFromCf(
   scriptName: string,

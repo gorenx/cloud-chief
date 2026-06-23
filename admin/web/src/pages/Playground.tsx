@@ -226,6 +226,9 @@ export function PlaygroundPage() {
                     workers={workers}
                     workersLoading={workersLoading}
                     hasAdminToken={Boolean(token)}
+                    workerEndpoints={config?.worker.url_endpoints ?? []}
+                    workerTarget={workerTarget}
+                    onWorkerTargetChange={setWorkerTarget}
                     {...sharedToolbarProps}
                   />
                 )}
@@ -236,7 +239,7 @@ export function PlaygroundPage() {
                     onWorkerConfigSourceChange={setWorkerConfigSource}
                     workerTarget={workerTarget}
                     onWorkerTargetChange={setWorkerTarget}
-                    workerOnlineAvailable={config?.worker.online_available ?? false}
+                    workerEndpoints={config?.worker.url_endpoints ?? []}
                     workerDir={workerDir}
                     onWorkerDirChange={setWorkerDir}
                     workers={workers}

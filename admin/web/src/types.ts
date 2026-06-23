@@ -103,6 +103,8 @@ export interface WorkerDebugInfo {
   local_url: string;
   online_url: string | null;
   online_available: boolean;
+  custom_domains: string[];
+  url_endpoints: import("@admin/worker-endpoints").WorkerEndpointOption[];
   url_source?: "cf" | "env" | "wrangler" | "default";
   worker_name: string | null;
   supabase_url: string | null;

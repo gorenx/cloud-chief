@@ -1,5 +1,5 @@
 import { fetchSupabaseAccessToken } from "./supabase-auth";
-import { getWorkerRuntimeConfig, parseWorkerTarget, pickWorkerUrl } from "./worker-runtime";
+import { getWorkerRuntimeConfig, parseWorkerEndpoint, pickWorkerUrl } from "./worker-runtime";
 
 export type WorkerChatAuthPayload = {
   worker_dir?: string;
@@ -13,7 +13,7 @@ export type WorkerChatAuthResult =
   | {
       ok: true;
       base: string;
-      target: ReturnType<typeof parseWorkerTarget>;
+      target: string;
       accessToken: string;
     }
   | { ok: false; error: string; status?: 400 };
@@ -25,15 +25,15 @@ export async function resolveWorkerChatAuth(
   const runtime = await getWorkerRuntimeConfig({
     dir: typeof payload.worker_dir === "string" ? payload.worker_dir : undefined,
   });
-  const target = parseWorkerTarget(payload.worker_target);
-  const picked = pickWorkerUrl(runtime, target);
+  const endpoint = parseWorkerEndpoint(payload.worker_target);
+  const picked = pickWorkerUrl(runtime, endpoint);
   if (picked.error) return { ok: false, error: picked.error, status: 400 };
 
   const base = picked.url.replace(/\/$/, "");
   const requireToken = options?.requireToken !== false;
 
   if (!requireToken) {
-    return { ok: true, base, target, accessToken: "" };
+    return { ok: true, base, target: endpoint, accessToken: "" };
   }
 
   const supabaseUrl = runtime.vars.SUPABASE_URL;
@@ -59,5 +59,5 @@ export async function resolveWorkerChatAuth(
     accessToken = auth.access_token;
   }
 
-  return { ok: true, base, target, accessToken };
+  return { ok: true, base, target: endpoint, accessToken };
 }

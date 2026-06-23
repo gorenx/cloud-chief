@@ -1,15 +1,46 @@
 export type DebugTab = "chat" | "gateway" | "worker";
 export type ChatPath = "gateway" | "worker";
 export type WorkerConfigSource = "worker" | "ui";
-export type WorkerTarget = "local" | "online";
+import {
+  parseWorkerEndpoint,
+  WORKER_ENDPOINT_LOCAL,
+  WORKER_ENDPOINT_WORKERS_DEV,
+  type WorkerEndpointKind,
+  type WorkerEndpointOption,
+} from "@admin/worker-endpoints";
+
+export type { WorkerEndpointKind, WorkerEndpointOption };
+export { parseWorkerEndpoint, WORKER_ENDPOINT_LOCAL, WORKER_ENDPOINT_WORKERS_DEV };
+
+/** Playground 选中的 Worker 基址：local | workers_dev | custom:hostname（兼容 online） */
+export type WorkerTarget = string;
 
 export const DEBUG_TAB_KEY = "admin-playground-active-tab";
 export const CHAT_PATH_KEY = "admin-playground-chat-path";
+export const WORKER_ENDPOINT_KEY = "admin-playground-worker-endpoint";
 
 export interface WorkerCapabilities {
   uses_gateway: boolean;
   uses_model: boolean;
   supports_chat: boolean;
+}
+
+export function readWorkerEndpoint(): WorkerTarget {
+  try {
+    const v = localStorage.getItem(WORKER_ENDPOINT_KEY);
+    if (v) return parseWorkerEndpoint(v);
+  } catch {
+    /* ignore */
+  }
+  return WORKER_ENDPOINT_LOCAL;
+}
+
+export function persistWorkerEndpoint(endpoint: WorkerTarget) {
+  try {
+    localStorage.setItem(WORKER_ENDPOINT_KEY, parseWorkerEndpoint(endpoint));
+  } catch {
+    /* ignore */
+  }
 }
 
 export function readDebugTab(): DebugTab {
@@ -45,12 +76,21 @@ export function resolveRequestPath(tab: DebugTab, chatPath: ChatPath): ChatPath 
 }
 
 export function resolveWorkerDisplayUrl(
-  worker: { local_url?: string; online_url?: string | null; url: string } | null,
-  target: WorkerTarget,
+  worker: {
+    local_url?: string;
+    online_url?: string | null;
+    url: string;
+    url_endpoints?: import("@admin/worker-endpoints").WorkerEndpointOption[];
+  } | null,
+  endpointId: WorkerTarget,
 ): string {
   if (!worker) return "";
-  if (target === "online" && worker.online_url) return worker.online_url;
-  return worker.local_url ?? worker.url;
+  const id = parseWorkerEndpoint(endpointId);
+  const match = worker.url_endpoints?.find((e) => e.id === id);
+  if (match) return match.url;
+  if (id === WORKER_ENDPOINT_WORKERS_DEV) return worker.online_url ?? worker.url;
+  if (id === WORKER_ENDPOINT_LOCAL) return worker.local_url ?? worker.url;
+  return worker.url;
 }
 
 export interface PlaygroundConfigSlice {
@@ -200,7 +240,7 @@ export function buildChatRequest(params: ChatRequestParams): {
     messages: params.messages,
     endpoint: "responses",
     use_worker_config: params.useWorkerToml,
-    worker_target: params.workerTarget ?? "local",
+    worker_target: parseWorkerEndpoint(params.workerTarget ?? WORKER_ENDPOINT_LOCAL),
   };
   if (params.workerDir?.trim()) body.worker_dir = params.workerDir.trim();
   const token = params.workerAccessToken?.trim();

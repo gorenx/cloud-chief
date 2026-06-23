@@ -1,5 +1,6 @@
 import { env } from "./env";
 import type { WorkerRuntimeConfig } from "./worker-runtime";
+import type { WorkerEndpointOption } from "./worker-endpoints";
 import {
   detectWorkerCapabilities,
   inferWorkerEndpoints,
@@ -12,6 +13,8 @@ export interface WorkerDebugInfo {
   local_url: string;
   online_url: string | null;
   online_available: boolean;
+  custom_domains: string[];
+  url_endpoints: WorkerEndpointOption[];
   url_source: "cf" | "env" | "wrangler" | "default";
   worker_name: string | null;
   supabase_url: string | null;
@@ -32,6 +35,8 @@ export function buildWorkerDebugInfo(runtime: WorkerRuntimeConfig): WorkerDebugI
     local_url: runtime.local_url,
     online_url: runtime.online_url,
     online_available: runtime.online_available,
+    custom_domains: runtime.custom_domains,
+    url_endpoints: runtime.url_endpoints,
     url_source: runtime.url_source,
     worker_name: runtime.script_name,
     supabase_url: runtime.vars.SUPABASE_URL ?? null,

@@ -1,17 +1,31 @@
 import { env, workerDir } from "./env";
-import { resolveWorkerFromCf, mergeWorkerVars } from "./cf-worker-resolve";
+import { resolveWorkerFromCf, mergeWorkerVars, listWorkerCustomDomains } from "./cf-worker-resolve";
 import { resolveWorkerDirQuery } from "./worker-dir";
 import { readWranglerToml } from "./wrangler-vars";
+import {
+  buildWorkerEndpointOptions,
+  parseWorkerEndpoint,
+  pickEndpointUrl,
+  WORKER_ENDPOINT_LOCAL,
+  type WorkerEndpointOption,
+} from "./worker-endpoints";
 
 export type WorkerConfigSource = "cf" | "env" | "wrangler" | "default";
-export type WorkerTarget = "local" | "online";
+/** Playground / API：local | workers_dev | custom:hostname（兼容 online → workers_dev） */
+export type WorkerTarget = string;
+
+export type { WorkerEndpointOption, WorkerEndpointKind } from "./worker-endpoints";
+export { parseWorkerEndpoint, WORKER_ENDPOINT_LOCAL, WORKER_ENDPOINT_WORKERS_DEV } from "./worker-endpoints";
 
 export interface WorkerRuntimeConfig {
   script_name: string | null;
   url: string;
   local_url: string;
   online_url: string | null;
+  /** 至少有一个非 local 端点（workers.dev 或自定义域） */
   online_available: boolean;
+  custom_domains: string[];
+  url_endpoints: WorkerEndpointOption[];
   url_source: WorkerConfigSource;
   vars: Record<string, string>;
   vars_source: "cf" | "wrangler" | "merged";
@@ -48,24 +62,16 @@ function resolveLocalUrl(absDir: string): string {
   return `http://127.0.0.1:${port}`;
 }
 
+/** @deprecated 使用 parseWorkerEndpoint */
 export function parseWorkerTarget(raw: string | null | undefined): WorkerTarget {
-  return raw === "online" ? "online" : "local";
+  return parseWorkerEndpoint(raw);
 }
 
 export function pickWorkerUrl(
   runtime: WorkerRuntimeConfig,
-  target: WorkerTarget,
+  endpointId: string,
 ): { url: string; error?: string } {
-  if (target === "online") {
-    if (!runtime.online_url) {
-      return {
-        url: runtime.local_url,
-        error: "未解析到线上 Worker（需 CF_API_TOKEN 且已部署并启用 workers.dev）",
-      };
-    }
-    return { url: runtime.online_url };
-  }
-  return { url: runtime.local_url };
+  return pickEndpointUrl(runtime.url_endpoints, runtime.local_url, endpointId);
 }
 
 export async function getWorkerRuntimeConfig(options?: {
@@ -87,19 +93,23 @@ export async function getWorkerRuntimeConfig(options?: {
 
   const wrangler = readWranglerToml(absDir);
   const scriptName = wrangler.name ?? null;
-  const cf = scriptName
-    ? await resolveWorkerFromCf(scriptName, Boolean(env.CF_API_TOKEN))
-    : null;
+  const hasToken = Boolean(env.CF_API_TOKEN);
+  const cf = scriptName ? await resolveWorkerFromCf(scriptName, hasToken) : null;
+  const domainsResult = scriptName
+    ? await listWorkerCustomDomains(scriptName, hasToken)
+    : { ok: false, hostnames: [] as string[], error: undefined };
 
   const { vars, source: vars_source } = mergeWorkerVars(cf?.vars ?? {}, wrangler.vars);
 
   const local_url = resolveLocalUrl(absDir);
   const online_url = cf?.ok && cf.url ? cf.url : null;
-  const online_available = Boolean(online_url);
+  const custom_domains = domainsResult.hostnames;
+  const url_endpoints = buildWorkerEndpointOptions(local_url, online_url, custom_domains);
+  const online_available = url_endpoints.some((e) => e.id !== WORKER_ENDPOINT_LOCAL);
 
   let url = local_url;
   let url_source: WorkerConfigSource = "default";
-  const cf_error = cf?.error ?? null;
+  const cf_error = cf?.error ?? domainsResult.error ?? null;
 
   const envUrl = env.WORKER_URL?.trim().replace(/\/$/, "") ?? "";
 
@@ -120,6 +130,8 @@ export async function getWorkerRuntimeConfig(options?: {
     local_url,
     online_url,
     online_available,
+    custom_domains,
+    url_endpoints,
     url_source,
     vars,
     vars_source,

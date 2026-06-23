@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { FieldLabel, InputWithSourceBadge, SelectWithSourceBadge } from "@/components/SourceBadge";
 import { WorkerConfigSourceToggle } from "@/components/WorkerConfigSourceToggle";
-import { WorkerTargetToggle } from "@/components/WorkerTargetToggle";
+import { WorkerEndpointSelect, isLocalWorkerEndpoint } from "@/components/WorkerEndpointSelect";
 import { PlaygroundWorkerSelect } from "@/components/PlaygroundWorkerSelect";
 import type {
   ChatPath,
@@ -11,6 +11,7 @@ import type {
   WorkerConfigSource,
   WorkerTarget,
 } from "@/lib/playground-session";
+import type { WorkerEndpointOption } from "@admin/worker-endpoints";
 import { resolveWorkerTierModels } from "@/lib/playground-session";
 import type { PlaygroundDataView } from "@/lib/playground-sources";
 import type { FieldMetaEntry, PublicConfig, WorkerListEntry } from "@/types";
@@ -167,6 +168,9 @@ export function PlaygroundChatToolbar({
   workers,
   workersLoading,
   hasAdminToken,
+  workerEndpoints,
+  workerTarget,
+  onWorkerTargetChange,
   ...gatewayModelProps
 }: GatewayModelToolbarProps & {
   chatPath: ChatPath;
@@ -176,6 +180,9 @@ export function PlaygroundChatToolbar({
   workers: WorkerListEntry[];
   workersLoading?: boolean;
   hasAdminToken?: boolean;
+  workerEndpoints?: WorkerEndpointOption[];
+  workerTarget?: WorkerTarget;
+  onWorkerTargetChange?: (target: WorkerTarget) => void;
 }) {
   const t = useT();
   const sidebar = layout === "sidebar";
@@ -209,6 +216,22 @@ export function PlaygroundChatToolbar({
         />
       )}
 
+      {chatPath === "worker" && workerEndpoints && workerTarget !== undefined && onWorkerTargetChange && (
+        <div className="space-y-1.5">
+          {sidebar && (
+            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-muted)]/75">
+              {t("playground.workerTargetLabel")}
+            </span>
+          )}
+          <WorkerEndpointSelect
+            value={workerTarget}
+            endpoints={workerEndpoints}
+            onChange={onWorkerTargetChange}
+            className={sidebar ? "w-full" : undefined}
+          />
+        </div>
+      )}
+
       {(chatPath !== "worker" || gatewayModelProps.workerHasGatewayModelVars) && (
         <div className={sidebar ? sidebarStack : barGrid}>
           <GatewayModelFields layout={layout} {...gatewayModelProps} />
@@ -222,9 +245,9 @@ export function PlaygroundWorkerToolbar({
   layout = "sidebar",
   workerConfigSource,
   onWorkerConfigSourceChange,
+  workerEndpoints,
   workerTarget,
   onWorkerTargetChange,
-  workerOnlineAvailable,
   workerDir,
   onWorkerDirChange,
   workers,
@@ -237,9 +260,6 @@ export function PlaygroundWorkerToolbar({
 }: GatewayModelToolbarProps & {
   workerConfigSource: WorkerConfigSource;
   onWorkerConfigSourceChange: (source: WorkerConfigSource) => void;
-  workerTarget: WorkerTarget;
-  onWorkerTargetChange: (target: WorkerTarget) => void;
-  workerOnlineAvailable: boolean;
   workerDir: string;
   onWorkerDirChange: (dir: string) => void;
   workers: WorkerListEntry[];
@@ -248,10 +268,14 @@ export function PlaygroundWorkerToolbar({
   onStartLocalDev?: () => void;
   startingLocalDev?: boolean;
   workerHealthResult?: string | null;
+  workerEndpoints: WorkerEndpointOption[];
+  workerTarget: WorkerTarget;
+  onWorkerTargetChange: (target: WorkerTarget) => void;
 }) {
   const t = useT();
   const localWorkerHealthy = workerHealthResult?.startsWith("ok");
   const sidebar = layout === "sidebar";
+  const localEndpoint = isLocalWorkerEndpoint(workerTarget);
 
   return (
     <div className={sidebarStack}>
@@ -270,10 +294,11 @@ export function PlaygroundWorkerToolbar({
               {t("playground.workerTargetLabel")}
             </span>
           )}
-          <WorkerTargetToggle
+          <WorkerEndpointSelect
             value={workerTarget}
-            onlineAvailable={workerOnlineAvailable}
+            endpoints={workerEndpoints}
             onChange={onWorkerTargetChange}
+            className={sidebar ? "w-full" : undefined}
           />
         </div>
 
@@ -298,7 +323,7 @@ export function PlaygroundWorkerToolbar({
           <GatewayModelFields layout={layout} {...gatewayModelProps} />
         )}
 
-        {workerTarget === "local" && onStartLocalDev ? (
+        {localEndpoint && onStartLocalDev ? (
           <Button
             size="sm"
             className={sidebar ? "w-full justify-center" : "justify-self-start sm:col-span-2"}

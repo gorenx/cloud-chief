@@ -253,6 +253,9 @@ export interface Messages {
     configLabel: string;
     chatPathLabel: string;
     workerTargetLabel: string;
+    workerEndpointLocal: string;
+    workerEndpointWorkersDev: string;
+    workerEndpointCustom: string;
     workerConfigSourceLabel: string;
     workerModeChat: string;
     workerModeApi: string;
