@@ -35,7 +35,7 @@ export type ApiResult<T> = { ok: true; data: T } | { ok: false; status: number; 
 
 function authHeaders(token: string, extra?: Record<string, string>): Record<string, string> {
   const h: Record<string, string> = { ...extra };
-  if (token) h.Authorization = `Bearer ${token}`;
+  if (token && token !== "session") h.Authorization = `Bearer ${token}`;
   return h;
 }
 
@@ -55,6 +55,7 @@ export async function adminFetch<T>(
 ): Promise<ApiResult<T>> {
   const res = await fetch(path, {
     method,
+    credentials: "include",
     headers: authHeaders(token, body ? { "Content-Type": "application/json" } : {}),
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -373,7 +374,7 @@ export async function fetchSupabaseLocalMigrations(token: string, dir?: string) 
 export async function fetchSupabaseMigrationStatus(token: string, ref: string, dir?: string) {
   const res = await fetch(
     `/admin/supabase/migrations/status?ref=${encodeURIComponent(ref)}${migrationDirQuery(dir)}`,
-    { headers: authHeaders(token) },
+    { credentials: "include", headers: authHeaders(token) },
   );
   const j = await parseJson<
     SupabaseMigrationStatus & { error?: string; needs_db_scope?: boolean }
@@ -485,7 +486,7 @@ function functionsDirQuery(dir?: string): string {
 export async function fetchSupabaseFunctionsStatus(token: string, ref: string, dir?: string) {
   const res = await fetch(
     `/admin/supabase/functions/status?ref=${encodeURIComponent(ref)}${functionsDirQuery(dir)}`,
-    { headers: authHeaders(token) },
+    { credentials: "include", headers: authHeaders(token) },
   );
   const j = await parseJson<
     SupabaseFunctionsStatus & { error?: string; needs_functions_scope?: boolean }
@@ -542,4 +543,35 @@ export function buildInvokeUrl(
 ): string {
   if (!gateway || !providerSlug) return "";
   return `https://gateway.ai.cloudflare.com/v1/${accountId}/${gateway}/custom-${providerSlug}${path}`;
+}
+
+export type AuthMeResponse =
+  | { authenticated: false }
+  | { authenticated: true; user: { id: number; username: string } };
+
+export async function fetchAuthMe(): Promise<ApiResult<AuthMeResponse>> {
+  const res = await fetch("/auth/me", { credentials: "include" });
+  const j = await parseJson<AuthMeResponse>(res);
+  if (!res.ok || !j) return { ok: false, status: res.status, error: "auth.meFailed" };
+  return { ok: true, data: j };
+}
+
+export async function login(username: string, password: string) {
+  const res = await fetch("/auth/login", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  const j = await parseJson<{ ok?: boolean; user?: { id: number; username: string }; error?: string }>(
+    res,
+  );
+  if (!res.ok || !j?.user) {
+    return { ok: false as const, status: res.status, error: errText(j) };
+  }
+  return { ok: true as const, data: { user: j.user } };
+}
+
+export async function logout() {
+  await fetch("/auth/logout", { method: "POST", credentials: "include" });
 }

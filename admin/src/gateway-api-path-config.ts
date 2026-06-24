@@ -1,14 +1,10 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   CHAT_API_PATH,
   normalizeGatewayPathSuffix,
   RESPONSES_API_PATH,
 } from "./gateway-paths";
-
-const adminRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const configPath = path.join(adminRoot, "gateway-api-paths.json");
+import { decryptValue, encryptValue } from "./db/crypto";
+import { getDb, legacyConfigFilePath } from "./db/connection";
 
 export type GatewayApiPathRecord = {
   gateway_id: string;
@@ -18,26 +14,26 @@ export type GatewayApiPathRecord = {
   custom_paths: string[];
 };
 
-type Store = { records: GatewayApiPathRecord[] };
-
 function storeKey(gatewayId: string, providerSlug: string): string {
   return `${gatewayId}\0${providerSlug}`;
 }
 
-function readStore(): Store {
+function readEncryptedField(stored: string): string {
   try {
-    if (!fs.existsSync(configPath)) return { records: [] };
-    const raw = fs.readFileSync(configPath, "utf8");
-    const parsed = JSON.parse(raw) as Store;
-    if (!Array.isArray(parsed.records)) return { records: [] };
-    return parsed;
+    return decryptValue(stored);
   } catch {
-    return { records: [] };
+    return stored;
   }
 }
 
-function writeStore(store: Store): void {
-  fs.writeFileSync(configPath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+function readCustomPaths(stored: string): string[] {
+  const raw = readEncryptedField(stored);
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return normalizeCustomPaths(parsed);
+  } catch {
+    return [];
+  }
 }
 
 export function normalizeCustomPaths(raw: unknown): string[] {
@@ -82,11 +78,23 @@ export function getGatewayApiPathConfig(
   gatewayId: string,
   providerSlug: string,
 ): GatewayApiPathRecord {
-  const store = readStore();
-  const rec = store.records.find(
-    (r) => r.gateway_id === gatewayId && r.provider_slug === providerSlug,
-  );
-  return mergeRecord(gatewayId, providerSlug, rec ?? undefined);
+  const row = getDb()
+    .prepare(
+      `SELECT chat_suffix, responses_suffix, custom_paths
+       FROM gateway_api_paths
+       WHERE gateway_id = ? AND provider_slug = ?`,
+    )
+    .get(gatewayId, providerSlug) as
+    | { chat_suffix: string; responses_suffix: string; custom_paths: string }
+    | undefined;
+
+  if (!row) return mergeRecord(gatewayId, providerSlug);
+
+  return mergeRecord(gatewayId, providerSlug, {
+    chat_suffix: readEncryptedField(row.chat_suffix),
+    responses_suffix: readEncryptedField(row.responses_suffix),
+    custom_paths: readCustomPaths(row.custom_paths),
+  });
 }
 
 export function setGatewayApiPathConfig(
@@ -98,21 +106,31 @@ export function setGatewayApiPathConfig(
     custom_paths?: string[];
   },
 ): GatewayApiPathRecord {
-  const store = readStore();
-  const existing = store.records.find(
-    (r) => r.gateway_id === gatewayId && r.provider_slug === providerSlug,
-  );
+  const existing = getGatewayApiPathConfig(gatewayId, providerSlug);
   const next = mergeRecord(gatewayId, providerSlug, {
-    chat_suffix: input.chat_suffix ?? existing?.chat_suffix,
-    responses_suffix: input.responses_suffix ?? existing?.responses_suffix,
-    custom_paths: input.custom_paths ?? existing?.custom_paths,
+    chat_suffix: input.chat_suffix ?? existing.chat_suffix,
+    responses_suffix: input.responses_suffix ?? existing.responses_suffix,
+    custom_paths: input.custom_paths ?? existing.custom_paths,
   });
-  const idx = store.records.findIndex(
-    (r) => r.gateway_id === gatewayId && r.provider_slug === providerSlug,
-  );
-  if (idx >= 0) store.records[idx] = next;
-  else store.records.push(next);
-  writeStore(store);
+
+  getDb()
+    .prepare(
+      `INSERT INTO gateway_api_paths
+         (gateway_id, provider_slug, chat_suffix, responses_suffix, custom_paths)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(gateway_id, provider_slug) DO UPDATE SET
+         chat_suffix = excluded.chat_suffix,
+         responses_suffix = excluded.responses_suffix,
+         custom_paths = excluded.custom_paths`,
+    )
+    .run(
+      gatewayId,
+      providerSlug,
+      encryptValue(next.chat_suffix),
+      encryptValue(next.responses_suffix),
+      encryptValue(JSON.stringify(next.custom_paths)),
+    );
+
   return next;
 }
 
@@ -126,12 +144,31 @@ export function setGatewayCustomPaths(
 }
 
 export function listGatewayApiPathRecords(): GatewayApiPathRecord[] {
-  return readStore().records;
+  const rows = getDb()
+    .prepare(
+      `SELECT gateway_id, provider_slug, chat_suffix, responses_suffix, custom_paths
+       FROM gateway_api_paths`,
+    )
+    .all() as Array<{
+    gateway_id: string;
+    provider_slug: string;
+    chat_suffix: string;
+    responses_suffix: string;
+    custom_paths: string;
+  }>;
+
+  return rows.map((row) =>
+    mergeRecord(row.gateway_id, row.provider_slug, {
+      chat_suffix: readEncryptedField(row.chat_suffix),
+      responses_suffix: readEncryptedField(row.responses_suffix),
+      custom_paths: readCustomPaths(row.custom_paths),
+    }),
+  );
 }
 
 /** @internal test helper */
 export function _configFilePath(): string {
-  return configPath;
+  return legacyConfigFilePath();
 }
 
 export function _storeKey(gatewayId: string, providerSlug: string): string {

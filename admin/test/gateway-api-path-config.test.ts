@@ -1,7 +1,9 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { closeDatabase, initDatabase } from "../src/db/connection";
 import {
-  _configFilePath,
   getGatewayApiPathConfig,
   normalizeCustomPaths,
   setGatewayApiPathConfig,
@@ -9,19 +11,20 @@ import {
 import { CHAT_API_PATH, RESPONSES_API_PATH } from "../src/gateway-paths";
 
 describe("gateway-api-path-config", () => {
-  const configPath = _configFilePath();
-  let backup: string | null = null;
+  let dbPath = "";
 
   beforeEach(() => {
-    if (fs.existsSync(configPath)) {
-      backup = fs.readFileSync(configPath, "utf8");
-    }
-    if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
+    closeDatabase();
+    dbPath = path.join(os.tmpdir(), `admin-gw-paths-${Date.now()}-${Math.random()}.db`);
+    process.env.ADMIN_DB_PATH = dbPath;
+    process.env.ADMIN_DB_ENCRYPT = "0";
+    initDatabase();
   });
 
   afterEach(() => {
-    if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
-    if (backup !== null) fs.writeFileSync(configPath, backup, "utf8");
+    closeDatabase();
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    delete process.env.ADMIN_DB_PATH;
   });
 
   it("normalizeCustomPaths dedupes and normalizes", () => {

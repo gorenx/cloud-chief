@@ -7,3 +7,7 @@ package-lock.json
 .DS_Store
 .supabase-oauth.json
 gateway-api-paths.json
+data/
+*.db
+*.db-wal
+*.db-shm

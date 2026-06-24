@@ -72,7 +72,7 @@ function readNavCollapsed(): boolean {
 }
 
 export function AppShell() {
-  const { token } = useAdminToken();
+  const { token, user, logout } = useAdminToken();
   const t = useT();
   const scrollRef = useRef<HTMLElement>(null);
   const { pathname } = useLocation();
@@ -213,17 +213,28 @@ export function AppShell() {
               token ? (
                 <div
                   className="mx-auto h-2 w-2 rounded-full bg-emerald-400"
-                  title={t("nav.tokenOn")}
+                  title={user ? user.username : t("nav.tokenOn")}
                 />
               ) : (
-                <NavLink to="/settings" title={t("nav.tokenOff")}>
+                <NavLink to="/login" title={t("nav.tokenOff")}>
                   <div className="mx-auto h-2 w-2 rounded-full bg-amber-400" />
                 </NavLink>
               )
             ) : token ? (
-              <Chip variant="on">{t("nav.tokenOn")}</Chip>
+              <div className="flex items-center justify-between gap-2">
+                <Chip variant="on">{user ? user.username : t("nav.tokenOn")}</Chip>
+                {user ? (
+                  <button
+                    type="button"
+                    className="text-xs text-[var(--color-muted)] hover:text-[var(--color-text)]"
+                    onClick={() => void logout()}
+                  >
+                    {t("login.logout")}
+                  </button>
+                ) : null}
+              </div>
             ) : (
-              <NavLink to="/settings">
+              <NavLink to="/login">
                 <Chip variant="warn">{t("nav.tokenOff")}</Chip>
               </NavLink>
             )}

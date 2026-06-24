@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { AdminTokenProvider } from "@/contexts/AdminTokenContext";
 import { LocaleProvider } from "@/contexts/LocaleContext";
 import { AppShell } from "@/layouts/AppShell";
+import { RequireAuth } from "@/components/RequireAuth";
 import { DashboardPage } from "@/pages/Dashboard";
 import { PlaygroundPage } from "@/pages/Playground";
 import { GatewaysPage } from "@/pages/Gateways";
@@ -12,6 +13,7 @@ import { KeysPage } from "@/pages/Keys";
 import { WorkerPage } from "@/pages/Worker";
 import { SupabasePage } from "@/pages/Supabase";
 import { SettingsPage } from "@/pages/Settings";
+import { LoginPage } from "@/pages/Login";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,15 +28,18 @@ export function App() {
         <AdminTokenProvider>
           <BrowserRouter>
           <Routes>
-            <Route element={<AppShell />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="playground" element={<PlaygroundPage />} />
-              <Route path="gateways" element={<GatewaysPage />} />
-              <Route path="providers" element={<ProvidersPage />} />
-              <Route path="keys" element={<KeysPage />} />
-              <Route path="worker" element={<WorkerPage />} />
-              <Route path="supabase" element={<SupabasePage />} />
-              <Route path="settings" element={<SettingsPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<RequireAuth />}>
+              <Route element={<AppShell />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="playground" element={<PlaygroundPage />} />
+                <Route path="gateways" element={<GatewaysPage />} />
+                <Route path="providers" element={<ProvidersPage />} />
+                <Route path="keys" element={<KeysPage />} />
+                <Route path="worker" element={<WorkerPage />} />
+                <Route path="supabase" element={<SupabasePage />} />
+                <Route path="settings" element={<SettingsPage />} />
+              </Route>
             </Route>
           </Routes>
         </BrowserRouter>

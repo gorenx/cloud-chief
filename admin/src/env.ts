@@ -16,6 +16,15 @@ const schema = z.object({
   /** Playground 模型下拉：逗号分隔 id；留空则展示 model-catalog.ts 全部条目 */
   MODEL_CATALOG: z.string().default(""),
   ADMIN_TOKEN: z.string().default(""),
+  /** SQLite 数据库路径；留空=admin/data/admin.db */
+  ADMIN_DB_PATH: z.string().default(""),
+  /** 1/true 时配置项加密写入 SQLite（需 ADMIN_DB_ENCRYPTION_KEY） */
+  ADMIN_DB_ENCRYPT: z
+    .string()
+    .default("0")
+    .transform((v) => v === "1" || v.toLowerCase() === "true"),
+  /** 配置加密密钥（建议 32+ 字符随机串） */
+  ADMIN_DB_ENCRYPTION_KEY: z.string().default(""),
   ADMIN_BIND: z.string().default("127.0.0.1"),
   PORT: z.coerce.number().int().positive().default(8787),
   CLOUDFLARE_API_TOKEN: z.string().default(""),
@@ -211,6 +220,9 @@ function bootstrap(): void {
   try {
     Object.assign(env, parseProcessEnv());
     syncDerived();
+    if (env.ADMIN_DB_ENCRYPT && !env.ADMIN_DB_ENCRYPTION_KEY.trim()) {
+      throw new Error("ADMIN_DB_ENCRYPT=1 时必须设置 ADMIN_DB_ENCRYPTION_KEY");
+    }
   } catch (e) {
     console.error("❌ 环境变量校验失败：", (e as Error).message);
     process.exit(1);

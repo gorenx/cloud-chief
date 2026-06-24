@@ -1,4 +1,4 @@
-import { KeyRound } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useT } from "@/contexts/LocaleContext";
 import type { MessageKey } from "@/i18n";
@@ -21,17 +21,17 @@ export function NoTokenPrompt({
       )}
     >
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-warn)]/12 ring-1 ring-[var(--color-warn)]/25">
-        <KeyRound className="h-5 w-5 text-[var(--color-warn)]" aria-hidden />
+        <LogIn className="h-5 w-5 text-[var(--color-warn)]" aria-hidden />
       </div>
       <div className="min-w-0 flex-1">
         <p className="font-display text-sm font-semibold text-[var(--color-text)]">
-          {t("common.noTokenPrefix")} {t("common.settingsLink")}
+          {t("common.noTokenPrefix")} {t("login.title")}
         </p>
         <p className="mt-1 text-sm text-[var(--color-muted)]">{t(suffixKey)}</p>
       </div>
-      <Link to="/settings" className="shrink-0">
+      <Link to="/login" className="shrink-0">
         <Button variant="primary" size="sm">
-          {t("common.settingsLink")}
+          {t("login.submit")}
         </Button>
       </Link>
     </div>

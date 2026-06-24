@@ -9,16 +9,28 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { LOCALES } from "@/i18n";
 
 export function SettingsPage() {
-  const { token, setToken, saveToken } = useAdminToken();
+  const { user, legacyToken, setLegacyToken, saveLegacyToken, logout } = useAdminToken();
   const { locale, setLocale, t } = useLocale();
-  const [draft, setDraft] = useState(token);
+  const [draft, setDraft] = useState(legacyToken);
 
   return (
     <div className="mx-auto max-w-lg space-y-8">
       <PageHeader title={t("settings.title")} description={t("settings.desc")} />
 
+      {user ? (
+        <Card>
+          <CardTitle>{t("settings.account")}</CardTitle>
+          <p className="text-sm text-[var(--color-text)]">{user.username}</p>
+          <div className="mt-4">
+            <Button variant="ghost" onClick={() => void logout()}>
+              {t("login.logout")}
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
       <Card>
-        <CardTitle>{t("settings.adminToken")}</CardTitle>
+        <CardTitle desc={t("settings.legacyTokenDesc")}>{t("settings.adminToken")}</CardTitle>
         <Input
           type="password"
           value={draft}
@@ -28,7 +40,7 @@ export function SettingsPage() {
         <div className="mt-4 flex gap-2">
           <Button
             onClick={() => {
-              saveToken(draft.trim());
+              saveLegacyToken(draft.trim());
               toast.success(t("settings.toastSaved"));
             }}
           >
@@ -38,7 +50,7 @@ export function SettingsPage() {
             variant="ghost"
             onClick={() => {
               setDraft("");
-              setToken("");
+              setLegacyToken("");
               localStorage.removeItem("admin_token");
               toast.success(t("settings.toastCleared"));
             }}
@@ -69,6 +81,7 @@ export function SettingsPage() {
         <ul className="space-y-2 text-sm text-[var(--color-muted)]">
           <li>{t("settings.hintBind", { addr: "127.0.0.1:8787" })}</li>
           <li>{t("settings.hintNetwork", { env: "ADMIN_BIND=0.0.0.0" })}</li>
+          <li>{t("settings.hintDb")}</li>
           <li>{t("settings.hintTls")}</li>
           <li>{t("settings.hintWrangler")}</li>
         </ul>

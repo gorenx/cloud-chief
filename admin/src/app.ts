@@ -15,15 +15,19 @@ import { deploy } from "./routes/deploy";
 import { chat } from "./routes/chat";
 import { workerChat } from "./routes/worker-chat";
 import { supabaseConnect } from "./routes/supabase-connect";
+import { authRoutes } from "./routes/auth";
+import { initDatabase } from "./db/connection";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(here, "..");
 const webDist = path.join(adminRoot, "web", "dist");
 
 export function createApp(): Hono {
+  initDatabase();
   const app = new Hono();
 
   app.get("/health", (c) => c.json({ ok: true }));
+  app.route("/auth", authRoutes);
 
   app.get("/config", async (c) => {
     const { gateways, providers } = await loadCfLists();
@@ -68,16 +72,28 @@ export function createApp(): Hono {
   app.route("/admin", admin);
 
   const hasWebDist = fs.existsSync(path.join(webDist, "index.html"));
+  const isDev = process.env.ADMIN_DEV === "1";
+  const devWebOrigin = env.ADMIN_WEB_ORIGIN.trim() || "http://localhost:5173";
 
-  if (hasWebDist) {
+  if (hasWebDist && !isDev) {
     app.use("/*", serveStatic({ root: webDist }));
     app.get("*", (c) => {
       const p = c.req.path;
-      if (p.startsWith("/admin") || p.startsWith("/api") || p === "/config" || p === "/health") {
+      if (
+        p.startsWith("/admin") ||
+        p.startsWith("/api") ||
+        p.startsWith("/auth") ||
+        p === "/config" ||
+        p === "/health"
+      ) {
         return c.notFound();
       }
       return c.html(fs.readFileSync(path.join(webDist, "index.html"), "utf8"));
     });
+  } else if (isDev) {
+    // 开发模式前端由 Vite 提供；避免 8787 误用旧 web/dist
+    app.get("/", (c) => c.redirect(`${devWebOrigin}/login`));
+    app.get("/login", (c) => c.redirect(`${devWebOrigin}/login`));
   } else {
     app.get("/", serveStatic({ path: "./public/index.html" }));
     app.get("/index.html", serveStatic({ path: "./public/index.html" }));

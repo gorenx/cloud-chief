@@ -837,18 +837,33 @@ export interface Messages {
   settings: {
     title: string;
     desc: string;
+    account: string;
     adminToken: string;
     adminTokenPlaceholder: string;
+    legacyTokenDesc: string;
     language: string;
     languageDesc: string;
     serverHints: string;
     serverHintsDesc: string;
     hintBind: string;
     hintNetwork: string;
+    hintDb: string;
     hintTls: string;
     hintWrangler: string;
     toastSaved: string;
     toastCleared: string;
+  };
+  login: {
+    title: string;
+    desc: string;
+    formTitle: string;
+    usernamePlaceholder: string;
+    passwordPlaceholder: string;
+    submit: string;
+    submitting: string;
+    logout: string;
+    defaultHint: string;
+    usernameDefault: string;
   };
 }
 
