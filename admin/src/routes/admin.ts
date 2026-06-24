@@ -17,6 +17,7 @@ import {
   keyCreate,
   zodMessage,
 } from "../schemas";
+import { gatewayApiPaths } from "./gateway-api-paths";
 
 export const admin = new Hono();
 
@@ -165,3 +166,5 @@ admin.delete("/keys", async (c) => {
   );
   return c.json(r.json, r.json.success ? 200 : 400);
 });
+
+admin.route("/gateways", gatewayApiPaths);

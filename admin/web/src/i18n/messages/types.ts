@@ -131,6 +131,30 @@ export interface Messages {
     enableAuth: string;
     toastSaved: string;
     toastUpdated: string;
+    apiPaths: {
+      title: string;
+      desc: string;
+      stepGateway: string;
+      stepProvider: string;
+      stepPaths: string;
+      pickGateway: string;
+      pickProvider: string;
+      selectFirst: string;
+      colKind: string;
+      colSuffix: string;
+      colActions: string;
+      invokeUrlLabel: string;
+      saveSuffix: string;
+      kindChat: string;
+      kindResponses: string;
+      kindCustom: string;
+      addCustom: string;
+      addBtn: string;
+      toastSaved: string;
+      persistHint: string;
+      unsavedHint: string;
+      duplicateSuffix: string;
+    };
   };
   providers: {
     title: string;

@@ -14,7 +14,7 @@ const SSE_HEADERS = {
   "Cache-Control": "no-cache",
 } as const;
 
-/** CF AI Gateway → 百炼 compatible-mode baseURL */
+/** CF AI Gateway provider-specific 端点（SDK 会再拼 /chat/completions 或 /responses） */
 export function gatewayCompatibleBaseUrl(
   accountId: string,
   gatewayId: string,
@@ -22,7 +22,7 @@ export function gatewayCompatibleBaseUrl(
 ): string {
   return (
     `https://gateway.ai.cloudflare.com/v1/${accountId}/${gatewayId}` +
-    `/custom-${providerSlug}/compatible-mode/v1`
+    `/custom-${providerSlug}`
   );
 }
 

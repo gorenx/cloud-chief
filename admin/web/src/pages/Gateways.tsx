@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { Chip } from "@/components/ui/Chip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GatewayDetailPanel } from "@/components/GatewayDetailPanel";
+import { GatewayApiPathsPanel } from "@/components/GatewayApiPathsPanel";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 import { cn } from "@/lib/utils";
@@ -75,6 +76,8 @@ export function GatewaysPage() {
   }
 
   const gateways = stateQ.data?.gateways ?? [];
+  const providers = stateQ.data?.providers ?? [];
+  const accountId = stateQ.data?.account_id ?? "";
   const defaultGw = stateQ.data?.defaults.gateway;
 
   useEffect(() => {
@@ -156,6 +159,14 @@ export function GatewaysPage() {
               </div>
             )}
           </Card>
+
+          <GatewayApiPathsPanel
+            token={token}
+            gateways={gateways.map((g) => g.id)}
+            providers={providers}
+            accountId={accountId}
+            defaultGatewayId={selectedId ?? defaultGw}
+          />
 
           <Card>
             <CardTitle>{t("gateways.createTitle")}</CardTitle>

@@ -45,6 +45,8 @@ export async function cfApi(
   }
 }
 
+import { gatewayUrlWithAccount as gwUrl } from "./gateway-url";
+
 export const gatewayUrl = (gw: string, slug: string, p: string): string =>
   gatewayUrlWithAccount(env.CF_ACCOUNT_ID, gw, slug, p);
 
@@ -54,5 +56,5 @@ export function gatewayUrlWithAccount(
   slug: string,
   p: string,
 ): string {
-  return `https://gateway.ai.cloudflare.com/v1/${accountId}/${gw}/custom-${slug}${p}`;
+  return gwUrl(accountId, gw, slug, p);
 }

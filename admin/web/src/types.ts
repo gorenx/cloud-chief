@@ -36,6 +36,26 @@ export interface AdminState {
   providers_error: unknown;
 }
 
+export interface GatewayPathEntry {
+  id: string;
+  kind: "chat" | "responses" | "custom";
+  label: string;
+  suffix: string;
+  invoke_url: string;
+  upstream_preview?: string;
+}
+
+export interface GatewayApiPathsResponse {
+  gateway_id: string;
+  provider_slug: string;
+  account_id: string;
+  provider_base_url: string;
+  chat_suffix: string;
+  responses_suffix: string;
+  custom_paths: string[];
+  paths: GatewayPathEntry[];
+}
+
 export interface RoutingInfo {
   model: string;
   worker_model: string | null;

@@ -28,6 +28,8 @@ const schema = z.object({
   /** 相对 WORKER_ROOT 的 Supabase Edge Functions 目录 */
   SUPABASE_FUNCTIONS_DIR: z.string().default("supabase/functions"),
   WORKER_URL: z.string().default("http://127.0.0.1:8788"),
+  /** Gateway custom-{slug}/ 后额外路径，逗号分隔，如 /embeddings,/v1/models */
+  GATEWAY_CUSTOM_PATHS: z.string().default(""),
   SUPABASE_ANON_KEY: z.string().default(""),
   SUPABASE_TEST_EMAIL: z.string().default(""),
   SUPABASE_TEST_PASSWORD: z.string().default(""),

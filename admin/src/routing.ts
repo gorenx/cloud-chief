@@ -27,11 +27,8 @@ export interface WorkerRoutingInfo {
   account_id: string;
   gateway: string;
   provider_slug: string;
-  /** Legacy fallback when FREE_MODEL unset */
   default_model: string | null;
-  /** Free tier enforced model (ai-gateway-worker enforce.ts) */
   free_model: string | null;
-  /** Plus tier enforced model */
   plus_model: string | null;
   provider: ProviderInfo | null;
   path: string;

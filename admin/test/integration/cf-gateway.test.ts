@@ -21,7 +21,7 @@ describe.skipIf(!hasGatewayConfig())("CF AI Gateway · OpenAI TS SDK", () => {
     const base = gatewayCompatibleBaseUrl(cfg.accountId, cfg.gatewayId, cfg.providerSlug);
     expect(gatewayFullUrl("chat")).toBe(`${base}/chat/completions`);
     expect(gatewayFullUrl("responses")).toBe(`${base}/responses`);
-    expect(base).toMatch(/\/compatible-mode\/v1$/);
+    expect(base).toMatch(/\/custom-[^/]+$/);
   });
 
   it("Chat Completions 经网关非流式", async () => {

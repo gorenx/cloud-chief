@@ -28,6 +28,6 @@ describe("cf-resolve", () => {
   });
 
   it("RESPONSES_API_PATH is fixed", () => {
-    expect(RESPONSES_API_PATH).toBe("/compatible-mode/v1/responses");
+    expect(RESPONSES_API_PATH).toBe("/responses");
   });
 });

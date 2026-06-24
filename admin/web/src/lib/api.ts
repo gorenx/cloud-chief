@@ -1,5 +1,6 @@
 import type {
   AdminState,
+  GatewayApiPathsResponse,
   GatewayContext,
   PublicConfig,
   WorkerList,
@@ -8,6 +9,8 @@ import type {
   WorkerBuildsStatus,
 } from "@/types";
 import type { ApiI18nError } from "@/i18n/api-error";
+
+export type { GatewayApiPathsResponse };
 
 export function errText(j: unknown): string {
   if (!j) return "common.unknownError" satisfies ApiI18nError;
@@ -69,6 +72,37 @@ export async function fetchState(token: string) {
 
 export async function fetchGatewayContext(token: string, id: string) {
   return adminFetch<GatewayContext>(token, "GET", `/admin/gateways/${encodeURIComponent(id)}/context`);
+}
+
+export async function fetchGatewayApiPaths(
+  token: string,
+  gatewayId: string,
+  providerSlug: string,
+) {
+  const q = new URLSearchParams({ provider_slug: providerSlug });
+  return adminFetch<GatewayApiPathsResponse>(
+    token,
+    "GET",
+    `/admin/gateways/${encodeURIComponent(gatewayId)}/api-paths?${q}`,
+  );
+}
+
+export async function saveGatewayApiPaths(
+  token: string,
+  gatewayId: string,
+  body: {
+    provider_slug: string;
+    chat_suffix: string;
+    responses_suffix: string;
+    custom_paths: string[];
+  },
+) {
+  return adminFetch<GatewayApiPathsResponse>(
+    token,
+    "PUT",
+    `/admin/gateways/${encodeURIComponent(gatewayId)}/api-paths`,
+    body,
+  );
 }
 
 export async function fetchPublicConfig(workerDir?: string) {

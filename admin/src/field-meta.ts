@@ -38,7 +38,7 @@ export function routingFieldsMeta(): Record<string, FieldMetaEntry> {
     },
     "routing.path": {
       source: "derived",
-      hint: "Responses API 固定路径 /compatible-mode/v1/responses",
+      hint: "Gateway 路径后缀 /responses（/compatible-mode/v1 在 CF 提供商 base_url）",
     },
     "routing.base_url": {
       source: "cf",
