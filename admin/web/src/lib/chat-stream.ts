@@ -41,8 +41,10 @@ export async function streamChatResponse(
   resp: Response,
   onDelta: (text: string) => void,
   t: TranslateFn,
-  timeoutMs = DEFAULT_STREAM_TIMEOUT_MS,
+  opts?: { timeoutMs?: number; onResponseId?: (id: string) => void },
 ): Promise<string> {
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_STREAM_TIMEOUT_MS;
+  const onResponseId = opts?.onResponseId;
   const ctype = resp.headers.get("content-type") ?? "";
   if (!resp.ok || !ctype.includes("text/event-stream")) {
     const j = await resp.json().catch(() => null);
@@ -76,6 +78,10 @@ export async function streamChatResponse(
           const ev = JSON.parse(data) as Record<string, unknown>;
           if (ev.type === "response.failed" || ev.error) {
             throw new ChatStreamError(502, ev.error ?? ev);
+          }
+          if (ev.type === "response.completed" && onResponseId) {
+            const response = ev.response as { id?: string } | undefined;
+            if (response?.id) onResponseId(response.id);
           }
           acc = appendDelta(ev, acc, onDelta);
         } catch (e) {

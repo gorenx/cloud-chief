@@ -6,7 +6,6 @@ import { WorkerConfigSourceToggle } from "@/components/WorkerConfigSourceToggle"
 import { WorkerEndpointSelect, isLocalWorkerEndpoint } from "@/components/WorkerEndpointSelect";
 import { PlaygroundWorkerSelect } from "@/components/PlaygroundWorkerSelect";
 import type {
-  ChatPath,
   PlaygroundSessionFlags,
   WorkerConfigSource,
   WorkerTarget,
@@ -44,7 +43,21 @@ type GatewayModelToolbarProps = {
   workerTierModels?: { free: string; plus: string } | null;
   workerHasGatewayModelVars?: boolean;
   catalogSynced?: string[];
+  gatewayApiPath?: string;
+  onGatewayApiPathChange?: (path: string) => void;
+  gatewayPathOptions?: Array<{ id: string; kind: string; suffix: string; label: string }>;
+  gatewayPathsLoading?: boolean;
 };
+
+function gatewayPathOptionLabel(
+  kind: string,
+  suffix: string,
+  t: (k: "playground.apiPathChat" | "playground.apiPathResponses" | "playground.apiPathCustom") => string,
+): string {
+  if (kind === "chat") return `${t("playground.apiPathChat")} · ${suffix}`;
+  if (kind === "responses") return `${t("playground.apiPathResponses")} · ${suffix}`;
+  return `${t("playground.apiPathCustom")} · ${suffix}`;
+}
 
 function GatewayModelFields({
   layout = "sidebar",
@@ -57,6 +70,10 @@ function GatewayModelFields({
   onModelChange,
   workerTierModels,
   catalogSynced,
+  gatewayApiPath,
+  onGatewayApiPathChange,
+  gatewayPathOptions,
+  gatewayPathsLoading,
 }: GatewayModelToolbarProps) {
   const t = useT();
   const { controls } = dataView;
@@ -107,6 +124,22 @@ function GatewayModelFields({
     </>
   );
 
+  const apiPathSelect =
+    onGatewayApiPathChange && gatewayPathOptions && gatewayPathOptions.length > 0 ? (
+      <select
+        className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs mono disabled:opacity-60"
+        value={gatewayApiPath ?? gatewayPathOptions[0]?.suffix ?? ""}
+        onChange={(e) => onGatewayApiPathChange(e.target.value)}
+        disabled={gatewayPathsLoading || flags.gatewayLocked}
+      >
+        {gatewayPathOptions.map((p) => (
+          <option key={p.id} value={p.suffix}>
+            {gatewayPathOptionLabel(p.kind, p.suffix, t)}
+          </option>
+        ))}
+      </select>
+    ) : null;
+
   return (
     <>
       {!flags.hideGatewayModel && (
@@ -116,6 +149,14 @@ function GatewayModelFields({
               <FieldLabel label={t("playground.sourceGateway")} meta={controls.gateway as FieldMetaEntry} />
               {gatewaySelect}
             </label>
+            {apiPathSelect && (
+              <label className="flex min-w-0 flex-col gap-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-muted)]/75">
+                  {t("playground.apiPathLabel")}
+                </span>
+                {apiPathSelect}
+              </label>
+            )}
             <label className="flex min-w-0 flex-col gap-1.5">
               <FieldLabel label={t("playground.sourceModel")} meta={controls.model as FieldMetaEntry} />
               {modelSelect}
@@ -124,6 +165,7 @@ function GatewayModelFields({
         ) : (
           <>
             {gatewaySelect}
+            {apiPathSelect}
             {modelSelect}
           </>
         )
@@ -150,93 +192,22 @@ const sidebarStack = "flex min-w-0 flex-col gap-3";
 
 export function PlaygroundGatewayToolbar({
   layout = "sidebar",
+  gatewayApiPath,
+  onGatewayApiPathChange,
+  gatewayPathOptions,
+  gatewayPathsLoading,
   ...props
 }: GatewayModelToolbarProps) {
   return (
     <div className={layout === "sidebar" ? sidebarStack : barGrid}>
-      <GatewayModelFields layout={layout} {...props} />
-    </div>
-  );
-}
-
-export function PlaygroundChatToolbar({
-  layout = "sidebar",
-  chatPath,
-  onChatPathChange,
-  workerDir,
-  onWorkerDirChange,
-  workers,
-  workersLoading,
-  hasAdminToken,
-  workerEndpoints,
-  workerTarget,
-  onWorkerTargetChange,
-  ...gatewayModelProps
-}: GatewayModelToolbarProps & {
-  chatPath: ChatPath;
-  onChatPathChange: (path: ChatPath) => void;
-  workerDir: string;
-  onWorkerDirChange: (dir: string) => void;
-  workers: WorkerListEntry[];
-  workersLoading?: boolean;
-  hasAdminToken?: boolean;
-  workerEndpoints?: WorkerEndpointOption[];
-  workerTarget?: WorkerTarget;
-  onWorkerTargetChange?: (target: WorkerTarget) => void;
-}) {
-  const t = useT();
-  const sidebar = layout === "sidebar";
-
-  return (
-    <div className={sidebarStack}>
-      <div className="space-y-1.5">
-        {sidebar && (
-          <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-muted)]/75">
-            {t("playground.chatPathLabel")}
-          </span>
-        )}
-        <SegmentedControl
-          value={chatPath}
-          onChange={onChatPathChange}
-          className={sidebar ? "flex w-full" : undefined}
-          options={[
-            { value: "gateway", label: t("playground.directGateway") },
-            { value: "worker", label: t("playground.viaWorker") },
-          ]}
-        />
-      </div>
-
-      {chatPath === "worker" && (
-        <PlaygroundWorkerSelect
-          workers={workers}
-          value={workerDir}
-          onChange={onWorkerDirChange}
-          loading={workersLoading}
-          disabled={!hasAdminToken}
-        />
-      )}
-
-      {chatPath === "worker" && workerEndpoints && workerTarget !== undefined && onWorkerTargetChange && (
-        <div className="space-y-1.5">
-          {sidebar && (
-            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-muted)]/75">
-              {t("playground.workerTargetLabel")}
-            </span>
-          )}
-          <WorkerEndpointSelect
-            value={workerTarget}
-            endpoints={workerEndpoints}
-            onChange={onWorkerTargetChange}
-            className={sidebar ? "w-full" : undefined}
-          />
-        </div>
-      )}
-
-      {(chatPath !== "worker" || gatewayModelProps.workerHasGatewayModelVars) && (
-        <div className={sidebar ? sidebarStack : barGrid}>
-          <GatewayModelFields layout={layout} {...gatewayModelProps} />
-        </div>
-      )}
+      <GatewayModelFields
+        layout={layout}
+        gatewayApiPath={gatewayApiPath}
+        onGatewayApiPathChange={onGatewayApiPathChange}
+        gatewayPathOptions={gatewayPathOptions}
+        gatewayPathsLoading={gatewayPathsLoading}
+        {...props}
+      />
     </div>
   );
 }

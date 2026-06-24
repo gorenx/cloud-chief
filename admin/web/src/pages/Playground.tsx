@@ -4,11 +4,7 @@ import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { useT } from "@/contexts/LocaleContext";
 import { PlaygroundRoutingSidebar } from "@/components/PlaygroundRoutingSidebar";
-import {
-  PlaygroundChatToolbar,
-  PlaygroundGatewayToolbar,
-  PlaygroundWorkerToolbar,
-} from "@/components/PlaygroundToolbar";
+import { PlaygroundGatewayToolbar, PlaygroundWorkerToolbar } from "@/components/PlaygroundToolbar";
 import { PlaygroundChatConsole } from "@/components/PlaygroundChatConsole";
 import { PlaygroundWorkerMainPanel } from "@/components/PlaygroundWorkerMainPanel";
 import { Button } from "@/components/ui/Button";
@@ -39,9 +35,6 @@ export function PlaygroundPage() {
     token,
     activeTab,
     setActiveTab,
-    chatPath,
-    setChatPath,
-    requestPath,
     config,
     flags,
     workerConfigSource,
@@ -58,6 +51,10 @@ export function PlaygroundPage() {
     effectiveModel,
     workerTierModels,
     effectiveGateway,
+    gatewayApiPath,
+    setGatewayApiPath,
+    gatewayPathOptions,
+    gatewayPathsLoading,
     modelMeta,
     routing,
     dataView,
@@ -99,7 +96,6 @@ export function PlaygroundPage() {
   }, [searchParams, setSearchParams, refetchConfig, t]);
 
   const tabOptions: { value: DebugTab; label: string }[] = [
-    { value: "chat", label: t("playground.tabChat") },
     { value: "gateway", label: t("playground.tabGateway") },
     { value: "worker", label: t("playground.tabWorker") },
   ];
@@ -120,12 +116,13 @@ export function PlaygroundPage() {
     catalogSynced,
   };
 
-  function handleSend() {
+  function handleGatewaySend() {
     void send({
-      path: requestPath,
+      path: "gateway",
       effectiveModel,
       gateway: effectiveGateway,
       providerSlug: routing?.provider_slug,
+      gatewayApiPath,
       workerAccessToken,
       workerTestEmail,
       workerTestPassword,
@@ -163,10 +160,8 @@ export function PlaygroundPage() {
   const inspectorEndpoint =
     activeTab === "worker"
       ? workerInspectorEndpoint
-      : requestPath === "worker"
-        ? !flags.supportsChat
-          ? `${workerApiMethod} ${buildWorkerUpstreamUrl(apiWorkerBase, workerApiPath)}`
-          : "POST /api/worker-chat"
+      : gatewayApiPath
+        ? `POST /api/chat → ${gatewayApiPath}`
         : "POST /api/chat";
 
   const inspectorToggle = showInspectorPanel ? (
@@ -224,22 +219,15 @@ export function PlaygroundPage() {
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-3">
-                {activeTab === "chat" && (
-                  <PlaygroundChatToolbar
-                    chatPath={chatPath}
-                    onChatPathChange={setChatPath}
-                    workerDir={workerDir}
-                    onWorkerDirChange={setWorkerDir}
-                    workers={workers}
-                    workersLoading={workersLoading}
-                    hasAdminToken={Boolean(token)}
-                    workerEndpoints={config?.worker.url_endpoints ?? []}
-                    workerTarget={workerTarget}
-                    onWorkerTargetChange={setWorkerTarget}
+                {activeTab === "gateway" && (
+                  <PlaygroundGatewayToolbar
                     {...sharedToolbarProps}
+                    gatewayApiPath={gatewayApiPath}
+                    onGatewayApiPathChange={setGatewayApiPath}
+                    gatewayPathOptions={gatewayPathOptions}
+                    gatewayPathsLoading={gatewayPathsLoading}
                   />
                 )}
-                {activeTab === "gateway" && <PlaygroundGatewayToolbar {...sharedToolbarProps} />}
                 {activeTab === "worker" && (
                   <PlaygroundWorkerToolbar
                     workerConfigSource={workerConfigSource}
@@ -285,12 +273,6 @@ export function PlaygroundPage() {
                   }}
                   onApiHostChange={setWorkerApiHost}
                 />
-              ) : requestPath === "worker" && !flags.supportsChat ? (
-                <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-                  <p className="max-w-md text-sm leading-relaxed text-[var(--color-muted)]">
-                    {t("playground.chatHintApiWorker")}
-                  </p>
-                </div>
               ) : (
                 <PlaygroundChatConsole
                   chatRef={chatRef}
@@ -298,8 +280,8 @@ export function PlaygroundPage() {
                   input={input}
                   onInputChange={setInput}
                   sending={sending}
-                  onSend={handleSend}
-                  hintPath={requestPath}
+                  onSend={handleGatewaySend}
+                  hintPath="gateway"
                   flags={flags}
                   errorPrefixes={errorPrefixes}
                 />
@@ -353,8 +335,8 @@ export function PlaygroundPage() {
                 workerTarget={workerTarget}
                 effectiveWorkerUrl={effectiveWorkerUrl}
                 onConfigRefresh={() => void refetchConfig()}
-                requestPath={activeTab === "worker" || requestPath === "worker" ? "worker" : "gateway"}
-                depth={activeTab === "chat" ? "compact" : "full"}
+                requestPath={activeTab === "worker" ? "worker" : "gateway"}
+                depth="full"
               />
             </div>
           </aside>

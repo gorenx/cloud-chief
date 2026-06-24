@@ -1,4 +1,4 @@
-export type DebugTab = "chat" | "gateway" | "worker";
+export type DebugTab = "gateway" | "worker";
 export type ChatPath = "gateway" | "worker";
 export type WorkerConfigSource = "worker" | "ui";
 import {
@@ -8,6 +8,7 @@ import {
   type WorkerEndpointKind,
   type WorkerEndpointOption,
 } from "@admin/worker-endpoints";
+import { CHAT_API_PATH, normalizeGatewayPathSuffix, RESPONSES_API_PATH } from "@admin/gateway-paths";
 
 export type { WorkerEndpointKind, WorkerEndpointOption };
 export { parseWorkerEndpoint, WORKER_ENDPOINT_LOCAL, WORKER_ENDPOINT_WORKERS_DEV };
@@ -16,7 +17,6 @@ export { parseWorkerEndpoint, WORKER_ENDPOINT_LOCAL, WORKER_ENDPOINT_WORKERS_DEV
 export type WorkerTarget = string;
 
 export const DEBUG_TAB_KEY = "admin-playground-active-tab";
-export const CHAT_PATH_KEY = "admin-playground-chat-path";
 export const WORKER_ENDPOINT_KEY = "admin-playground-worker-endpoint";
 
 export interface WorkerCapabilities {
@@ -35,6 +35,25 @@ export function readWorkerEndpoint(): WorkerTarget {
   return WORKER_ENDPOINT_LOCAL;
 }
 
+export const GATEWAY_API_PATH_KEY = "admin-playground-gateway-api-path";
+
+export function readGatewayApiPath(): string {
+  try {
+    return localStorage.getItem(GATEWAY_API_PATH_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function persistGatewayApiPath(path: string) {
+  try {
+    if (path) localStorage.setItem(GATEWAY_API_PATH_KEY, path);
+    else localStorage.removeItem(GATEWAY_API_PATH_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function persistWorkerEndpoint(endpoint: WorkerTarget) {
   try {
     localStorage.setItem(WORKER_ENDPOINT_KEY, parseWorkerEndpoint(endpoint));
@@ -46,33 +65,23 @@ export function persistWorkerEndpoint(endpoint: WorkerTarget) {
 export function readDebugTab(): DebugTab {
   try {
     const v = localStorage.getItem(DEBUG_TAB_KEY);
-    if (v === "chat" || v === "gateway" || v === "worker") return v;
-  } catch {
-    /* ignore */
-  }
-  return "chat";
-}
-
-export function readChatPath(): ChatPath {
-  try {
-    const v = localStorage.getItem(CHAT_PATH_KEY);
     if (v === "gateway" || v === "worker") return v;
+    if (v === "chat") {
+      localStorage.setItem(DEBUG_TAB_KEY, "gateway");
+      return "gateway";
+    }
   } catch {
     /* ignore */
   }
   return "gateway";
 }
 
-export function resolveInspectTarget(tab: DebugTab, chatPath: ChatPath): "gateway" | "worker" {
-  if (tab === "gateway") return "gateway";
-  if (tab === "worker") return "worker";
-  return chatPath;
+export function resolveInspectTarget(tab: DebugTab): "gateway" | "worker" {
+  return tab === "worker" ? "worker" : "gateway";
 }
 
-export function resolveRequestPath(tab: DebugTab, chatPath: ChatPath): ChatPath {
-  if (tab === "gateway") return "gateway";
-  if (tab === "worker") return "worker";
-  return chatPath;
+export function resolveRequestPath(tab: DebugTab): ChatPath {
+  return tab === "worker" ? "worker" : "gateway";
 }
 
 export function resolveWorkerDisplayUrl(
@@ -205,12 +214,19 @@ export function resolveEffectiveGateway(
   return uiGateway;
 }
 
+export function isResponsesGatewayPath(path?: string): boolean {
+  const normalized = normalizeGatewayPathSuffix(path ?? "");
+  return normalized.endsWith(RESPONSES_API_PATH);
+}
+
 export interface ChatRequestParams {
   path: ChatPath;
   effectiveModel: string;
   messages: Array<{ role: string; content: string }>;
   gateway?: string;
   providerSlug?: string;
+  gatewayApiPath?: string;
+  previousResponseId?: string | null;
   workerAccessToken?: string;
   workerTestEmail?: string;
   workerTestPassword?: string;
@@ -224,15 +240,19 @@ export function buildChatRequest(params: ChatRequestParams): {
   body: Record<string, unknown>;
 } {
   if (params.path === "gateway") {
-    return {
-      url: "/api/chat",
-      body: {
-        model: params.effectiveModel,
-        messages: params.messages,
-        gateway: params.gateway || undefined,
-        provider_slug: params.providerSlug || undefined,
-      },
+    const apiPath =
+      normalizeGatewayPathSuffix(params.gatewayApiPath ?? CHAT_API_PATH) || CHAT_API_PATH;
+    const body: Record<string, unknown> = {
+      model: params.effectiveModel,
+      messages: params.messages,
+      gateway: params.gateway || undefined,
+      provider_slug: params.providerSlug || undefined,
+      path: apiPath,
     };
+    if (isResponsesGatewayPath(apiPath) && params.previousResponseId) {
+      body.previous_response_id = params.previousResponseId;
+    }
+    return { url: "/api/chat", body };
   }
 
   const body: Record<string, unknown> = {

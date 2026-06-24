@@ -1,11 +1,19 @@
 import { Hono } from "hono";
-import { gatewayUrl } from "../cf";
 import { env } from "../env";
-import { loadCfLists, resolveDefaults, CHAT_API_PATH } from "../cf-resolve";
+import { loadCfLists, resolveDefaults } from "../cf-resolve";
+import { CHAT_API_PATH, normalizeGatewayPathSuffix } from "../gateway-paths";
 import { normalizeChatMessages, postUpstreamStream, upstreamFetchError } from "../llm-forward";
+import {
+  createOpenAiClientAtBase,
+  openAiErrorToJson,
+  resolveGatewaySdkRoute,
+  streamChatAsResponses,
+  streamResponses,
+  toOpenAiChatMessages,
+} from "../openai-llm";
 import { proxyUpstreamChat } from "../sse-proxy";
 
-// 本地调试：浏览器 -> Admin（fetch 透传 SSE）-> AI Gateway -> 阿里云 MaaS。
+// 本地调试：浏览器 -> Admin（OpenAI SDK 流式）-> AI Gateway -> 上游 MaaS。
 export const chat = new Hono();
 
 chat.post("/", async (c) => {
@@ -15,6 +23,8 @@ chat.post("/", async (c) => {
     input?: unknown;
     gateway?: unknown;
     provider_slug?: unknown;
+    path?: unknown;
+    previous_response_id?: unknown;
   };
 
   if (!env.DASHSCOPE_API_KEY) {
@@ -51,24 +61,61 @@ chat.post("/", async (c) => {
     return c.json({ error: "messages required" }, 400);
   }
 
-  const url = gatewayUrl(gateway.id, provider.slug, CHAT_API_PATH);
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${env.DASHSCOPE_API_KEY}`,
-  };
-  if (env.CF_AIG_TOKEN) headers["cf-aig-authorization"] = `Bearer ${env.CF_AIG_TOKEN}`;
+  const pathStr =
+    normalizeGatewayPathSuffix(typeof payload.path === "string" ? payload.path : CHAT_API_PATH) ||
+    CHAT_API_PATH;
 
-  const upstreamBody = {
-    model: payload.model || env.MODEL,
-    messages,
-    stream: true,
-  };
+  const model = payload.model || env.MODEL;
+  const route = resolveGatewaySdkRoute(
+    env.CF_ACCOUNT_ID,
+    gateway.id,
+    provider.slug,
+    pathStr,
+  );
 
-  let upstream: Response;
-  try {
-    upstream = await postUpstreamStream(url, headers, upstreamBody);
-  } catch (e) {
-    return c.json({ error: upstreamFetchError(e, url) }, 502);
+  if (route.kind === "raw") {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${env.DASHSCOPE_API_KEY}`,
+    };
+    if (env.CF_AIG_TOKEN) headers["cf-aig-authorization"] = `Bearer ${env.CF_AIG_TOKEN}`;
+
+    let upstream: Response;
+    try {
+      upstream = await postUpstreamStream(
+        route.url,
+        headers,
+        { model, messages, stream: true },
+      );
+    } catch (e) {
+      return c.json({ error: upstreamFetchError(e, route.url) }, 502);
+    }
+    return proxyUpstreamChat(c, upstream);
   }
 
-  return proxyUpstreamChat(c, upstream);
+  try {
+    const client = createOpenAiClientAtBase({
+      baseURL: route.baseURL,
+      apiKey: env.DASHSCOPE_API_KEY,
+      cfAigToken: env.CF_AIG_TOKEN || undefined,
+    });
+
+    if (route.kind === "responses") {
+      const previousResponseId =
+        typeof payload.previous_response_id === "string"
+          ? payload.previous_response_id.trim()
+          : undefined;
+      return await streamResponses(client, {
+        model,
+        messages,
+        previousResponseId: previousResponseId || undefined,
+      });
+    }
+
+    return await streamChatAsResponses(client, {
+      model,
+      messages: toOpenAiChatMessages(messages),
+    });
+  } catch (e) {
+    return openAiErrorToJson(c, e);
+  }
 });

@@ -100,6 +100,19 @@ describe("playground-session", () => {
     expect(resolveEffectiveModel(baseConfig, "qwen3.7-max", flags)).toBe("qwen3.7-max");
   });
 
+  it("buildChatRequest for gateway includes path suffix", () => {
+    const r = buildChatRequest({
+      path: "gateway",
+      effectiveModel: "qwen-plus",
+      messages: [],
+      gateway: "gw",
+      gatewayApiPath: "/compatible-mode/v1/chat/completions",
+      useWorkerToml: false,
+    });
+    expect(r.url).toBe("/api/chat");
+    expect(r.body.path).toBe("/compatible-mode/v1/chat/completions");
+  });
+
   it("buildChatRequest for worker with use_worker_config", () => {
     const r = buildChatRequest({
       path: "worker",
@@ -116,8 +129,10 @@ describe("playground-session", () => {
 
 describe("resolveInspectTarget / resolveRequestPath", () => {
   it("maps tabs to gateway or worker inspect targets", () => {
-    expect(resolveInspectTarget("gateway", "worker")).toBe("gateway");
-    expect(resolveInspectTarget("worker", "gateway")).toBe("worker");
+    expect(resolveInspectTarget("gateway")).toBe("gateway");
+    expect(resolveInspectTarget("worker")).toBe("worker");
+    expect(resolveRequestPath("gateway")).toBe("gateway");
+    expect(resolveRequestPath("worker")).toBe("worker");
   });
 });
 

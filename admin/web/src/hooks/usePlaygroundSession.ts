@@ -2,20 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   fetchGatewayContext,
+  fetchGatewayApiPaths,
   fetchPublicConfig,
   fetchSupabaseStatus,
   fetchWorkerList,
   startWorkerDev,
 } from "@/lib/api";
+import { buildGatewayPathEntries, CHAT_API_PATH } from "@admin/gateway-paths";
+import type { GatewayPathEntry } from "@/types";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
-import type { ChatPath, DebugTab, WorkerConfigSource } from "@/lib/playground-session";
-import { playgroundRouting } from "@/lib/routing";
 import {
-  CHAT_PATH_KEY,
   DEBUG_TAB_KEY,
   deriveSessionFlags,
-  readChatPath,
   readDebugTab,
   readWorkerEndpoint,
   persistWorkerEndpoint,
@@ -27,9 +26,14 @@ import {
   resolveRequestPath,
   resolveWorkerDisplayUrl,
   resolveWorkerTierModels,
+  readGatewayApiPath,
+  persistGatewayApiPath,
+  type DebugTab,
+  type WorkerConfigSource,
   type WorkerTarget,
 } from "@/lib/playground-session";
 import { resolvePlaygroundDataView } from "@/lib/playground-sources";
+import { playgroundRouting } from "@/lib/routing";
 import { pickFields } from "@/lib/field-meta";
 import { toast } from "sonner";
 
@@ -51,19 +55,10 @@ function persistTab(tab: DebugTab) {
   }
 }
 
-function persistChatPath(path: ChatPath) {
-  try {
-    localStorage.setItem(CHAT_PATH_KEY, path);
-  } catch {
-    /* ignore */
-  }
-}
-
 export function usePlaygroundSession() {
   const { token } = useAdminToken();
   const { t, displayError } = useLocale();
   const [activeTab, setActiveTabState] = useState<DebugTab>(readDebugTab);
-  const [chatPath, setChatPathState] = useState<ChatPath>(readChatPath);
   const [workerConfigSource, setWorkerConfigSource] =
     useState<WorkerConfigSource>("worker");
   const [workerTarget, setWorkerTargetState] = useState<WorkerTarget>(readWorkerEndpoint);
@@ -81,15 +76,16 @@ export function usePlaygroundSession() {
   const [workerTestPassword, setWorkerTestPassword] = useState("");
   const [workerHealthChecking, setWorkerHealthChecking] = useState(false);
   const [workerHealthResult, setWorkerHealthResult] = useState<string | null>(null);
+  const [gatewayApiPath, setGatewayApiPathState] = useState(readGatewayApiPath);
+
+  const setGatewayApiPath = useCallback((path: string) => {
+    setGatewayApiPathState(path);
+    persistGatewayApiPath(path);
+  }, []);
 
   const setActiveTab = useCallback((tab: DebugTab) => {
     setActiveTabState(tab);
     persistTab(tab);
-  }, []);
-
-  const setChatPath = useCallback((path: ChatPath) => {
-    setChatPathState(path);
-    persistChatPath(path);
   }, []);
 
   const setWorkerDir = useCallback((dir: string) => {
@@ -103,8 +99,8 @@ export function usePlaygroundSession() {
     }
   }, []);
 
-  const inspectTarget = resolveInspectTarget(activeTab, chatPath);
-  const requestPath = resolveRequestPath(activeTab, chatPath);
+  const inspectTarget = resolveInspectTarget(activeTab);
+  const requestPath = resolveRequestPath(activeTab);
   const effectiveWorkerConfigSource: WorkerConfigSource =
     activeTab === "worker" ? workerConfigSource : "ui";
 
@@ -163,6 +159,7 @@ export function usePlaygroundSession() {
   const effectiveModel = resolveEffectiveModel(config, uiModel, flags);
   const workerTierModels = resolveWorkerTierModels(config);
   const effectiveGateway = resolveEffectiveGateway(config, gateway, flags.useWorkerToml);
+
   const catalogRefetched = useRef(false);
 
   useEffect(() => {
@@ -219,8 +216,46 @@ export function usePlaygroundSession() {
   const modelMeta = config?.models.find((m) => m.id === effectiveModel) ?? null;
   const routing =
     config && !flags.hideGatewayModel
-      ? playgroundRouting(config, effectiveGateway, effectiveModel)
+      ? playgroundRouting(config, effectiveGateway, effectiveModel, gatewayApiPath)
       : null;
+
+  const providerSlug = routing?.provider_slug ?? config?.provider_slug ?? "";
+
+  const gatewayPathsQ = useQuery({
+    queryKey: ["playground-gateway-paths", token, effectiveGateway, providerSlug],
+    queryFn: async () => {
+      const r = await fetchGatewayApiPaths(token, effectiveGateway, providerSlug);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    enabled: Boolean(token && effectiveGateway && providerSlug),
+  });
+
+  const gatewayPathOptions: GatewayPathEntry[] = useMemo(() => {
+    if (gatewayPathsQ.data?.paths.length) return gatewayPathsQ.data.paths;
+    const accountId = config?.worker_routing?.account_id ?? "";
+    if (!accountId || !effectiveGateway || !providerSlug) return [];
+    return buildGatewayPathEntries({
+      accountId,
+      gatewayId: effectiveGateway,
+      providerSlug,
+      providerBaseUrl: config?.base_url,
+    });
+  }, [
+    config?.base_url,
+    config?.worker_routing?.account_id,
+    effectiveGateway,
+    gatewayPathsQ.data,
+    providerSlug,
+  ]);
+
+  useEffect(() => {
+    if (!gatewayPathOptions.length) return;
+    const suffixes = gatewayPathOptions.map((p) => p.suffix);
+    if (gatewayApiPath && suffixes.includes(gatewayApiPath)) return;
+    const chat = gatewayPathOptions.find((p) => p.kind === "chat");
+    setGatewayApiPath(chat?.suffix ?? suffixes[0] ?? CHAT_API_PATH);
+  }, [gatewayApiPath, gatewayPathOptions, setGatewayApiPath]);
 
   const startLocalDevM = useMutation({
     mutationFn: async () => {
@@ -264,8 +299,6 @@ export function usePlaygroundSession() {
     token,
     activeTab,
     setActiveTab,
-    chatPath,
-    setChatPath,
     requestPath,
     inspectTarget,
     config,
@@ -287,6 +320,10 @@ export function usePlaygroundSession() {
     effectiveModel,
     workerTierModels,
     effectiveGateway,
+    gatewayApiPath,
+    setGatewayApiPath,
+    gatewayPathOptions,
+    gatewayPathsLoading: gatewayPathsQ.isLoading,
     modelMeta,
     routing,
     fieldMeta: config?._meta?.fields,

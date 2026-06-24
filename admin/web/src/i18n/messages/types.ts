@@ -274,6 +274,10 @@ export interface Messages {
     tabChat: string;
     tabGateway: string;
     tabWorker: string;
+    apiPathLabel: string;
+    apiPathChat: string;
+    apiPathResponses: string;
+    apiPathCustom: string;
     configLabel: string;
     chatPathLabel: string;
     workerTargetLabel: string;
