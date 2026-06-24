@@ -39,18 +39,18 @@ describe("supabase-schema", () => {
   it("resolveTableSql merges statements from multiple files", () => {
     const migrations = [
       {
-        version: "0001_wren_state",
-        filename: "0001_wren_state.sql",
-        sql: "create table wren_state (id uuid);",
+        version: "0001_user_state",
+        filename: "0001_user_state.sql",
+        sql: "create table user_state (id uuid);",
       },
       {
-        version: "0002_wren_state_policies",
-        filename: "0002_wren_state_policies.sql",
-        sql: 'create policy "owner reads" on public.wren_state for select using (true);',
+        version: "0002_user_state_policies",
+        filename: "0002_user_state_policies.sql",
+        sql: 'create policy "owner reads" on public.user_state for select using (true);',
       },
     ];
-    const sql = resolveTableSql(migrations, "wren_state");
-    expect(sql).toContain("create table wren_state");
+    const sql = resolveTableSql(migrations, "user_state");
+    expect(sql).toContain("create table user_state");
     expect(sql).toContain('create policy "owner reads"');
   });
 
@@ -67,13 +67,13 @@ describe("supabase-schema", () => {
   it("buildMigrationFileRows lists tables per file", () => {
     const local = [
       {
-        version: "0001_wren_state",
-        filename: "0001_wren_state.sql",
-        sql: "create table wren_state (id uuid); create table wren_log (id uuid);",
+        version: "0001_user_state",
+        filename: "0001_user_state.sql",
+        sql: "create table user_state (id uuid); create table sync_log (id uuid);",
       },
     ];
     const files = buildMigrationFileRows(local);
-    expect(files[0].tables).toEqual(["wren_log", "wren_state"]);
+    expect(files[0].tables).toEqual(["sync_log", "user_state"]);
     expect(files[0].functions).toEqual([]);
   });
 
@@ -102,10 +102,10 @@ describe("supabase-schema", () => {
 
   it("buildTableComparison compares local sql tables with remote db", () => {
     const rows = buildTableComparison(
-      new Set(["wren_state", "ai_gateway"]),
+      new Set(["user_state", "ai_gateway"]),
       [
         {
-          name: "wren_state",
+          name: "user_state",
           rls_enabled: true,
           policy_count: 2,
           policies: ["owner reads", "owner writes"],
@@ -113,15 +113,15 @@ describe("supabase-schema", () => {
         { name: "legacy", rls_enabled: false, policy_count: 0, policies: [] },
       ],
       new Map([
-        ["wren_state", ["0001_wren_state.sql"]],
+        ["user_state", ["0001_user_state.sql"]],
         ["ai_gateway", ["0002_ai_gateway.sql"]],
       ]),
-      new Map([["wren_state", ["owner reads"]]]),
+      new Map([["user_state", ["owner reads"]]]),
     );
-    const wren = rows.find((r) => r.name === "wren_state");
-    expect(wren?.status).toBe("synced");
-    expect(wren?.local_policies).toEqual(["owner reads"]);
-    expect(wren?.remote_policies).toEqual(["owner reads", "owner writes"]);
+    const stateRow = rows.find((r) => r.name === "user_state");
+    expect(stateRow?.status).toBe("synced");
+    expect(stateRow?.local_policies).toEqual(["owner reads"]);
+    expect(stateRow?.remote_policies).toEqual(["owner reads", "owner writes"]);
     expect(rows.find((r) => r.name === "ai_gateway")?.status).toBe("local_only");
     expect(rows.find((r) => r.name === "legacy")?.status).toBe("remote_only");
   });
@@ -140,7 +140,7 @@ describe("supabase-schema", () => {
   });
 
   it("resolveMigrationsDir accepts repo default migrations dir", () => {
-    const resolved = resolveMigrationsDir("wren-supabase/migrations");
+    const resolved = resolveMigrationsDir("supabase/migrations");
     expect(resolved).toBeTruthy();
     expect(fs.existsSync(resolved!)).toBe(true);
   });

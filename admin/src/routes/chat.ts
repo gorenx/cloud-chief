@@ -1,10 +1,11 @@
 import { Hono } from "hono";
-import { env } from "../env";
 import { gatewayUrl } from "../cf";
-import { loadCfLists, resolveDefaults, RESPONSES_API_PATH } from "../cf-resolve";
+import { env } from "../env";
+import { loadCfLists, resolveDefaults, CHAT_API_PATH } from "../cf-resolve";
+import { normalizeChatMessages, postUpstreamStream, upstreamFetchError } from "../llm-forward";
 import { proxyUpstreamChat } from "../sse-proxy";
 
-// 本地调试用的聊天代理：浏览器 -> 本服务 -> AI Gateway -> 阿里云 MaaS。
+// 本地调试：浏览器 -> Admin（fetch 透传 SSE）-> AI Gateway -> 阿里云 MaaS。
 export const chat = new Hono();
 
 chat.post("/", async (c) => {
@@ -45,24 +46,28 @@ chat.post("/", async (c) => {
     return c.json({ error: "CF 上暂无已启用的自定义提供商" }, 400);
   }
 
-  const url = gatewayUrl(gateway.id, provider.slug, RESPONSES_API_PATH);
+  const messages = normalizeChatMessages(payload.messages ?? payload.input);
+  if (!messages.length) {
+    return c.json({ error: "messages required" }, 400);
+  }
+
+  const url = gatewayUrl(gateway.id, provider.slug, CHAT_API_PATH);
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     Authorization: `Bearer ${env.DASHSCOPE_API_KEY}`,
   };
   if (env.CF_AIG_TOKEN) headers["cf-aig-authorization"] = `Bearer ${env.CF_AIG_TOKEN}`;
 
-  const upstreamBody = JSON.stringify({
+  const upstreamBody = {
     model: payload.model || env.MODEL,
-    input: payload.messages || payload.input || [],
+    messages,
     stream: true,
-  });
+  };
 
   let upstream: Response;
   try {
-    upstream = await fetch(url, { method: "POST", headers, body: upstreamBody });
+    upstream = await postUpstreamStream(url, headers, upstreamBody);
   } catch (e) {
-    return c.json({ error: (e as Error).message }, 502);
+    return c.json({ error: upstreamFetchError(e, url) }, 502);
   }
 
   return proxyUpstreamChat(c, upstream);

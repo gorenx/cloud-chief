@@ -20,7 +20,7 @@ app.use(
     origin: "*",
     allowMethods: ["POST", "GET", "OPTIONS"],
     allowHeaders: ["authorization", "content-type", "x-device-id"],
-    exposeHeaders: ["x-wren-tier", "x-wren-used", "x-wren-quota"],
+    exposeHeaders: ["x-gateway-tier", "x-gateway-used", "x-gateway-quota"],
   }),
 );
 

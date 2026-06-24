@@ -81,9 +81,9 @@ Free tier 默认限额（`gateway-core/policy.ts`，可通过 wrangler `[vars]` 
 
 | Header | 说明 |
 |--------|------|
-| `X-Wren-Tier` | `plus` 或 `free` |
-| `X-Wren-Used` | 免费用户当日已用次数（Plus 为 `0`） |
-| `X-Wren-Quota` | 免费用户当日配额（Plus 为 `0`） |
+| `X-Gateway-Tier` | `plus` 或 `free` |
+| `X-Gateway-Used` | 免费用户当日已用次数（Plus 为 `0`） |
+| `X-Gateway-Quota` | 免费用户当日配额（Plus 为 `0`） |
 
 上游 metadata（`cf-aig-metadata` JSON）含：`sub`, `email`, `role`, `tier`, `used`, `quota`。
 

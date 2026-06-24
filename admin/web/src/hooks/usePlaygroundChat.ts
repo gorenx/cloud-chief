@@ -41,6 +41,9 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
     const assistantIdx = historyRef.current.length;
     setMessages((m) => [...m, { role: "assistant", content: t("playground.thinking") }]);
 
+    const abort = new AbortController();
+    const streamTimer = setTimeout(() => abort.abort(), 120_000);
+
     try {
       const { url, body } = buildChatRequest({
         ...params,
@@ -50,6 +53,7 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: abort.signal,
       });
 
       const content = await streamChatResponse(resp, (acc) => {
@@ -81,6 +85,7 @@ export function usePlaygroundChat(scrollRef: RefObject<HTMLDivElement | null>) {
         return copy;
       });
     } finally {
+      clearTimeout(streamTimer);
       setSending(false);
     }
   }

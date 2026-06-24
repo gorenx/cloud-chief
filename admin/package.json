@@ -12,11 +12,13 @@
     "start": "tsx src/index.ts",
     "build": "bash scripts/pm.sh web build && tsc",
     "typecheck": "tsc --noEmit && bash scripts/pm.sh web typecheck",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.5",
     "hono": "^4.12.25",
+    "openai": "^5.8.2",
     "pg-migration-sql": "workspace:*",
     "zod": "^4.4.3"
   },

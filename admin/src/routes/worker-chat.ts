@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import { env } from "../env";
-import { proxyUpstreamChat } from "../sse-proxy";
 import { buildWorkerDebugInfo } from "../worker-debug";
 import { formatWorkerFetchError } from "../worker-connect-error";
 import { resolveWorkerChatAuth } from "../worker-chat-auth";
 import { getWorkerRuntimeConfig } from "../worker-runtime";
 import { formatWorkerProxyResponse } from "../worker-proxy-response";
+import { normalizeChatMessages, postUpstreamStream, upstreamFetchError } from "../llm-forward";
+import { proxyUpstreamChat } from "../sse-proxy";
 import {
   resolveWorkerHttpPath,
   parseWorkerHttpMethod,
@@ -131,7 +132,7 @@ workerChat.post("/", async (c) => {
   const vars = runtime.vars;
 
   const endpoint =
-    payload.endpoint === "chat" ? "chat/completions" : "responses";
+    payload.endpoint === "responses" ? "responses" : "chat/completions";
   const url = `${auth.base}/v1/${endpoint}`;
   const useWorkerConfig = payload.use_worker_config === true;
   const payloadModel = typeof payload.model === "string" ? payload.model.trim() : "";
@@ -140,26 +141,23 @@ workerChat.post("/", async (c) => {
     (useWorkerConfig ? vars.DEFAULT_MODEL : undefined) ||
     vars.DEFAULT_MODEL ||
     env.MODEL;
-  const messages = payload.messages || payload.input || [];
+  const messages = normalizeChatMessages(payload.messages ?? payload.input);
 
   const upstreamBody =
     endpoint === "responses"
-      ? JSON.stringify({ model, input: messages, stream: true })
-      : JSON.stringify({ model, messages, stream: true });
+      ? { model, input: messages, stream: true }
+      : { model, messages, stream: true };
 
   let upstream: Response;
   try {
-    upstream = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${auth.accessToken}`,
-      },
-      body: upstreamBody,
-      signal: AbortSignal.timeout(15_000),
-    });
+    upstream = await postUpstreamStream(
+      url,
+      { Authorization: `Bearer ${auth.accessToken}` },
+      upstreamBody,
+      15_000,
+    );
   } catch (e) {
-    return c.json({ error: formatWorkerFetchError(e, url) }, 502);
+    return c.json({ error: upstreamFetchError(e, url) }, 502);
   }
 
   return proxyUpstreamChat(c, upstream);

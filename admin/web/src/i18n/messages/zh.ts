@@ -580,7 +580,7 @@ export const zhMessages: Messages = {
     functionsDesc: "扫描本地 functions 目录（每个子目录需含 index.ts），通过 Management API 部署到线上。",
     functionsDirLabel: "Functions 目录",
     functionsDirPick: "选择目录",
-    functionsDirHint: "本机绝对路径，默认 wren-supabase/functions",
+    functionsDirHint: "本机绝对路径，默认 supabase/functions",
     functionsDirCurrent: "当前：{path}",
     functionsDirPickerTitle: "选择 Functions 目录",
     functionsDirPickerSelect: "选择此目录",

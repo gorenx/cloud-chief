@@ -16,6 +16,7 @@
     "jose": "^6.2.3"
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "@cloudflare/vitest-pool-workers": "^0.16.16",
     "@cloudflare/workers-types": "^4.20260617.1",
     "@vitest/runner": "^4.1.9",

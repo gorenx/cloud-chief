@@ -586,7 +586,7 @@ export const enMessages: Messages = {
     functionsDesc: "Scan local functions directory (each subfolder needs index.ts) and deploy via Management API.",
     functionsDirLabel: "Functions directory",
     functionsDirPick: "Choose directory",
-    functionsDirHint: "Absolute path on this machine — default wren-supabase/functions",
+    functionsDirHint: "Absolute path on this machine — default supabase/functions",
     functionsDirCurrent: "Current: {path}",
     functionsDirPickerTitle: "Choose functions directory",
     functionsDirPickerSelect: "Select this directory",

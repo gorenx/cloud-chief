@@ -48,7 +48,7 @@ ai-gateway-worker/
 | `POST /v1/responses` | Responses API 代理（SSE 透传） |
 | `GET /health` | 健康检查 |
 
-成功响应带 `X-Wren-Tier` / `X-Wren-Used` / `X-Wren-Quota` 头。免费超额返回 `429`（`over_quota` / `throttled`）。
+成功响应带 `X-Gateway-Tier` / `X-Gateway-Used` / `X-Gateway-Quota` 头。免费超额返回 `429`（`over_quota` / `throttled`）。
 
 ## 配置
 

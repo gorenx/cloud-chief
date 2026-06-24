@@ -6,11 +6,11 @@ Base URL：开发 `http://127.0.0.1:5173`（经 Vite 代理）或 `http://127.0.
 
 ## 鉴权约定
 
-| 标记 | 要求 |
-|------|------|
-| 公开 | 无头 |
-| 管理 | `Authorization: Bearer <ADMIN_TOKEN>` |
-| 管理 + CF | 服务端另需 `CF_API_TOKEN` 调 Cloudflare |
+| 标记            | 要求                                                    |
+| --------------- | ------------------------------------------------------- |
+| 公开            | 无头                                                    |
+| 管理            | `Authorization: Bearer <ADMIN_TOKEN>`                   |
+| 管理 + CF       | 服务端另需 `CF_API_TOKEN` 调 Cloudflare                 |
 | 管理 + wrangler | 服务端需 `CLOUDFLARE_API_TOKEN` 或本机 `wrangler login` |
 
 ---
@@ -33,35 +33,35 @@ Playground 与公开配置。无需 ADMIN_TOKEN。
 
 **响应字段**
 
-| 字段 | 类型 | 来源 |
-|------|------|------|
-| `model` | string | env `MODEL` |
-| `gateway` | string | env `CF_GATEWAY_ID` |
-| `gateways` | string[] | CF API；env 网关可能 prepend |
-| `provider_slug` | string | env |
-| `base_url` | string | env |
-| `path` | string | env |
-| `models` | ModelMeta[] | `model-catalog.ts` |
-| `routing` | RoutingInfo | `buildRouting()` |
-| `routing_preview` | string | `routing.invoke_url`（兼容字段） |
-| `worker` | WorkerDebugInfo | Worker 运行时（URL、vars 来源、has_anon_key 等；**不含**测试邮箱） |
-| `worker_routing` | WorkerRoutingInfo | wrangler `[vars]` 路由链 |
-| `catalog_synced` | string[]? | 本次自动写入 `MODEL_CATALOG` 的 id |
-| `_meta` | ResponseMeta | 各字段数据来源，见下 |
+| 字段              | 类型              | 来源                                                               |
+| ----------------- | ----------------- | ------------------------------------------------------------------ |
+| `model`           | string            | env `MODEL`                                                        |
+| `gateway`         | string            | env `CF_GATEWAY_ID`                                                |
+| `gateways`        | string[]          | CF API；env 网关可能 prepend                                       |
+| `provider_slug`   | string            | env                                                                |
+| `base_url`        | string            | env                                                                |
+| `path`            | string            | env                                                                |
+| `models`          | ModelMeta[]       | `model-catalog.ts`                                                 |
+| `routing`         | RoutingInfo       | `buildRouting()`                                                   |
+| `routing_preview` | string            | `routing.invoke_url`（兼容字段）                                   |
+| `worker`          | WorkerDebugInfo   | Worker 运行时（URL、vars 来源、has_anon_key 等；**不含**测试邮箱） |
+| `worker_routing`  | WorkerRoutingInfo | wrangler `[vars]` 路由链                                           |
+| `catalog_synced`  | string[]?         | 本次自动写入 `MODEL_CATALOG` 的 id                                 |
+| `_meta`           | ResponseMeta      | 各字段数据来源，见下                                               |
 
 **`_meta.fields` 常用键**
 
-| 键 | `source` | 说明 |
-|----|----------|------|
-| `gateway` | `cf` | Cloudflare 网关 id |
-| `gateways` | `cf` | 下拉列表，`GET /ai-gateway/gateways` |
-| `model` | `catalog` | model-catalog.ts 中的模型 id |
-| `models` | `catalog` | 模型目录列表 |
-| `provider_slug` / `base_url` | `cf` | CF 自定义提供商列表 |
-| `path` | `derived` | 代码常量 `RESPONSES_API_PATH` |
-| `routing.invoke_url` | `derived` | 由 account + gateway + slug + path 拼接 |
-| `routing.worker_model` | `wrangler` | `wrangler.toml [vars].DEFAULT_MODEL` |
-| `chat.authorization` | `env` | `DASHSCOPE_API_KEY`；Playground 聊天专用，不经 BYOK |
+| 键                           | `source`   | 说明                                                |
+| ---------------------------- | ---------- | --------------------------------------------------- |
+| `gateway`                    | `cf`       | Cloudflare 网关 id                                  |
+| `gateways`                   | `cf`       | 下拉列表，`GET /ai-gateway/gateways`                |
+| `model`                      | `catalog`  | model-catalog.ts 中的模型 id                        |
+| `models`                     | `catalog`  | 模型目录列表                                        |
+| `provider_slug` / `base_url` | `cf`       | CF 自定义提供商列表                                 |
+| `path`                       | `derived`  | 代码常量 `RESPONSES_API_PATH`                       |
+| `routing.invoke_url`         | `derived`  | 由 account + gateway + slug + path 拼接             |
+| `routing.worker_model`       | `wrangler` | `wrangler.toml [vars].DEFAULT_MODEL`                |
+| `chat.authorization`         | `env`      | `DASHSCOPE_API_KEY`；Playground 聊天专用，不经 BYOK |
 
 `source` 枚举：`env` | `cf` | `wrangler` | `catalog` | `derived`。每项可选 `key`、`dependsOn`、`hint`。
 
@@ -196,7 +196,12 @@ Playground **经 Worker** 模式：Admin 代持 Supabase JWT，代理到 Worker�
   },
   "keys": [],
   "keys_error": null,
-  "model_meta": { "id": "...", "display_name": "...", "family": "max", "supports_thinking": true },
+  "model_meta": {
+    "id": "...",
+    "display_name": "...",
+    "family": "max",
+    "supports_thinking": true
+  },
   "_meta": {
     "fields": {
       "gateway.id": { "source": "cf" },
@@ -376,7 +381,12 @@ SSE 流：`wrangler deploy` 实时输出。
 本地 `wrangler dev` 进程与健康探测。
 
 ```json
-{ "running": false, "pid": null, "healthy": true, "worker_dir": "/abs/path/worker" }
+{
+  "running": false,
+  "pid": null,
+  "healthy": true,
+  "worker_dir": "/abs/path/worker"
+}
 ```
 
 ---
@@ -409,7 +419,11 @@ SSE 流：`wrangler deploy` 实时输出。
 {
   "oauth_configured": true,
   "connected": true,
-  "account": { "primary_email": null, "projects_count": 3, "test_email": "user@example.com" },
+  "account": {
+    "primary_email": null,
+    "projects_count": 3,
+    "test_email": "user@example.com"
+  },
   "local_test": { "email": "user@example.com", "configured": true },
   "local_only": true,
   "oauth_apps_url": "https://supabase.com/dashboard/org/_/apps"
@@ -453,7 +467,13 @@ SSE 流：`wrangler deploy` 实时输出。
   "path": "/Users/me/Projects/cloud-chief/supabase/migrations",
   "parent": "/Users/me/Projects/cloud-chief/supabase",
   "migration_count": 1,
-  "entries": [{ "name": "archive", "path": "/Users/me/Projects/cloud-chief/supabase/migrations/archive", "has_children": false }]
+  "entries": [
+    {
+      "name": "archive",
+      "path": "/Users/me/Projects/cloud-chief/supabase/migrations/archive",
+      "has_children": false
+    }
+  ]
 }
 ```
 
@@ -465,7 +485,9 @@ SSE 流：`wrangler deploy` 实时输出。
 {
   "current": "/Users/me/Projects/cloud-chief/wren-supabase/migrations",
   "current_readable": true,
-  "candidates": [{ "path": "/Users/me/Projects/cloud-chief/wren-supabase/migrations", "count": 2 }]
+  "candidates": [
+    { "path": "/Users/me/Projects/cloud-chief/supabase/migrations", "count": 2 }
+  ]
 }
 ```
 
@@ -484,7 +506,10 @@ SSE 流：`wrangler deploy` 实时输出。
 列出所选目录下的 `*.sql`（不含 SQL 正文）。可选 `?dir=` 覆盖当前配置。
 
 ```json
-{ "migrations": [{ "version": "001_profiles", "filename": "001_profiles.sql" }], "migrations_dir": "/Users/me/Projects/cloud-chief/supabase/migrations" }
+{
+  "migrations": [{ "version": "001_profiles", "filename": "001_profiles.sql" }],
+  "migrations_dir": "/Users/me/Projects/cloud-chief/supabase/migrations"
+}
 ```
 
 ### `GET /admin/supabase/migrations/status?ref=abcd1234`
@@ -547,13 +572,13 @@ SSE 流：`wrangler deploy` 实时输出。
 
 本地目录结构：`{functions_dir}/{slug}/index.ts`（可选 `deno.json`）。默认 `SUPABASE_FUNCTIONS_DIR=wren-supabase/functions`。通过 Supabase Management API `POST /v1/projects/{ref}/functions/deploy` 部署。
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| `GET` | `/admin/supabase/functions/browse?path=` | 本机目录浏览 |
-| `GET` | `/admin/supabase/functions/dirs` | 当前/候选目录 |
-| `POST` | `/admin/supabase/functions/dir` | 保存 `SUPABASE_FUNCTIONS_DIR` |
-| `GET` | `/admin/supabase/functions/status?ref=` | 本地 vs 线上 functions 对比 |
-| `POST` | `/admin/supabase/functions/deploy` | 部署单个或全部待发布 |
+| 方法   | 路径                                     | 说明                          |
+| ------ | ---------------------------------------- | ----------------------------- |
+| `GET`  | `/admin/supabase/functions/browse?path=` | 本机目录浏览                  |
+| `GET`  | `/admin/supabase/functions/dirs`         | 当前/候选目录                 |
+| `POST` | `/admin/supabase/functions/dir`          | 保存 `SUPABASE_FUNCTIONS_DIR` |
+| `GET`  | `/admin/supabase/functions/status?ref=`  | 本地 vs 线上 functions 对比   |
+| `POST` | `/admin/supabase/functions/deploy`       | 部署单个或全部待发布          |
 
 `GET .../status` 响应示例：
 
@@ -588,11 +613,11 @@ SSE 流：`wrangler deploy` 实时输出。
 
 ## 错误码
 
-| 状态 | 含义 |
-|------|------|
-| 401 | ADMIN_TOKEN 缺失或不匹配 |
-| 503 | 未配置 `ADMIN_TOKEN`（管理接口未启用） |
-| 400 | zod 校验失败或缺少 query/body 字段 |
-| 4xx/5xx | CF API 或 wrangler 原样透传 |
+| 状态    | 含义                                   |
+| ------- | -------------------------------------- |
+| 401     | ADMIN_TOKEN 缺失或不匹配               |
+| 503     | 未配置 `ADMIN_TOKEN`（管理接口未启用） |
+| 400     | zod 校验失败或缺少 query/body 字段     |
+| 4xx/5xx | CF API 或 wrangler 原样透传            |
 
 前端统一经 `lib/api.ts` 的 `adminFetch()` 解析 `error` / `errors` 字段。

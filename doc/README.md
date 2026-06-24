@@ -108,7 +108,7 @@ JWT 验签：默认 ES256/RS256 走 Supabase JWKS；HS256 旧项目需配置 `SU
 
 | Worker | 允许方法 | 允许请求头 | 暴露响应头 |
 |--------|----------|------------|------------|
-| ai-gateway-proxy | `GET`, `POST`, `OPTIONS` | `authorization`, `content-type`, `x-device-id` | `x-wren-tier`, `x-wren-used`, `x-wren-quota` |
+| ai-gateway-proxy | `GET`, `POST`, `OPTIONS` | `authorization`, `content-type`, `x-device-id` | `x-gateway-tier`, `x-gateway-used`, `x-gateway-quota` |
 | revenuecat-proxy | `GET`, `POST`, `OPTIONS` | `authorization`, `content-type` | — |
 
 ## `ALLOWED_SUBS` 语义差异

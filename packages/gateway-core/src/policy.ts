@@ -2,12 +2,11 @@
 //
 // Defaults below; override per deployment via ai-gateway-worker wrangler [vars]:
 // FREE_DAILY_CEILING, MAX_TOKENS, MAX_PROMPT_CHARS, DEVICE_DAILY_CAP, IP_DAILY_CAP.
-// Model ids: FREE_MODEL / PLUS_MODEL. PLUS_ENTITLEMENT_ID must match RevenueCat
-// and the Flutter client (WrenRules.proEntitlementId).
+// Model ids: FREE_MODEL / PLUS_MODEL. PLUS_ENTITLEMENT_ID must match RevenueCat.
 
 export const FREE_MODEL = "qwen-plus";
 export const PLUS_MODEL = "qwen-plus";
-export const PLUS_ENTITLEMENT_ID = "wren Pro";
+export const PLUS_ENTITLEMENT_ID = "Plus";
 
 /** Supabase user access_token `aud` claim; override via wrangler [vars]. */
 export const JWT_AUDIENCE = "authenticated";

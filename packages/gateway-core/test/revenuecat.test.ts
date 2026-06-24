@@ -16,7 +16,7 @@ describe("revenuecat-entitlement", () => {
   });
 
   it("affectsPlus filters by entitlement id", () => {
-    expect(affectsPlus({ entitlement_ids: ["wren Pro"] })).toBe(true);
+    expect(affectsPlus({ entitlement_ids: ["Plus"] })).toBe(true);
     expect(affectsPlus({ entitlement_ids: ["other"] })).toBe(false);
   });
 

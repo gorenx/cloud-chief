@@ -140,10 +140,14 @@
     messages.push({ role: "user", content: text });
     const bubble = addMsg("assistant", "思考中…");
 
+    const abort = new AbortController();
+    const streamTimer = setTimeout(() => abort.abort(), 120000);
+
     try {
       const resp = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abort.signal,
         body: JSON.stringify({
           model,
           messages,
@@ -160,34 +164,44 @@
         return;
       }
 
-      // 解析阿里云 Responses API 的 SSE：response.output_text.delta 增量拼接
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let acc = "", buffer = "";
+      const deadline = Date.now() + 120000;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop();
-        for (const line of lines) {
-          const s = line.trim();
-          if (!s.startsWith("data:")) continue;
-          const data = s.slice(5).trim();
-          if (!data || data === "[DONE]") continue;
-          try {
-            const ev = JSON.parse(data);
-            if (ev.type === "response.output_text.delta" && ev.delta) {
-              acc += ev.delta;
-              bubble.textContent = acc;
-            } else if (ev.type === "response.failed" || ev.error) {
-              bubble.classList.add("err");
-              bubble.textContent = "模型返回错误: " + JSON.stringify(ev.error || ev);
-            }
-          } catch {}
+      try {
+        while (true) {
+          if (Date.now() > deadline) throw new Error("stream timeout");
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
+          for (const line of lines) {
+            const s = line.trim();
+            if (!s.startsWith("data:")) continue;
+            const data = s.slice(5).trim();
+            if (!data || data === "[DONE]") continue;
+            try {
+              const ev = JSON.parse(data);
+              const choices = ev.choices;
+              const chatDelta = choices && choices[0] && choices[0].delta && choices[0].delta.content;
+              if (chatDelta) {
+                acc += chatDelta;
+                bubble.textContent = acc;
+              } else if (ev.type === "response.output_text.delta" && ev.delta) {
+                acc += ev.delta;
+                bubble.textContent = acc;
+              } else if (ev.type === "response.failed" || ev.error) {
+                bubble.classList.add("err");
+                bubble.textContent = "模型返回错误: " + JSON.stringify(ev.error || ev);
+              }
+            } catch {}
+          }
+          document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
         }
-        document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+      } finally {
+        reader.releaseLock();
       }
 
       const content = acc || "(无内容返回)";
@@ -197,6 +211,7 @@
       bubble.classList.add("err");
       bubble.textContent = "错误: " + e.message;
     } finally {
+      clearTimeout(streamTimer);
       sendBtn.disabled = false;
       input.focus();
     }

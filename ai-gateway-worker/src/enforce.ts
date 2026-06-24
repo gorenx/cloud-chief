@@ -174,8 +174,8 @@ export async function enforceGatewayPolicy(
 
 export function policyResponseHeaders(policy: GatewayPolicy): Record<string, string> {
   return {
-    "x-wren-tier": policy.tier,
-    "x-wren-used": String(policy.used),
-    "x-wren-quota": String(policy.quota),
+    "x-gateway-tier": policy.tier,
+    "x-gateway-used": String(policy.used),
+    "x-gateway-quota": String(policy.quota),
   };
 }

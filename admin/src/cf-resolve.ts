@@ -1,7 +1,8 @@
 import { cfApi } from "./cf";
 import type { ProviderInfo } from "./routing";
 
-/** Cloudflare 不存储；Responses API 固定路径 */
+/** Cloudflare 不存储；百炼 OpenAI 兼容路径 */
+export const CHAT_API_PATH = "/compatible-mode/v1/chat/completions";
 export const RESPONSES_API_PATH = "/compatible-mode/v1/responses";
 
 export interface GatewayRow {

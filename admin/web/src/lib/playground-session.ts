@@ -238,7 +238,7 @@ export function buildChatRequest(params: ChatRequestParams): {
   const body: Record<string, unknown> = {
     model: params.effectiveModel,
     messages: params.messages,
-    endpoint: "responses",
+    endpoint: "chat",
     use_worker_config: params.useWorkerToml,
     worker_target: parseWorkerEndpoint(params.workerTarget ?? WORKER_ENDPOINT_LOCAL),
   };

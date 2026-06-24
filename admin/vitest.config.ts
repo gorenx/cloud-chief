@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/**/*.test.ts", "web/src/**/*.test.ts"],
+    exclude: ["test/integration/**"],
     env: {
       CF_ACCOUNT_ID: "test-account",
       ADMIN_TOKEN: "test-token",

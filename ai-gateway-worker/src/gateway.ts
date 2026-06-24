@@ -58,7 +58,6 @@ export async function forward(
       ? jsonError(504, "upstream timeout", `no response headers within ${timeoutMs}ms`)
       : jsonError(502, "upstream fetch failed", (e as Error).message);
   } finally {
-    // 已拿到响应头（或已失败）：停止计时，确保不影响后续流式 body。
     clearTimeout(timer);
   }
 

@@ -4,7 +4,7 @@ import path from "node:path";
 import { env, workerRoot } from "./env";
 import { deployProjectFunction, listProjectFunctions, type RemoteFunctionRow } from "./supabase-management";
 
-export const DEFAULT_FUNCTIONS_REL_DIR = "wren-supabase/functions";
+export const DEFAULT_FUNCTIONS_REL_DIR = "supabase/functions";
 export const LEGACY_FUNCTIONS_REL_DIR = "supabase/functions";
 export const FUNCTION_ENTRY_FILE = "index.ts";
 
