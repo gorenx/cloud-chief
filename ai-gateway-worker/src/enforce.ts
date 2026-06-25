@@ -2,8 +2,6 @@ import type { JWTPayload } from "jose";
 import {
   AiGatewayError,
   createAdminClient,
-  FREE_MODEL,
-  PLUS_MODEL,
   PolicyConfigError,
   readUserEntitlement,
   resolveGatewayLimits,
@@ -27,8 +25,18 @@ export type PolicyReject = {
 };
 
 function resolveModel(env: Env, isPlus: boolean): string {
-  if (isPlus) return env.PLUS_MODEL?.trim() || PLUS_MODEL;
-  return env.FREE_MODEL?.trim() || env.DEFAULT_MODEL?.trim() || FREE_MODEL;
+  if (isPlus) {
+    const model = env.PLUS_MODEL?.trim() || env.DEFAULT_MODEL?.trim();
+    if (!model) {
+      throw new PolicyConfigError("PLUS_MODEL or DEFAULT_MODEL must be set in wrangler [vars]");
+    }
+    return model;
+  }
+  const model = env.FREE_MODEL?.trim() || env.DEFAULT_MODEL?.trim();
+  if (!model) {
+    throw new PolicyConfigError("FREE_MODEL or DEFAULT_MODEL must be set in wrangler [vars]");
+  }
+  return model;
 }
 
 function clientIp(req: Request): string | null {
