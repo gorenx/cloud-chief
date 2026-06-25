@@ -16,8 +16,9 @@ describe("revenuecat-entitlement", () => {
   });
 
   it("affectsPlus filters by entitlement id", () => {
-    expect(affectsPlus({ entitlement_ids: ["Plus"] })).toBe(true);
-    expect(affectsPlus({ entitlement_ids: ["other"] })).toBe(false);
+    const plusId = "wren Pro";
+    expect(affectsPlus({ entitlement_ids: [plusId] }, plusId)).toBe(true);
+    expect(affectsPlus({ entitlement_ids: ["other"] }, plusId)).toBe(false);
   });
 
   it("fallbackEventState maps grant and revoke types", () => {

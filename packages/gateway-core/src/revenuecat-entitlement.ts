@@ -1,10 +1,27 @@
 // RevenueCat → user_entitlements mirror. Shared by billing webhook and sync.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { PLUS_ENTITLEMENT_ID } from "./policy.js";
 
 export const REVENUECAT_SUBSCRIBERS_URL =
   "https://api.revenuecat.com/v1/subscribers";
+
+export class RevenueCatConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RevenueCatConfigError";
+  }
+}
+
+/** RevenueCat Dashboard entitlement identifier; set in worker-revenuecat wrangler [vars]. */
+export function resolvePlusEntitlementId(raw: string | undefined): string {
+  const id = raw?.trim();
+  if (!id) {
+    throw new RevenueCatConfigError(
+      "PLUS_ENTITLEMENT_ID must be set in worker-revenuecat wrangler [vars]",
+    );
+  }
+  return id;
+}
 
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -44,21 +61,25 @@ export function isUuid(value: string): boolean {
   return UUID.test(value);
 }
 
-export function affectsPlus(ev: Record<string, unknown>): boolean {
+export function affectsPlus(
+  ev: Record<string, unknown>,
+  plusEntitlementId: string,
+): boolean {
   const entitlementIds = stringArrayField(ev, "entitlement_ids");
   const entitlementId = typeof ev.entitlement_id === "string"
     ? ev.entitlement_id
     : null;
   if (entitlementIds.length > 0) {
-    return entitlementIds.includes(PLUS_ENTITLEMENT_ID);
+    return entitlementIds.includes(plusEntitlementId);
   }
-  if (entitlementId !== null) return entitlementId === PLUS_ENTITLEMENT_ID;
+  if (entitlementId !== null) return entitlementId === plusEntitlementId;
   return true;
 }
 
 export async function fetchRevenueCatEntitlement(
   userId: string,
   restApiKey: string,
+  plusEntitlementId: string,
 ): Promise<EntitlementState> {
   const res = await fetch(
     `${REVENUECAT_SUBSCRIBERS_URL}/${encodeURIComponent(userId)}`,
@@ -84,7 +105,7 @@ export async function fetchRevenueCatEntitlement(
   const nowMs = typeof data.request_date_ms === "number"
     ? data.request_date_ms
     : Date.now();
-  const ent = data.subscriber?.entitlements?.[PLUS_ENTITLEMENT_ID];
+  const ent = data.subscriber?.entitlements?.[plusEntitlementId];
   if (!ent) return { isPlus: false, productId: null, expiresAt: null };
 
   const expiresAt = typeof ent.expires_date === "string"

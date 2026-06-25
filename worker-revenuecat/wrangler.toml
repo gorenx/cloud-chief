@@ -19,6 +19,8 @@ port = 8789
 [vars]
 # RevenueCat 项目 ID（Dashboard → Project Settings）
 RC_PROJECT_ID = "proj463a2635"
+# Plus 权益 ID（Dashboard → Entitlements 中的 identifier，须与 webhook entitlement_ids 一致）
+PLUS_ENTITLEMENT_ID = "wren Pro"
 # Supabase 项目地址（不要带末尾斜杠）
 SUPABASE_URL = "https://hkhdizuncmaghkhtcvvw.supabase.co"
 JWT_AUDIENCE = "authenticated"

@@ -7,6 +7,7 @@ import {
   isUuid,
   mirrorEntitlementFromRest,
   numberField,
+  resolvePlusEntitlementId,
   uuidArrayField,
   WEBHOOK_FALLBACK_GRANT,
   WEBHOOK_FALLBACK_IGNORE,
@@ -20,6 +21,7 @@ export async function handleRevenueCatWebhook(c: Context<{ Bindings: Env }>) {
     return c.text("method_not_allowed", 405);
   }
   const env = c.env;
+  const plusEntitlementId = resolvePlusEntitlementId(env.PLUS_ENTITLEMENT_ID);
   if (
     !env.REVENUECAT_WEBHOOK_SECRET ||
     !env.SUPABASE_URL ||
@@ -58,7 +60,11 @@ export async function handleRevenueCatWebhook(c: Context<{ Bindings: Env }>) {
     for (const userId of new Set(ids)) {
       let state;
       try {
-        state = await fetchRevenueCatEntitlement(userId, env.REVENUECAT_REST_API_KEY);
+        state = await fetchRevenueCatEntitlement(
+          userId,
+          env.REVENUECAT_REST_API_KEY,
+          plusEntitlementId,
+        );
       } catch {
         return c.text("revenuecat_read_failed", 500);
       }
@@ -76,12 +82,16 @@ export async function handleRevenueCatWebhook(c: Context<{ Bindings: Env }>) {
 
   const appUserId = String(ev.app_user_id ?? "");
   if (!isUuid(appUserId)) return c.text("ignored_non_uuid_user", 200);
-  if (!affectsPlus(ev)) return c.text("ignored_other_entitlement", 200);
+  if (!affectsPlus(ev, plusEntitlementId)) return c.text("ignored_other_entitlement", 200);
 
   let state;
   try {
     state = env.REVENUECAT_REST_API_KEY
-      ? await fetchRevenueCatEntitlement(appUserId, env.REVENUECAT_REST_API_KEY)
+      ? await fetchRevenueCatEntitlement(
+        appUserId,
+        env.REVENUECAT_REST_API_KEY,
+        plusEntitlementId,
+      )
       : fallbackEventState(
         ev,
         WEBHOOK_FALLBACK_GRANT,
@@ -106,6 +116,7 @@ export async function handleRevenueCatWebhook(c: Context<{ Bindings: Env }>) {
 
 export async function handleSyncEntitlement(c: Context<{ Bindings: Env; Variables: { claims: { sub?: string } } }>) {
   const env = c.env;
+  const plusEntitlementId = resolvePlusEntitlementId(env.PLUS_ENTITLEMENT_ID);
   if (
     !env.REVENUECAT_REST_API_KEY ||
     !env.SUPABASE_URL ||
@@ -121,7 +132,11 @@ export async function handleSyncEntitlement(c: Context<{ Bindings: Env; Variable
 
   let state;
   try {
-    state = await fetchRevenueCatEntitlement(userId, env.REVENUECAT_REST_API_KEY);
+    state = await fetchRevenueCatEntitlement(
+      userId,
+      env.REVENUECAT_REST_API_KEY,
+      plusEntitlementId,
+    );
   } catch {
     return c.json({ error: "revenuecat_read_failed" }, 502);
   }

@@ -7,7 +7,7 @@
 
 **前置条件**：RevenueCat SDK 中 `app_user_id` = Supabase 用户 UUID（JWT `sub`）。
 
-Plus 权益 ID（webhook 过滤，RevenueCat 产品配置名）：见 `gateway-core` `PLUS_ENTITLEMENT_ID`。
+Plus 权益 ID（webhook 过滤，RevenueCat 产品配置名）：`worker-revenuecat/wrangler.toml` → `PLUS_ENTITLEMENT_ID`（须与 RevenueCat Dashboard → Entitlements identifier 一致）。
 
 ---
 

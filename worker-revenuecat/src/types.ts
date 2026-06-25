@@ -6,6 +6,8 @@ export interface RateLimitBinding {
 
 export interface Env {
   RC_PROJECT_ID: string;
+  /** RevenueCat entitlement identifier for Plus tier */
+  PLUS_ENTITLEMENT_ID: string;
   SUPABASE_URL: string;
   JWT_AUDIENCE?: string;
   ALLOWED_SUBS?: string;
