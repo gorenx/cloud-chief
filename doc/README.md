@@ -6,7 +6,8 @@
 
 | 文档 | Worker 部署名 | 职责 |
 |------|---------------|------|
-| [ai-gateway-worker.md](./ai-gateway-worker.md) | `ai-gateway-proxy` | AI 推理代理、免费配额、Plus 权益路由 |
+| [ai-gateway-worker/API.md](../ai-gateway-worker/API.md) | `ai-gateway-proxy` | **API 参考**（端点、错误码、SSE） |
+| [ai-gateway-worker.md](./ai-gateway-worker.md) | `ai-gateway-proxy` | 调用指南（架构、集成示例） |
 | [worker-revenuecat.md](./worker-revenuecat.md) | `revenuecat-proxy` | 订阅查询、权益对账、RevenueCat Webhook |
 
 共享业务逻辑见 [`packages/gateway-core/`](../packages/gateway-core/)（JWT audience、配额策略、RevenueCat 权益镜像）。

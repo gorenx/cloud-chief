@@ -94,6 +94,12 @@ npm run deploy
 
 配置见 `cloudflare-builds.json`。
 
+## API 文档
+
+完整 API 参考：**[API.md](./API.md)**（端点、请求/响应、错误码、SSE、OpenAI SDK）。
+
+调用指南（架构、集成示例）：[doc/ai-gateway-worker.md](../doc/ai-gateway-worker.md)
+
 ## 应用调用
 
 ```js
@@ -110,6 +116,9 @@ const resp = await fetch("https://ai-gateway-proxy.<子域>.workers.dev/v1/respo
     stream: true,
   }),
 });
+// 响应头：X-Gateway-Tier / X-Gateway-Used / X-Gateway-Quota
 ```
+
+本地验证：`./scripts/e2e.sh`
 
 购后/sync 权益：`POST https://revenuecat-proxy.<子域>.workers.dev/v1/sync-entitlement`（见 `worker-revenuecat/README.md`）。
