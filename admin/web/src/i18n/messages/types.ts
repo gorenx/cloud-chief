@@ -96,6 +96,7 @@ export interface Messages {
     worker: string;
     supabase: string;
     settings: string;
+    appConfig: string;
     tokenOn: string;
     tokenOff: string;
     brandSub: string;
@@ -852,6 +853,31 @@ export interface Messages {
     hintWrangler: string;
     toastSaved: string;
     toastCleared: string;
+  };
+  appConfig: {
+    title: string;
+    desc: string;
+    bootstrap: string;
+    bootstrapDesc: string;
+    badgeDb: string;
+    badgeEnv: string;
+    sensitivePlaceholder: string;
+    empty: string;
+    sourceDb: string;
+    sourceEnv: string;
+    dbPreview: string;
+    toastSaved: string;
+    toastNoChanges: string;
+    migrate: string;
+    migrateDesc: string;
+    migrateHint: string;
+    section: {
+      cloudflare: string;
+      playground: string;
+      worker: string;
+      supabase: string;
+      auth: string;
+    };
   };
   login: {
     title: string;

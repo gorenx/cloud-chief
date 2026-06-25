@@ -31,6 +31,10 @@ export function deleteConfigValue(key: string): void {
   getDb().prepare("DELETE FROM app_config WHERE key = ?").run(key);
 }
 
+export function hasConfigValue(key: string): boolean {
+  return getConfigValue(key) !== null;
+}
+
 export function listConfigKeys(): string[] {
   const rows = getDb().prepare("SELECT key FROM app_config ORDER BY key").all() as Array<{
     key: string;

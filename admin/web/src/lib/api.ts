@@ -1,5 +1,7 @@
 import type {
   AdminState,
+  AppConfigFieldReveal,
+  AppConfigResponse,
   GatewayApiPathsResponse,
   GatewayContext,
   PublicConfig,
@@ -574,4 +576,25 @@ export async function login(username: string, password: string) {
 
 export async function logout() {
   await fetch("/auth/logout", { method: "POST", credentials: "include" });
+}
+
+export async function fetchAppConfig(token: string) {
+  return adminFetch<AppConfigResponse>(token, "GET", "/admin/app-config");
+}
+
+export async function fetchAppConfigField(token: string, key: string) {
+  return adminFetch<AppConfigFieldReveal>(
+    token,
+    "GET",
+    `/admin/app-config/field/${encodeURIComponent(key)}`,
+  );
+}
+
+export async function saveAppConfig(token: string, values: Record<string, string>) {
+  return adminFetch<{ ok: true; updated: string[]; removed: string[] }>(
+    token,
+    "PUT",
+    "/admin/app-config",
+    { values },
+  );
 }

@@ -56,6 +56,31 @@ export interface GatewayApiPathsResponse {
   paths: GatewayPathEntry[];
 }
 
+export interface AppConfigField {
+  key: string;
+  value: string;
+  db_value: string;
+  has_value: boolean;
+  in_db: boolean;
+  sensitive: boolean;
+  hint: string;
+}
+
+export interface AppConfigFieldReveal {
+  key: string;
+  value: string;
+  source: "db" | "env";
+  in_db: boolean;
+}
+
+export type AppConfigSectionId = "cloudflare" | "playground" | "worker" | "supabase" | "auth";
+
+export interface AppConfigResponse {
+  sections: Array<{ id: AppConfigSectionId; fields: AppConfigField[] }>;
+  bootstrap_keys: string[];
+  bootstrap: Record<string, string | number | boolean>;
+}
+
 export interface RoutingInfo {
   model: string;
   worker_model: string | null;

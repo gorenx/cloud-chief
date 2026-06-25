@@ -13,7 +13,8 @@
     "build": "bash scripts/pm.sh web build && tsc",
     "typecheck": "tsc --noEmit && bash scripts/pm.sh web typecheck",
     "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "migrate:env": "tsx scripts/migrate-env-to-db.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.5",

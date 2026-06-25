@@ -11,6 +11,7 @@ import {
   Rocket,
   Database,
   Settings,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
@@ -57,7 +58,10 @@ const NAV_SECTIONS: NavSection[] = [
   },
   {
     labelKey: "nav.sectionSystem",
-    items: [{ to: "/settings", labelKey: "nav.settings", icon: Settings }],
+    items: [
+      { to: "/app-config", labelKey: "nav.appConfig", icon: SlidersHorizontal },
+      { to: "/settings", labelKey: "nav.settings", icon: Settings },
+    ],
   },
 ];
 

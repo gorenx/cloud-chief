@@ -3,12 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { app } from "./app";
-import { env } from "./env";
+import { env, startEnvWatcher } from "./env";
 
 const adminRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const hasWebDist = fs.existsSync(path.join(adminRoot, "web", "dist", "index.html"));
 const isDev = process.env.ADMIN_DEV === "1";
 const devWebOrigin = env.ADMIN_WEB_ORIGIN.trim() || "http://localhost:5173";
+
+startEnvWatcher();
 
 serve({ fetch: app.fetch, port: env.PORT, hostname: env.ADMIN_BIND }, (info) => {
   const host = env.ADMIN_BIND === "0.0.0.0" ? "localhost" : env.ADMIN_BIND;

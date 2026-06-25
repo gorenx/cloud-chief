@@ -17,6 +17,7 @@ import { workerChat } from "./routes/worker-chat";
 import { supabaseConnect } from "./routes/supabase-connect";
 import { authRoutes } from "./routes/auth";
 import { initDatabase } from "./db/connection";
+import { overlayAppConfigFromDb } from "./app-config-overlay";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(here, "..");
@@ -24,6 +25,7 @@ const webDist = path.join(adminRoot, "web", "dist");
 
 export function createApp(): Hono {
   initDatabase();
+  overlayAppConfigFromDb();
   const app = new Hono();
 
   app.get("/health", (c) => c.json({ ok: true }));

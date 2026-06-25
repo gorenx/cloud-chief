@@ -172,6 +172,11 @@ function syncDerived(): void {
   workerRoot = resolveWorkerRoot(env);
 }
 
+/** 配置变更或 SQLite overlay 后刷新 worker 路径 */
+export function reconcileDerivedPaths(): void {
+  syncDerived();
+}
+
 export type ReloadResult =
   | { ok: true; changed: string[] }
   | { ok: false; error: string; keptPrevious: boolean };
@@ -249,5 +254,3 @@ export function startEnvWatcher(): void {
     }, 200);
   });
 }
-
-startEnvWatcher();

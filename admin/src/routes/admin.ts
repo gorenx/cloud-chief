@@ -18,6 +18,7 @@ import {
   zodMessage,
 } from "../schemas";
 import { gatewayApiPaths } from "./gateway-api-paths";
+import { appConfigRoutes } from "./app-config";
 
 export const admin = new Hono();
 
@@ -168,3 +169,4 @@ admin.delete("/keys", async (c) => {
 });
 
 admin.route("/gateways", gatewayApiPaths);
+admin.route("/app-config", appConfigRoutes);
