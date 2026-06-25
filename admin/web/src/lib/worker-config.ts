@@ -67,3 +67,21 @@ export function collectWorkerSecrets(
   }
   return out;
 }
+
+/** 本地 wrangler [vars] 与 CF 线上 plain_text 是否不一致 */
+export function workerVarsDiffer(
+  localRows: WorkerVarRow[],
+  onlineVars: Record<string, string>,
+): boolean {
+  const local: Record<string, string> = {};
+  for (const { k, v } of localRows) {
+    if (k.trim()) local[k.trim()] = v;
+  }
+  for (const [key, value] of Object.entries(local)) {
+    if (onlineVars[key] !== value) return true;
+  }
+  for (const key of Object.keys(onlineVars)) {
+    if (!(key in local)) return true;
+  }
+  return false;
+}

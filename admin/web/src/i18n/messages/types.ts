@@ -18,6 +18,7 @@ export interface Messages {
       refreshList: string;
       addVar: string;
       saveVars: string;
+      syncCfVars: string;
       addSecret: string;
       saveDevVars: string;
       pushSecrets: string;
@@ -742,7 +743,7 @@ export interface Messages {
     card: {
       project: { title: string; desc: string };
       deploy: { title: string; desc: string };
-      varsLocal: { title: string; desc: string };
+      varsLocal: { title: string; desc: string; cfMismatch: string; saveBeforeSync: string };
       varsOnline: { title: string; desc: string; scriptMismatch: string; pendingDeploy: string };
       secretsLocal: { title: string; desc: string };
       secretsOnline: { title: string; desc: string };
@@ -796,6 +797,8 @@ export interface Messages {
       triggerBuild: string;
       builderSaved: string;
       varsSaved: string;
+      cfVarsSynced: string;
+      cfVarsAlreadySynced: string;
       devVarsSaved: string;
       secretsPushed: string;
       deploySuccess: string;

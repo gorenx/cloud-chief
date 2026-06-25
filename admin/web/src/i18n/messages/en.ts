@@ -19,6 +19,7 @@ export const enMessages: Messages = {
       refreshList: "Refresh list",
       addVar: "+ Add variable",
       saveVars: "Save variables",
+      syncCfVars: "Sync to Cloudflare",
       addSecret: "+ Add secret",
       saveDevVars: "Save to local .dev.vars",
       pushSecrets: "Push to production",
@@ -830,7 +831,9 @@ export const enMessages: Messages = {
       },
       varsLocal: {
         title: "Environment variables · local",
-        desc: "Written to wrangler.toml [vars]",
+        desc: "wrangler.toml [vars]; save locally then sync plain_text to Cloudflare",
+        cfMismatch: "Differs from Cloudflare online (see highlights on the right). Save locally, then sync.",
+        saveBeforeSync: "Unsaved edits — save variables locally before syncing to Cloudflare.",
       },
       varsOnline: {
         title: "Environment variables · online",
@@ -913,6 +916,8 @@ export const enMessages: Messages = {
       triggerBuild: "Triggered build ({name})",
       builderSaved: "Saved CF_WORKER_BUILDER to admin/.env",
       varsSaved: "Saved to wrangler.toml",
+      cfVarsSynced: "Synced {count} keys to Cloudflare",
+      cfVarsAlreadySynced: "Online vars already match wrangler.toml",
       devVarsSaved: "Saved to local .dev.vars",
       secretsPushed: "Pushed to production",
       deploySuccess: "Deploy succeeded",

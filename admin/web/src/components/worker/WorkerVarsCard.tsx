@@ -10,16 +10,36 @@ export function WorkerVarsCard({
   onChange,
   onSave,
   save,
+  onSyncCf,
+  cfSync,
+  canSyncCf,
+  varsOutOfSync,
+  varsUnsaved,
 }: {
   vars: WorkerVarRowState[];
   onChange: (rows: WorkerVarRowState[]) => void;
   onSave: () => void;
   save: UseMutationResult<void, Error, void, unknown>;
+  onSyncCf?: () => void;
+  cfSync?: UseMutationResult<
+    { ok: true; script_name: string; updated_keys: string[] },
+    Error,
+    void,
+    unknown
+  >;
+  canSyncCf?: boolean;
+  varsOutOfSync?: boolean;
+  varsUnsaved?: boolean;
 }) {
   const t = useT();
   return (
     <Card>
       <CardTitle desc={t("worker.card.varsLocal.desc")}>{t("worker.card.varsLocal.title")}</CardTitle>
+      {varsUnsaved ? (
+        <p className="mb-3 text-sm text-[var(--color-muted)]">{t("worker.card.varsLocal.saveBeforeSync")}</p>
+      ) : varsOutOfSync ? (
+        <p className="mb-3 text-sm text-amber-300">{t("worker.card.varsLocal.cfMismatch")}</p>
+      ) : null}
       <div className="space-y-2">
         {vars.map((row, i) => (
           <WorkerVarRow
@@ -35,7 +55,7 @@ export function WorkerVarsCard({
           />
         ))}
       </div>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Button
           variant="ghost"
           size="sm"
@@ -46,6 +66,16 @@ export function WorkerVarsCard({
         <Button variant="ghost" size="sm" onClick={onSave} disabled={save.isPending}>
           {t("btn.worker.saveVars")}
         </Button>
+        {canSyncCf && onSyncCf && cfSync ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSyncCf}
+            disabled={cfSync.isPending || !varsOutOfSync || varsUnsaved}
+          >
+            {t("btn.worker.syncCfVars")}
+          </Button>
+        ) : null}
       </div>
     </Card>
   );

@@ -45,6 +45,40 @@ export async function cfApi(
   }
 }
 
+/** Worker settings PATCH：CF API token 不支持 PUT，需 multipart + settings JSON */
+export async function cfApiWorkerSettingsPatch(
+  scriptName: string,
+  settings: Record<string, unknown>,
+): Promise<CfResult> {
+  const form = new FormData();
+  form.set("settings", JSON.stringify(settings));
+  try {
+    const r = await fetch(
+      `${cfBase()}/workers/scripts/${encodeURIComponent(scriptName)}/settings`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${env.CF_API_TOKEN}`,
+        },
+        body: form,
+      },
+    );
+    const text = await r.text();
+    let json: CfResult["json"];
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = { success: false, raw: text };
+    }
+    return { status: r.status, json };
+  } catch (e) {
+    return {
+      status: 0,
+      json: { success: false, errors: [{ message: (e as Error).message }] },
+    };
+  }
+}
+
 import { gatewayUrlWithAccount as gwUrl } from "./gateway-url";
 
 export const gatewayUrl = (gw: string, slug: string, p: string): string =>

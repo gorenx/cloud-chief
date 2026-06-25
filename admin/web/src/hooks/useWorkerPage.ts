@@ -7,10 +7,12 @@ import {
   fetchWorkerList,
   fetchWorkerSecrets,
   fetchWorkerStatus,
+  syncWorkerCfVars,
 } from "@/lib/api";
 import {
   buildVarsObject,
   collectWorkerSecrets,
+  workerVarsDiffer,
   type WorkerSecretRowState,
   type WorkerVarRow,
 } from "@/lib/worker-config";
@@ -28,6 +30,7 @@ export function useWorkerPage(token: string) {
   const [vars, setVars] = useState<WorkerVarRow[]>([]);
   const [secrets, setSecrets] = useState<WorkerSecretRowState[]>([]);
   const [prodSet, setProdSet] = useState<Set<string> | null>(null);
+  const [cfScriptName, setCfScriptName] = useState("");
   const deploy = useSSEStream();
   const mainScrollLock = useRef<number | null>(null);
 
@@ -109,9 +112,17 @@ export function useWorkerPage(token: string) {
     scrollRef,
   ]);
 
+  // 切换 worker 时先清空表单，避免线上 vars 用上一项目的键去对齐新脚本
+  useEffect(() => {
+    setVars([]);
+    setSecrets([{ name: "", value: "", fixed: false, optional: false }]);
+    setProdSet(null);
+    setCfScriptName("");
+  }, [workerDir]);
+
   useEffect(() => {
     const s = statusQ.data;
-    if (!s) return;
+    if (!s || s.worker_dir_rel !== workerDir) return;
     syncFormFromStatus(s, token, workerDir, setVars, setSecrets, setProdSet);
   }, [statusQ.data, token, workerDir]);
 
@@ -124,6 +135,23 @@ export function useWorkerPage(token: string) {
     onSuccess: () => {
       toast.success(t("worker.toast.varsSaved"));
       void qc.invalidateQueries({ queryKey: ["worker-status"] });
+    },
+    onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
+  });
+
+  const cfVarsSync = useMutation({
+    mutationFn: async () => {
+      const r = await syncWorkerCfVars(token, workerDir || undefined);
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    onSuccess: (data) => {
+      if (data.updated_keys.length === 0) {
+        toast.message(t("worker.toast.cfVarsAlreadySynced"));
+      } else {
+        toast.success(t("worker.toast.cfVarsSynced", { count: data.updated_keys.length }));
+      }
+      refreshStatus();
     },
     onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
@@ -186,13 +214,15 @@ export function useWorkerPage(token: string) {
   );
 
   const cfScripts = cfDeployedQ.data?.ok ? cfDeployedQ.data.scripts : [];
-  const [cfScriptName, setCfScriptName] = useState("");
-  const prevWorkerDirRef = useRef(workerDir);
+
+  const statusAligned = Boolean(
+    workerDir && statusQ.data?.worker_dir_rel === workerDir,
+  );
 
   useEffect(() => {
+    if (!statusAligned) return;
+
     const localName = statusQ.data?.worker_name;
-    const workerDirChanged = prevWorkerDirRef.current !== workerDir;
-    prevWorkerDirRef.current = workerDir;
 
     const pickLocalMatch = () => {
       if (localName && cfScripts.some((s) => s.name === localName)) {
@@ -202,11 +232,6 @@ export function useWorkerPage(token: string) {
       setCfScriptName("");
     };
 
-    if (workerDirChanged) {
-      pickLocalMatch();
-      return;
-    }
-
     if (!cfScriptName) {
       pickLocalMatch();
       return;
@@ -215,7 +240,7 @@ export function useWorkerPage(token: string) {
     if (!cfScripts.some((s) => s.name === cfScriptName)) {
       pickLocalMatch();
     }
-  }, [statusQ.data?.worker_name, cfScripts, workerDir, cfScriptName]);
+  }, [statusAligned, statusQ.data?.worker_name, cfScripts, cfScriptName]);
 
   const onlineScript = useMemo(
     () => cfScripts.find((s) => s.name === cfScriptName) ?? null,
@@ -231,8 +256,19 @@ export function useWorkerPage(token: string) {
   }, [vars]);
 
   const matchedOnline =
+    statusAligned &&
     Boolean(statusQ.data?.worker_name) &&
     onlineScript?.name === statusQ.data?.worker_name;
+
+  const varsOutOfSync =
+    matchedOnline &&
+    onlineScript &&
+    workerVarsDiffer(vars, onlineScript.vars);
+
+  const varsUnsaved =
+    statusAligned && statusQ.data
+      ? workerVarsDiffer(vars, statusQ.data.vars)
+      : false;
 
   const displayWorkerName = useMemo(() => {
     const local = workersQ.data?.workers.find((w) => w.dir === workerDir);
@@ -261,8 +297,12 @@ export function useWorkerPage(token: string) {
     setCfScriptName,
     onlineScript,
     localVarsRecord,
+    statusAligned,
     matchedOnline,
+    varsOutOfSync,
+    varsUnsaved,
     varsSave,
+    cfVarsSync,
     devVarsSave,
     secretsPush,
     deploy,

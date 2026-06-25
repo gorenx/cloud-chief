@@ -19,6 +19,7 @@ export const zhMessages: Messages = {
       refreshList: "刷新列表",
       addVar: "+ 添加变量",
       saveVars: "保存变量",
+      syncCfVars: "同步到 Cloudflare",
       addSecret: "+ 添加 secret",
       saveDevVars: "保存到本地 .dev.vars",
       pushSecrets: "推送到生产",
@@ -821,7 +822,9 @@ export const zhMessages: Messages = {
       },
       varsLocal: {
         title: "环境变量 · 本地",
-        desc: "写入 wrangler.toml [vars]",
+        desc: "写入 wrangler.toml [vars]；保存后点「同步到 Cloudflare」更新线上 plain_text",
+        cfMismatch: "与 Cloudflare 线上不一致（高亮项见右侧）。先保存本地，再同步到 CF。",
+        saveBeforeSync: "有未保存修改；请先「保存变量」再同步到 Cloudflare。",
       },
       varsOnline: {
         title: "环境变量 · 线上",
@@ -901,6 +904,8 @@ export const zhMessages: Messages = {
       triggerBuild: "已触发构建（{name}）",
       builderSaved: "已保存 CF_WORKER_BUILDER 到 admin/.env",
       varsSaved: "已写入 wrangler.toml",
+      cfVarsSynced: "已同步 {count} 项到 Cloudflare",
+      cfVarsAlreadySynced: "线上已与 wrangler.toml 一致",
       devVarsSaved: "已写入本地 .dev.vars",
       secretsPushed: "已推送到生产",
       deploySuccess: "部署成功",

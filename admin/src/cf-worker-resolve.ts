@@ -1,4 +1,4 @@
-import { cfApi } from "./cf";
+import { cfApi, cfApiWorkerSettingsPatch } from "./cf";
 
 export interface CfWorkerBinding {
   type?: string;
@@ -264,4 +264,86 @@ export function mergeWorkerVars(
         ? "merged"
         : "cf";
   return { vars: merged, source };
+}
+
+type CfSettingsBinding = Record<string, unknown> & {
+  type?: string;
+  name?: string;
+  text?: string;
+};
+
+/** 用 wrangler [vars] 替换 plain_text 绑定，保留 secret / KV 等其它 binding */
+export function buildBindingsWithPlainTextVars(
+  existingBindings: unknown,
+  vars: Record<string, string>,
+): CfSettingsBinding[] {
+  const keep = Array.isArray(existingBindings)
+    ? (existingBindings as CfSettingsBinding[]).filter((b) => b?.type !== "plain_text")
+    : [];
+  const plain = Object.entries(vars).map(([name, text]) => ({
+    type: "plain_text",
+    name,
+    text,
+  }));
+  return [...keep, ...plain];
+}
+
+export function diffWorkerVarKeys(
+  localVars: Record<string, string>,
+  cfVars: Record<string, string>,
+): string[] {
+  const changed: string[] = [];
+  for (const [k, v] of Object.entries(localVars)) {
+    if (cfVars[k] !== v) changed.push(k);
+  }
+  for (const k of Object.keys(cfVars)) {
+    if (!(k in localVars)) changed.push(k);
+  }
+  return [...new Set(changed)];
+}
+
+/** 将 wrangler.toml [vars] 同步到 CF Worker settings（不重新上传脚本） */
+export async function pushWorkerVarsToCf(
+  scriptName: string,
+  vars: Record<string, string>,
+): Promise<{ ok: true; updated_keys: string[] } | { ok: false; error: string }> {
+  if (!scriptName) return { ok: false, error: "缺少 worker 脚本名" };
+
+  const settingsRes = await cfApi(
+    "GET",
+    `/workers/scripts/${encodeURIComponent(scriptName)}/settings`,
+  );
+  if (!settingsRes.json.success) {
+    const msg =
+      (settingsRes.json.errors as Array<{ message?: string }> | undefined)?.[0]?.message ??
+      `Worker settings HTTP ${settingsRes.status}`;
+    return { ok: false, error: msg };
+  }
+
+  const settings = settingsRes.json.result as {
+    bindings?: unknown;
+    compatibility_date?: string;
+    usage_model?: string;
+  };
+  const prevVars = parseBindings(settings?.bindings).vars;
+  const updated_keys = diffWorkerVarKeys(vars, prevVars);
+  if (updated_keys.length === 0) {
+    return { ok: true, updated_keys: [] };
+  }
+
+  const settingsPatch: Record<string, unknown> = {
+    bindings: buildBindingsWithPlainTextVars(settings?.bindings, vars),
+  };
+  if (settings?.compatibility_date) settingsPatch.compatibility_date = settings.compatibility_date;
+  if (settings?.usage_model) settingsPatch.usage_model = settings.usage_model;
+
+  const patchRes = await cfApiWorkerSettingsPatch(scriptName, settingsPatch);
+  if (!patchRes.json.success) {
+    const msg =
+      (patchRes.json.errors as Array<{ message?: string }> | undefined)?.[0]?.message ??
+      `Worker settings PATCH HTTP ${patchRes.status}`;
+    return { ok: false, error: msg };
+  }
+
+  return { ok: true, updated_keys };
 }

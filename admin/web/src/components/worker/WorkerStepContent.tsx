@@ -28,13 +28,22 @@ export function WorkerStepContent({
     workerDir: string;
     deployedScriptNames: Set<string>;
     cfScriptName: string;
-    statusQ: { data?: WorkerStatus };
+    statusQ: UseQueryResult<WorkerStatus>;
+    statusAligned: boolean;
     setWorkerDir: (dir: string) => void;
     setCfScriptName: (name: string) => void;
     refreshLists: () => void;
     vars: WorkerVarRow[];
     setVars: (rows: WorkerVarRow[]) => void;
     varsSave: UseMutationResult<void, Error, void, unknown>;
+    cfVarsSync: UseMutationResult<
+      { ok: true; script_name: string; updated_keys: string[] },
+      Error,
+      void,
+      unknown
+    >;
+    varsOutOfSync: boolean;
+    varsUnsaved: boolean;
     onlineScript: CfDeployedWorker | null;
     matchedOnline: boolean;
     secrets: WorkerSecretRowState[];
@@ -73,12 +82,21 @@ export function WorkerStepContent({
           onChange={page.setVars}
           onSave={() => page.varsSave.mutate()}
           save={page.varsSave}
+          onSyncCf={() => page.cfVarsSync.mutate()}
+          cfSync={page.cfVarsSync}
+          canSyncCf={page.matchedOnline}
+          varsOutOfSync={page.varsOutOfSync}
+          varsUnsaved={page.varsUnsaved}
         />
         <WorkerOnlineVarsCard
-          script={page.onlineScript}
-          localVars={page.vars}
+          script={page.statusAligned ? page.onlineScript : null}
+          localVars={page.statusAligned ? page.vars : undefined}
           matched={page.matchedOnline}
-          loading={page.cfDeployedQ.isLoading}
+          loading={
+            page.cfDeployedQ.isLoading ||
+            page.statusQ.isFetching ||
+            !page.statusAligned
+          }
           error={cfError}
         />
       </div>
@@ -99,9 +117,13 @@ export function WorkerStepContent({
           secretsPush={page.secretsPush}
         />
         <WorkerOnlineSecretsCard
-          script={page.onlineScript}
+          script={page.statusAligned ? page.onlineScript : null}
           prodSet={page.prodSet}
-          loading={page.cfDeployedQ.isLoading}
+          loading={
+            page.cfDeployedQ.isLoading ||
+            page.statusQ.isFetching ||
+            !page.statusAligned
+          }
           error={cfError}
         />
       </div>

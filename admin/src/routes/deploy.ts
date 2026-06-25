@@ -12,8 +12,10 @@ import {
 } from "../worker-dev-process";
 import {
   listCfDeployedWorkers,
+  pushWorkerVarsToCf,
   resolveWorkerFromCf,
 } from "../cf-worker-resolve";
+import { clearWorkerRuntimeCache } from "../worker-runtime";
 import {
   getWorkerBuildsStatus,
   syncWorkerBuildsConfig,
@@ -300,6 +302,29 @@ deploy.put("/config", async (c) => {
     return c.json({ error: `写入失败: ${(e as Error).message}` }, 500);
   }
   return c.json({ ok: true, vars: parseVars(next) });
+});
+
+// 将 wrangler.toml [vars] 同步到 Cloudflare Worker settings（不重新部署脚本）
+deploy.post("/cf-vars/sync", async (c) => {
+  const dir = resolveWorkerDir(c.req.query("dir"));
+  if (dir === null) return c.json({ error: "无效的 worker 目录" }, 400);
+  if (!env.CF_API_TOKEN) return c.json({ error: "未配置 CF_API_TOKEN" }, 400);
+
+  const toml = readToml(dir);
+  if (!toml) return c.json({ error: "读取 wrangler.toml 失败" }, 500);
+  const scriptName = parseName(toml);
+  if (!scriptName) return c.json({ error: "wrangler.toml 缺少 name" }, 400);
+
+  const vars = parseVars(toml);
+  const result = await pushWorkerVarsToCf(scriptName, vars);
+  if (!result.ok) return c.json({ error: result.error }, 400);
+
+  clearWorkerRuntimeCache();
+  return c.json({
+    ok: true,
+    script_name: scriptName,
+    updated_keys: result.updated_keys,
+  });
 });
 
 deploy.get("/dev/status", async (c) => {

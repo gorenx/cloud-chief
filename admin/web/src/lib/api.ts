@@ -574,6 +574,15 @@ export async function login(username: string, password: string) {
   return { ok: true as const, data: { user: j.user } };
 }
 
+export async function syncWorkerCfVars(token: string, dir?: string) {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<{ ok: true; script_name: string; updated_keys: string[] }>(
+    token,
+    "POST",
+    `/admin/worker/cf-vars/sync${q}`,
+  );
+}
+
 export async function logout() {
   await fetch("/auth/logout", { method: "POST", credentials: "include" });
 }
