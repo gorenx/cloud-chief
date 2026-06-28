@@ -1,24 +1,17 @@
-import type { UseQueryResult } from "@tanstack/react-query";
 import type { LocalizedWorkerStep } from "@/i18n/worker-ui";
 import { useT } from "@/contexts/LocaleContext";
 import { ScrollSafeButton } from "@/components/ui/ScrollSafeButton";
-import { WorkerProjectSelectorInline } from "@/components/worker/WorkerProjectSelector";
 import { cn } from "@/lib/utils";
-import type { WorkerList } from "@/types";
 
-/** 各步骤共用的顶栏：步骤标题 + 固定 Worker 下拉 + 刷新 */
+/** 各步骤共用的顶栏：固定宽度步骤信息 + 项目名称 + 刷新 */
 export function WorkerStepHeader({
   step,
-  workersQ,
-  workerDir,
-  onSelectDir,
+  projectName,
   onRefresh,
   showStepBadge = true,
 }: {
   step: Pick<LocalizedWorkerStep, "num" | "label" | "summary"> & { optional?: boolean };
-  workersQ: UseQueryResult<WorkerList>;
-  workerDir: string;
-  onSelectDir: (dir: string) => void;
+  projectName?: string | null;
   onRefresh: () => void;
   showStepBadge?: boolean;
 }) {
@@ -26,30 +19,35 @@ export function WorkerStepHeader({
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {showStepBadge && (
-          <span
-            className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-              "bg-[var(--color-accent)]/15 text-[var(--color-accent)]",
-            )}
-          >
-            {step.num}
-          </span>
-        )}
-        <WorkerProjectSelectorInline
-          workersQ={workersQ}
-          workerDir={workerDir}
-          onSelectDir={onSelectDir}
-        />
-        <h3 className="hidden min-w-0 items-center gap-2 text-sm font-semibold leading-tight md:flex">
-          <span className="truncate">{step.label}</span>
-          {step.optional && (
-            <span className="shrink-0 text-xs font-normal text-[var(--color-muted)]">
-              {t("worker.status.optionalTag")}
+      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+        <div className="flex w-[7.5rem] shrink-0 items-center gap-2">
+          {showStepBadge && (
+            <span
+              className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                "bg-[var(--color-accent)]/15 text-[var(--color-accent)]",
+              )}
+            >
+              {step.num}
             </span>
           )}
-        </h3>
+          <span className="truncate text-sm font-semibold leading-tight">{step.label}</span>
+        </div>
+
+        {projectName ? (
+          <code
+            className="mono min-w-0 truncate rounded-[var(--radius-sm)] bg-[var(--color-bg-elevated)] px-2 py-0.5 text-xs text-[var(--color-accent)]"
+            title={projectName}
+          >
+            {projectName}
+          </code>
+        ) : null}
+
+        {step.optional && (
+          <span className="shrink-0 text-xs font-normal text-[var(--color-muted)]">
+            {t("worker.status.optionalTag")}
+          </span>
+        )}
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">

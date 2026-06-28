@@ -49,7 +49,8 @@ export function setupStepCardClasses({
   warn?: boolean;
 }) {
   return cn(
-    "flex h-full min-h-0 min-w-0 flex-1 flex-col rounded-[var(--radius-md)] border px-3 py-2.5 transition-all duration-200",
+    "flex w-full flex-col rounded-[var(--radius-md)] border transition-all duration-200",
+    "h-[7.5rem]",
     isSelected
       ? "border-[var(--color-accent)]/50 bg-[var(--color-accent-glow)] shadow-[inset_0_0_0_1px_rgba(212,160,84,0.15)]"
       : done

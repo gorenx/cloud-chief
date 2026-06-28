@@ -10,11 +10,13 @@ function WorkerDirSelect({
   workerDir,
   onSelectDir,
   className,
+  id,
 }: {
   workersQ: UseQueryResult<WorkerList>;
   workerDir: string;
   onSelectDir: (dir: string) => void;
   className?: string;
+  id?: string;
 }) {
   const t = useT();
   const workers = workersQ.data?.workers ?? [];
@@ -29,6 +31,7 @@ function WorkerDirSelect({
 
   return (
     <Select
+      id={id}
       className={cn(
         "border-[var(--color-border)] bg-[var(--color-bg-elevated)] font-display text-sm shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]",
         className,
@@ -62,14 +65,17 @@ export function WorkerProjectSelectorInline({
   workerDir,
   onSelectDir,
   className,
+  selectId,
 }: {
   workersQ: UseQueryResult<WorkerList>;
   workerDir: string;
   onSelectDir: (dir: string) => void;
   className?: string;
+  selectId?: string;
 }) {
   return (
     <WorkerDirSelect
+      id={selectId}
       workersQ={workersQ}
       workerDir={workerDir}
       onSelectDir={onSelectDir}

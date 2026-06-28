@@ -5,8 +5,8 @@ import { useWorkerPage } from "@/hooks/useWorkerPage";
 import { useWorkerSetupFlowStatus } from "@/hooks/useWorkerSetupFlowStatus";
 import { WorkerSetupFlow } from "@/components/worker/WorkerSetupFlow";
 import { WorkerSetupWorkspace } from "@/components/worker/WorkerSetupWorkspace";
+import { WorkerSidebarProjectBar } from "@/components/worker/WorkerSidebarProjectBar";
 import { WorkerStepContent } from "@/components/worker/WorkerStepContent";
-import { WorkerStepPanelHeader } from "@/components/worker/WorkerStepPanel";
 import { WorkerStepHeader } from "@/components/worker/WorkerStepHeader";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -110,34 +110,15 @@ export function WorkerPage() {
           )
         : null;
 
-  const stepDef = activeStep !== "all" ? steps.find((s) => s.id === activeStep) : null;
-  const workerName = page.displayWorkerName;
+  const stepDef = steps.find((s) => s.id === activeStep);
 
-  const rightHeader =
-    activeStep === "all" ? (
-      <WorkerStepHeader
-        step={{
-          num: 0,
-          label: t("worker.page.allSteps"),
-          summary: t("worker.page.allStepsDesc"),
-        }}
-        showStepBadge={false}
-        workersQ={page.workersQ}
-        workerDir={page.workerDir}
-        onSelectDir={page.setWorkerDir}
-        onRefresh={page.refreshLists}
-      />
-    ) : (
-      stepDef && (
-        <WorkerStepHeader
-          step={stepDef}
-          workersQ={page.workersQ}
-          workerDir={page.workerDir}
-          onSelectDir={page.setWorkerDir}
-          onRefresh={page.refreshLists}
-        />
-      )
-    );
+  const rightHeader = stepDef && (
+    <WorkerStepHeader
+      step={stepDef}
+      projectName={page.displayWorkerName}
+      onRefresh={page.refreshLists}
+    />
+  );
 
   if (!token) {
     return <NoTokenPrompt />;
@@ -158,36 +139,24 @@ export function WorkerPage() {
         status={flowStatus}
         activeStep={activeStep}
         onSelect={selectStep}
-        onShowAll={() => selectStep("all")}
+        sidebarTop={
+          <WorkerSidebarProjectBar
+            workersQ={page.workersQ}
+            workerDir={page.workerDir}
+            onSelectDir={page.setWorkerDir}
+          />
+        }
         rightHeader={rightHeader}
         scrollMain
       >
-        {activeStep === "all" ? (
-          <div className="space-y-8">
-            {steps.map((def) => (
-              <section key={def.id}>
-                <div className="mb-4">
-                  <WorkerStepPanelHeader step={def} workerName={workerName} />
-                </div>
-                <WorkerStepContent
-                  step={def.id}
-                  token={token}
-                  page={page}
-                  cfError={cfError}
-                />
-              </section>
-            ))}
-          </div>
-        ) : (
-          stepDef && (
-            <WorkerStepContent
-              step={activeStep as WorkerSetupStep}
-              token={token}
-              page={page}
-              cfError={cfError}
-              embedded
-            />
-          )
+        {stepDef && (
+          <WorkerStepContent
+            step={activeStep as WorkerSetupStep}
+            token={token}
+            page={page}
+            cfError={cfError}
+            embedded
+          />
         )}
       </WorkerSetupWorkspace>
     </div>

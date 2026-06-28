@@ -3,20 +3,30 @@ import {
   SetupStepCallGuide,
   type SetupCallGuideOverrides,
 } from "@/components/SetupStepCallGuide";
-import { SetupFlowActions } from "@/components/setup-flow/SetupFlowActions";
-import { SetupFlowHeader } from "@/components/setup-flow/SetupFlowHeader";
-import { SetupFlowStepNav } from "@/components/setup-flow/SetupFlowStepNav";
+import {
+  FlowActionBar,
+  FlowWarnings,
+  GATEWAY_SETUP_BODY_ID,
+  focusGatewaySetupBody,
+} from "@/components/flow/FlowShellBody";
+import { FlowShellHeader } from "@/components/flow/FlowShellHeader";
+import { FlowStepCardNav } from "@/components/flow/FlowStepCardNav";
 import { SetupFlowUrlPreview } from "@/components/setup-flow/SetupFlowUrlPreview";
 import { FlowPanel } from "@/components/ui/SetupStepBadge";
 import { useSetupFlowData } from "@/hooks/useSetupFlowData";
 import { useT } from "@/contexts/LocaleContext";
 import {
-  SETUP_STEPS,
+  formatNextSetupAction,
+  formatSetupWarnings,
+  formatSetupStepCardContent,
+  getLocalizedSetupSteps,
+} from "@/i18n/setup-flow-ui";
+import {
   defaultSelectedStep,
-  nextSetupAction,
   resolveSetupCurrent,
+  setupSetupProgress,
+  stepDone,
   type SetupStep,
-  type SetupActionKey,
 } from "@/lib/setup-flow";
 
 export type { SetupCallGuideOverrides, SetupStep };
@@ -46,27 +56,19 @@ export function GatewaySetupFlow({
     if (pageStep) setSelectedStep(pageStep);
   }, [pageStep]);
 
+  const steps = useMemo(() => getLocalizedSetupSteps(t), [t]);
   const coreDone = status.gatewayDone && status.providerDone;
-  const action = nextSetupAction(status, current);
-  const formatAction = useMemo(() => {
-    const map: Record<SetupActionKey, string> = {
-      createGateway: t("setupFlow.actionGw"),
-      addProvider: t("setupFlow.actionPv"),
-      goPlayground: t("setupFlow.actionPlayground"),
-    };
-    return (key: SetupActionKey) => map[key];
-  }, [t]);
-  const currentIdx = SETUP_STEPS.findIndex((s) => s.id === current);
+  const progress = setupSetupProgress(status);
+  const progressPct = Math.round((progress.done / progress.total) * 100);
+  const action = formatNextSetupAction(t, status, current);
+  const warnings = formatSetupWarnings(t, status, pageStep);
   const d = stateQ.data?.defaults;
   const usePageGuide = pageStep === "byok" && selectedStep === "byok";
 
   const guide = {
-    gatewayId:
-      (usePageGuide && callGuide?.gatewayId) || d?.gateway || "",
-    slug:
-      (usePageGuide && callGuide?.providerSlug) || d?.provider_slug || "",
-    model:
-      (usePageGuide && callGuide?.model) || d?.model || "qwen3-max",
+    gatewayId: (usePageGuide && callGuide?.gatewayId) || d?.gateway || "",
+    slug: (usePageGuide && callGuide?.providerSlug) || d?.provider_slug || "",
+    model: (usePageGuide && callGuide?.model) || d?.model || "qwen3-max",
     byok:
       selectedStep === "byok"
         ? (callGuide?.byokConfigured ?? status.byokDone)
@@ -76,28 +78,54 @@ export function GatewaySetupFlow({
       ctxQ.data?.gateway?.authentication,
   };
 
+  const focusStep = (step: SetupStep) => {
+    if (collapsible && !open) setOpen(true);
+    setSelectedStep(step);
+    focusGatewaySetupBody();
+  };
+
+  const handlePillClick = (step: SetupStep) => {
+    focusStep(step);
+  };
+
+  const coreDoneBadge = coreDone
+    ? t("setupFlow.coreDone") + (status.byokDone ? t("setupFlow.coreDoneByok") : "")
+    : undefined;
+
+  const showSecondaryByok = coreDone && !status.byokDone && current !== "byok";
+
   return (
     <FlowPanel>
-      <SetupFlowHeader
-        collapsible={collapsible}
-        open={open}
+      <FlowShellHeader
+        title={t("setupFlow.title")}
+        progressText={t("setupFlow.progress", { done: progress.done, total: progress.total })}
+        subtitle={t("setupFlow.subtitle")}
+        progressPct={progressPct}
+        open={collapsible ? open : true}
         onToggle={() => setOpen((v) => !v)}
-        currentStep={selectedStep}
-        status={status}
+        collapsible={collapsible}
+        steps={steps}
+        stepDone={(step) => stepDone(step, status)}
+        activeStep={selectedStep}
+        onStepPillClick={handlePillClick}
+        coreDoneBadge={coreDoneBadge}
       />
 
       {(!collapsible || open) && (
-        <div className="space-y-3 p-4 pt-3">
-          <SetupFlowStepNav
+        <div id={GATEWAY_SETUP_BODY_ID} className="space-y-4 p-4 pt-3">
+          <FlowStepCardNav
+            steps={steps}
             status={status}
-            pageStep={pageStep}
             selectedStep={selectedStep}
             onSelect={setSelectedStep}
+            stepDone={(step, s) => stepDone(step, s)}
+            formatStepCardContent={formatSetupStepCardContent}
+            optionalLabel={t("common.optional")}
+            pageStep={pageStep}
+            currentPageLabel={t("setupFlow.thisPage")}
           />
-          <SetupFlowUrlPreview
-            accountId={stateQ.data?.account_id ?? ""}
-            status={status}
-          />
+
+          <SetupFlowUrlPreview accountId={stateQ.data?.account_id ?? ""} status={status} />
 
           {d && (
             <SetupStepCallGuide
@@ -112,15 +140,26 @@ export function GatewaySetupFlow({
             />
           )}
 
-          <SetupFlowActions
-            action={action}
-            current={current}
-            currentIdx={currentIdx}
-            status={status}
-            coreDone={coreDone}
-            pageStep={pageStep}
-            formatAction={formatAction}
-          />
+          {action && (
+            <FlowActionBar
+              text={action.text}
+              goToLabel={t("btn.common.goTo")}
+              focusLabel={t("btn.common.focusOnPage")}
+              href={action.to}
+              onInPageClick={() => focusStep(action.step)}
+              secondary={
+                showSecondaryByok
+                  ? {
+                      text: t("setupFlow.optionalByok"),
+                      href: "/keys",
+                      onInPageClick: () => focusStep("byok"),
+                    }
+                  : undefined
+              }
+            />
+          )}
+
+          <FlowWarnings warnings={warnings} />
         </div>
       )}
     </FlowPanel>

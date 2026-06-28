@@ -9,6 +9,7 @@ export const zhMessages: Messages = {
       expand: "展开",
       collapse: "收起",
       goTo: "前往",
+      focusOnPage: "在本页查看",
       show: "显示",
       hide: "隐藏",
       clear: "清除",
@@ -202,6 +203,7 @@ export const zhMessages: Messages = {
   },
   setupFlow: {
     title: "配置流程",
+    progress: "进度 {done}/{total}",
     subtitle:
       "前两步必做；BYOK 可选（密钥也可放在 .env 的 DASHSCOPE_API_KEY）",
     subtitleEnv: "DASHSCOPE_API_KEY",
@@ -227,7 +229,7 @@ export const zhMessages: Messages = {
     metaPvEmpty: "尚未添加",
     metaPvDefault: " · env {slug}",
     metaByokCount: "已绑 {count} 个",
-    metaByokEmpty: "未配置（可用 .env DASHSCOPE_API_KEY 代替）",
+    metaByokEmpty: "未配置",
     actionGw: "请先创建网关",
     actionPv: "下一步：添加自定义提供商",
     actionPlayground: "必做已完成，去调试页面",
@@ -235,15 +237,18 @@ export const zhMessages: Messages = {
       gateway: {
         label: "网关",
         summary: "在 Cloudflare 创建 AI Gateway 实例（入口 ID）",
+        hint: "创建 Gateway 实例",
       },
       provider: {
         label: "提供商",
         summary: "注册自定义上游，得到 slug（URL 中 custom- 后面部分）",
+        hint: "注册上游提供商",
       },
       byok: {
         label: "BYOK 密钥",
         summary:
           "（可选）把上游 API Key 存入 Cloudflare；不配置时可在 .env 用 DASHSCOPE_API_KEY 直连",
+        hint: "可选：托管上游密钥",
       },
     },
     guide: {
@@ -433,18 +438,22 @@ export const zhMessages: Messages = {
       connect: {
         label: "授权",
         summary: "通过 Organization OAuth 连接 Supabase 平台",
+        hint: "OAuth 连接平台",
       },
       project: {
         label: "应用项目",
         summary: "选择项目并写入 SUPABASE_URL 与 anon key",
+        hint: "选择并应用项目",
       },
       database: {
         label: "数据库",
         summary: "按表对比并应用本地 SQL 迁移与 RLS",
+        hint: "应用 SQL 迁移",
       },
       functions: {
         label: "Edge Functions",
         summary: "对比并部署本地 Edge Functions",
+        hint: "部署 Edge Functions",
       },
     },
     action: {
@@ -747,22 +756,27 @@ export const zhMessages: Messages = {
       project: {
         label: "项目",
         summary: "选择本地 Worker 目录，对照线上脚本",
+        hint: "选择本地 Worker 目录",
       },
       vars: {
         label: "Vars",
         summary: "配置 wrangler 环境变量",
+        hint: "配置 wrangler 环境变量",
       },
       secrets: {
         label: "Secrets",
         summary: "本地 .dev.vars 与生产 Secret",
+        hint: "填写本地与生产密钥",
       },
       ci: {
         label: "GitHub CI",
         summary: "Workers Builds 自动构建（可选）",
+        hint: "配置 GitHub 自动构建",
       },
       deploy: {
         label: "部署",
         summary: "本机 wrangler deploy",
+        hint: "本机 wrangler deploy",
       },
     },
     action: {
@@ -782,10 +796,13 @@ export const zhMessages: Messages = {
       projectEmpty: "尚未选择有效项目",
       varsReady: "必填 Vars 已就绪",
       varsMissing: "缺少 {vars}",
+      varsMissingCount: "缺少 {count} 项必填变量",
       varsPending: "待配置",
       secretsLocalMissing: "待填写 {secrets}",
+      secretsLocalMissingCount: "待填写 {count} 项本地密钥",
       secretsLocalPending: "待填写本地密钥",
       secretsProdPending: "本地已就绪 · 生产待推送 {secrets}",
+      secretsProdPendingCount: "生产待推送 {count} 项",
       secretsAllDone: "本地与生产均已配置",
       ciDone: "GitHub 已连接 · Token 有效",
       ciNameMismatch: "Worker 名称不一致，请先在 Dashboard 修正",
@@ -809,6 +826,7 @@ export const zhMessages: Messages = {
       selectLocal: "选择本地 Worker…",
       selectWorker: "选择 Worker",
       selectWorkerHint: "选择本地目录；线上脚本默认匹配 wrangler name",
+      pickLocalDir: "选择本地目录",
       compareTitle: "本地 / 线上对照",
       dir: "目录",
       script: "脚本",

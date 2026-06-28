@@ -12,6 +12,7 @@ export function WorkerSetupWorkspace({
   activeStep,
   onSelect,
   onShowAll,
+  sidebarTop,
   rightHeader,
   children,
   scrollMain,
@@ -19,7 +20,8 @@ export function WorkerSetupWorkspace({
   status: WorkerSetupStatus;
   activeStep: WorkerViewMode;
   onSelect: (step: WorkerSetupStep) => void;
-  onShowAll: () => void;
+  onShowAll?: () => void;
+  sidebarTop?: ReactNode;
   rightHeader: ReactNode;
   children: ReactNode;
   scrollMain?: boolean;
@@ -34,6 +36,7 @@ export function WorkerSetupWorkspace({
       activeStep={activeStep}
       onSelect={onSelect}
       onShowAll={onShowAll}
+      sidebarTop={sidebarTop}
       rightHeader={rightHeader}
       scrollMain={scrollMain}
       optionalLabel={t("worker.status.optionalTag")}

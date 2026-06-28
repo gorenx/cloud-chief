@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { TranslateFn } from "@/i18n";
+import type { FlowStepCardContent } from "@/lib/flow-card-content";
 
 export type WizardViewMode<TStep extends string> = TStep | "all";
 
@@ -7,7 +8,7 @@ export type WizardLocalizedStep<TStep extends string> = {
   id: TStep;
   num: number;
   label: string;
-  summary: string;
+  hint: string;
   optional?: boolean;
 };
 
@@ -20,5 +21,9 @@ export type WizardStepHandlers<TStep extends string, TStatus> = WizardSidebarHan
   TStep,
   TStatus
 > & {
-  formatStepMeta: (t: TranslateFn, step: TStep, status: TStatus) => string;
+  formatStepCardContent: (
+    t: TranslateFn,
+    step: TStep,
+    status: TStatus,
+  ) => FlowStepCardContent;
 };

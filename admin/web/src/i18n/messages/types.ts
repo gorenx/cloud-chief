@@ -8,6 +8,7 @@ export interface Messages {
       expand: string;
       collapse: string;
       goTo: string;
+      focusOnPage: string;
       show: string;
       hide: string;
       clear: string;
@@ -200,6 +201,7 @@ export interface Messages {
   };
   setupFlow: {
     title: string;
+    progress: string;
     subtitle: string;
     subtitleEnv: string;
     coreDone: string;
@@ -227,9 +229,9 @@ export interface Messages {
     actionPv: string;
     actionPlayground: string;
     step: {
-      gateway: { label: string; summary: string };
-      provider: { label: string; summary: string };
-      byok: { label: string; summary: string };
+      gateway: { label: string; summary: string; hint: string };
+      provider: { label: string; summary: string; hint: string };
+      byok: { label: string; summary: string; hint: string };
     };
     guide: {
       gateway: { title: string; desc: string };
@@ -395,10 +397,10 @@ export interface Messages {
       functionsUnchecked: string;
     };
     step: {
-      connect: { label: string; summary: string };
-      project: { label: string; summary: string };
-      database: { label: string; summary: string };
-      functions: { label: string; summary: string };
+      connect: { label: string; summary: string; hint: string };
+      project: { label: string; summary: string; hint: string };
+      database: { label: string; summary: string; hint: string };
+      functions: { label: string; summary: string; hint: string };
     };
     action: {
       connect: string;
@@ -688,11 +690,11 @@ export interface Messages {
       optionalTag: string;
     };
     step: {
-      project: { label: string; summary: string };
-      vars: { label: string; summary: string };
-      secrets: { label: string; summary: string };
-      ci: { label: string; summary: string };
-      deploy: { label: string; summary: string };
+      project: { label: string; summary: string; hint: string };
+      vars: { label: string; summary: string; hint: string };
+      secrets: { label: string; summary: string; hint: string };
+      ci: { label: string; summary: string; hint: string };
+      deploy: { label: string; summary: string; hint: string };
     };
     action: {
       project: string;
@@ -711,10 +713,13 @@ export interface Messages {
       projectEmpty: string;
       varsReady: string;
       varsMissing: string;
+      varsMissingCount: string;
       varsPending: string;
       secretsLocalMissing: string;
+      secretsLocalMissingCount: string;
       secretsLocalPending: string;
       secretsProdPending: string;
+      secretsProdPendingCount: string;
       secretsAllDone: string;
       ciDone: string;
       ciNameMismatch: string;
@@ -738,6 +743,7 @@ export interface Messages {
       selectLocal: string;
       selectWorker: string;
       selectWorkerHint: string;
+      pickLocalDir: string;
       compareTitle: string;
       dir: string;
       script: string;

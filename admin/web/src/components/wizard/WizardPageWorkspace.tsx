@@ -9,6 +9,7 @@ export function WizardPageWorkspace<TStep extends string, TStatus>({
   activeStep,
   onSelect,
   onShowAll,
+  sidebarTop,
   rightHeader,
   children,
   scrollMain,
@@ -21,23 +22,29 @@ export function WizardPageWorkspace<TStep extends string, TStatus>({
   status: TStatus;
   activeStep: WizardViewMode<TStep>;
   onSelect: (step: TStep) => void;
-  onShowAll: () => void;
+  onShowAll?: () => void;
+  /** 若提供则替代默认「显示全部」按钮 */
+  sidebarTop?: ReactNode;
   rightHeader: ReactNode;
   children: ReactNode;
   scrollMain?: boolean;
   optionalLabel?: string;
   showAllLabel?: string;
 } & WizardSidebarHandlers<TStep, TStatus>) {
+  const sidebarTopNode =
+    sidebarTop ??
+    (onShowAll ? (
+      <WizardShowAllButton
+        active={activeStep === "all"}
+        onClick={onShowAll}
+        label={showAllLabel}
+      />
+    ) : null);
+
   return (
     <WizardWorkspace
       scrollMain={scrollMain}
-      sidebarTop={
-        <WizardShowAllButton
-          active={activeStep === "all"}
-          onClick={onShowAll}
-          label={showAllLabel}
-        />
-      }
+      sidebarTop={sidebarTopNode}
       sidebar={
         <WizardStepList
           steps={steps}

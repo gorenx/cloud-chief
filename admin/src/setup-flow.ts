@@ -24,6 +24,19 @@ export interface SetupStatus {
   keyCount: number;
 }
 
+export function setupSetupProgress(status: SetupStatus): {
+  done: number;
+  total: number;
+  coreDone: number;
+  coreTotal: number;
+} {
+  const coreTotal = 2;
+  const coreDone = (status.gatewayDone ? 1 : 0) + (status.providerDone ? 1 : 0);
+  const total = SETUP_STEPS.length;
+  const done = coreDone + (status.byokDone ? 1 : 0);
+  return { done, total, coreDone, coreTotal };
+}
+
 export function stepDone(step: SetupStep, status: SetupStatus): boolean {
   if (step === "gateway") return status.gatewayDone;
   if (step === "provider") return status.providerDone;

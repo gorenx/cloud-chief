@@ -7,12 +7,15 @@ import {
   type WorkerSetupWarningKey,
 } from "@/lib/worker-setup-flow";
 import type { MessageKey, TranslateFn } from "@/i18n";
+import type { FlowStepCardContent } from "@/lib/flow-card-content";
+import { buildFlowCardStatus, truncateFlowLabel } from "@/lib/flow-card-content";
 
 export type LocalizedWorkerStep = {
   id: WorkerSetupStep;
   num: number;
   label: string;
   summary: string;
+  hint: string;
   optional?: boolean;
 };
 
@@ -30,6 +33,14 @@ const STEP_SUMMARY_KEYS: Record<WorkerSetupStep, MessageKey> = {
   secrets: "worker.step.secrets.summary",
   ci: "worker.step.ci.summary",
   deploy: "worker.step.deploy.summary",
+};
+
+const STEP_HINT_KEYS: Record<WorkerSetupStep, MessageKey> = {
+  project: "worker.step.project.hint",
+  vars: "worker.step.vars.hint",
+  secrets: "worker.step.secrets.hint",
+  ci: "worker.step.ci.hint",
+  deploy: "worker.step.deploy.hint",
 };
 
 const ACTION_KEYS: Record<WorkerSetupStep, MessageKey> = {
@@ -57,68 +68,75 @@ export function getLocalizedWorkerSteps(t: TranslateFn): LocalizedWorkerStep[] {
     optional: step.optional,
     label: t(STEP_LABEL_KEYS[step.id]),
     summary: t(STEP_SUMMARY_KEYS[step.id]),
+    hint: t(STEP_HINT_KEYS[step.id]),
   }));
 }
 
-export function formatWorkerStepMeta(
+export function formatWorkerStepCardContent(
   t: TranslateFn,
   step: WorkerSetupStep,
   status: WorkerSetupStatus,
-): string {
+): FlowStepCardContent {
   if (step === "project") {
-    return status.workerName
-      ? t("worker.meta.projectScript", { name: status.workerName })
-      : t("worker.meta.projectEmpty");
+    if (status.workerName) {
+      const full = t("worker.meta.projectScript", { name: status.workerName });
+      const display = t("worker.meta.projectScript", { name: truncateFlowLabel(status.workerName) });
+      return buildFlowCardStatus(display, full, "done");
+    }
+    return { status: t("worker.meta.projectEmpty"), tone: "pending" };
   }
   if (step === "vars") {
-    if (status.varsDone) return t("worker.meta.varsReady");
+    if (status.varsDone) return { status: t("worker.meta.varsReady"), tone: "done" };
     if (status.missingVars.length > 0) {
-      return t("worker.meta.varsMissing", { vars: joinList(t, status.missingVars) });
+      return {
+        status: t("worker.meta.varsMissingCount", { count: status.missingVars.length }),
+        tone: "warn",
+      };
     }
-    return t("worker.meta.varsPending");
+    return { status: t("worker.meta.varsPending"), tone: "pending" };
   }
   if (step === "secrets") {
     if (!status.secretsLocalDone) {
-      return status.missingLocalSecrets.length > 0
-        ? t("worker.meta.secretsLocalMissing", {
-            secrets: joinList(t, status.missingLocalSecrets),
-          })
-        : t("worker.meta.secretsLocalPending");
+      if (status.missingLocalSecrets.length > 0) {
+        return {
+          status: t("worker.meta.secretsLocalMissingCount", {
+            count: status.missingLocalSecrets.length,
+          }),
+          tone: "warn",
+        };
+      }
+      return { status: t("worker.meta.secretsLocalPending"), tone: "pending" };
     }
     if (!status.secretsProdDone) {
-      return t("worker.meta.secretsProdPending", {
-        secrets: joinList(t, status.missingProdSecrets),
-      });
+      return {
+        status: t("worker.meta.secretsProdPendingCount", {
+          count: status.missingProdSecrets.length,
+        }),
+        tone: "warn",
+      };
     }
-    return t("worker.meta.secretsAllDone");
+    return { status: t("worker.meta.secretsAllDone"), tone: "done" };
   }
   if (step === "ci") {
-    if (status.ciDone) return t("worker.meta.ciDone");
-    if (status.nameMismatch) return t("worker.meta.ciNameMismatch");
-    if (!status.ciTokenOk) return t("worker.meta.ciTokenInvalid");
-    if (!status.ciConnected) return t("worker.meta.ciNotConnected");
-    return t("worker.meta.ciIncomplete");
+    if (status.ciDone) return { status: t("worker.meta.ciDone"), tone: "done" };
+    if (status.nameMismatch) return { status: t("worker.meta.ciNameMismatch"), tone: "warn" };
+    if (!status.ciTokenOk) return { status: t("worker.meta.ciTokenInvalid"), tone: "warn" };
+    if (!status.ciConnected) return { status: t("worker.meta.ciNotConnected"), tone: "muted" };
+    return { status: t("worker.meta.ciIncomplete"), tone: "muted" };
   }
   if (status.deployDone) {
-    return status.recentCiSuccess
-      ? t("worker.meta.deployDoneCiSuccess")
-      : t("worker.meta.deployDone", { name: status.workerName ?? "" });
+    if (status.recentCiSuccess) {
+      return { status: t("worker.meta.deployDoneCiSuccess"), tone: "done" };
+    }
+    const name = status.workerName ?? "";
+    if (!name) {
+      return { status: t("worker.meta.deployDone", { name: "" }), tone: "done" };
+    }
+    const full = t("worker.meta.deployDone", { name });
+    const display = t("worker.meta.deployDone", { name: truncateFlowLabel(name) });
+    return buildFlowCardStatus(display, full, "done");
   }
-  return t("worker.meta.deployPending");
-}
-
-export function formatWorkerStepDetail(
-  t: TranslateFn,
-  step: WorkerSetupStep,
-  status: WorkerSetupStatus,
-): string | null {
-  if (step === "secrets" && status.secretNames.length > 0) {
-    return joinList(t, status.secretNames);
-  }
-  if (step === "vars" && status.missingVars.length > 0) {
-    return joinList(t, status.missingVars);
-  }
-  return null;
+  return { status: t("worker.meta.deployPending"), tone: "pending" };
 }
 
 export function formatWorkerSetupWarnings(

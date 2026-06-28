@@ -14,7 +14,7 @@ import {
 import {
   formatNextSupabaseSetupAction,
   formatSupabaseSetupWarnings,
-  formatSupabaseStepMeta,
+  formatSupabaseStepCardContent,
   getLocalizedSupabaseSteps,
 } from "@/i18n/supabase-ui";
 
@@ -100,7 +100,7 @@ export const SupabaseSetupFlow = forwardRef<
         (step === "database" && status.needsDbScope && !supabaseStepDone(step, status)) ||
         (step === "functions" && status.needsFunctionsScope && !supabaseStepDone(step, status))
       }
-      formatStepMeta={formatSupabaseStepMeta}
+      formatStepCardContent={formatSupabaseStepCardContent}
     />
   );
 });

@@ -8,12 +8,15 @@ import {
   type SupabaseSetupWarningKey,
 } from "@/lib/supabase-setup-flow";
 import type { MessageKey, TranslateFn } from "@/i18n";
+import type { FlowStepCardContent } from "@/lib/flow-card-content";
+import { buildFlowCardStatus, truncateFlowLabel } from "@/lib/flow-card-content";
 
 export type LocalizedSupabaseStep = {
   id: SupabaseSetupStep;
   num: number;
   label: string;
   summary: string;
+  hint: string;
 };
 
 const STEP_LABEL_KEYS: Record<SupabaseSetupStep, MessageKey> = {
@@ -21,6 +24,13 @@ const STEP_LABEL_KEYS: Record<SupabaseSetupStep, MessageKey> = {
   project: "supabase.step.project.label",
   database: "supabase.step.database.label",
   functions: "supabase.step.functions.label",
+};
+
+const STEP_HINT_KEYS: Record<SupabaseSetupStep, MessageKey> = {
+  connect: "supabase.step.connect.hint",
+  project: "supabase.step.project.hint",
+  database: "supabase.step.database.hint",
+  functions: "supabase.step.functions.hint",
 };
 
 const STEP_SUMMARY_KEYS: Record<SupabaseSetupStep, MessageKey> = {
@@ -50,46 +60,71 @@ export function getLocalizedSupabaseSteps(t: TranslateFn): LocalizedSupabaseStep
     num: step.num,
     label: t(STEP_LABEL_KEYS[step.id]),
     summary: t(STEP_SUMMARY_KEYS[step.id]),
+    hint: t(STEP_HINT_KEYS[step.id]),
   }));
 }
 
-export function formatSupabaseStepMeta(
+export function formatSupabaseStepCardContent(
   t: TranslateFn,
   step: SupabaseSetupStep,
   status: SupabaseSetupStatus,
-): string {
+): FlowStepCardContent {
   if (step === "connect") {
-    if (!status.oauthConfigured) return t("supabase.meta.oauthNotConfigured");
-    return status.connectDone
-      ? t("supabase.meta.connectDone", { count: status.projectsCount })
-      : t("supabase.meta.connectPending");
+    if (!status.oauthConfigured) {
+      return { status: t("supabase.meta.oauthNotConfigured"), tone: "warn" };
+    }
+    if (status.connectDone) {
+      return {
+        status: t("supabase.meta.connectDone", { count: status.projectsCount }),
+        tone: "done",
+      };
+    }
+    return { status: t("supabase.meta.connectPending"), tone: "pending" };
   }
   if (step === "project") {
     if (status.projectDone) {
-      return status.projectName
-        ? t("supabase.meta.projectDone", { name: status.projectName })
-        : t("supabase.meta.projectDoneUrl");
+      if (!status.projectName) {
+        return { status: t("supabase.meta.projectDoneUrl"), tone: "done" };
+      }
+      const full = t("supabase.meta.projectDone", { name: status.projectName });
+      const display = t("supabase.meta.projectDone", { name: truncateFlowLabel(status.projectName) });
+      return buildFlowCardStatus(display, full, "done");
     }
-    return status.connectDone ? t("supabase.meta.projectPending") : t("supabase.meta.projectBlocked");
+    if (!status.connectDone) {
+      return { status: t("supabase.meta.projectBlocked"), tone: "muted" };
+    }
+    return { status: t("supabase.meta.projectPending"), tone: "pending" };
   }
   if (step === "database") {
-    if (status.databaseDone) return t("supabase.meta.databaseDone");
-    if (!status.projectDone) return t("supabase.meta.databaseBlocked");
-    if (status.needsDbScope) return t("supabase.meta.databaseNeedsScope");
-    if (status.migrationFileCount === 0) return t("supabase.meta.databaseNoFiles");
-    if (status.pendingMigrations > 0) {
-      return t("supabase.meta.databasePending", { count: status.pendingMigrations });
+    if (status.databaseDone) return { status: t("supabase.meta.databaseDone"), tone: "done" };
+    if (!status.projectDone) return { status: t("supabase.meta.databaseBlocked"), tone: "muted" };
+    if (status.needsDbScope) return { status: t("supabase.meta.databaseNeedsScope"), tone: "warn" };
+    if (status.migrationFileCount === 0) {
+      return { status: t("supabase.meta.databaseNoFiles"), tone: "muted" };
     }
-    return t("supabase.meta.databaseChecking");
+    if (status.pendingMigrations > 0) {
+      return {
+        status: t("supabase.meta.databasePending", { count: status.pendingMigrations }),
+        tone: "warn",
+      };
+    }
+    return { status: t("supabase.meta.databaseChecking"), tone: "muted" };
   }
-  if (status.functionsDone) return t("supabase.meta.functionsDone");
-  if (!status.projectDone) return t("supabase.meta.functionsBlocked");
-  if (status.needsFunctionsScope) return t("supabase.meta.functionsNeedsScope");
-  if (status.localFunctionCount === 0) return t("supabase.meta.functionsNoLocal");
+  if (status.functionsDone) return { status: t("supabase.meta.functionsDone"), tone: "done" };
+  if (!status.projectDone) return { status: t("supabase.meta.functionsBlocked"), tone: "muted" };
+  if (status.needsFunctionsScope) {
+    return { status: t("supabase.meta.functionsNeedsScope"), tone: "warn" };
+  }
+  if (status.localFunctionCount === 0) {
+    return { status: t("supabase.meta.functionsNoLocal"), tone: "muted" };
+  }
   if (status.pendingFunctions > 0) {
-    return t("supabase.meta.functionsPending", { count: status.pendingFunctions });
+    return {
+      status: t("supabase.meta.functionsPending", { count: status.pendingFunctions }),
+      tone: "warn",
+    };
   }
-  return t("supabase.meta.functionsChecking");
+  return { status: t("supabase.meta.functionsChecking"), tone: "muted" };
 }
 
 export function formatSupabaseSetupWarnings(

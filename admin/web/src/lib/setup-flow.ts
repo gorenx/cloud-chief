@@ -2,6 +2,7 @@ export {
   SETUP_STEPS,
   deriveSetupStatus,
   stepDone,
+  setupSetupProgress,
   nextSetupAction,
   setupSetupWarningKeys,
   resolveSetupCurrent,

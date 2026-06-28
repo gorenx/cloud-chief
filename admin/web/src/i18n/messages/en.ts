@@ -9,6 +9,7 @@ export const enMessages: Messages = {
       expand: "Expand",
       collapse: "Collapse",
       goTo: "Go to",
+      focusOnPage: "View on this page",
       show: "Show",
       hide: "Hide",
       clear: "Clear",
@@ -203,6 +204,7 @@ export const enMessages: Messages = {
   },
   setupFlow: {
     title: "Setup flow",
+    progress: "{done}/{total} complete",
     subtitle:
       "First two steps are required; BYOK is optional (keys can also live in .env DASHSCOPE_API_KEY)",
     subtitleEnv: "DASHSCOPE_API_KEY",
@@ -228,7 +230,7 @@ export const enMessages: Messages = {
     metaPvEmpty: "Not added yet",
     metaPvDefault: " · env {slug}",
     metaByokCount: "{count} bound",
-    metaByokEmpty: "Not configured (DASHSCOPE_API_KEY in .env works)",
+    metaByokEmpty: "Not configured",
     actionGw: "Create a gateway first",
     actionPv: "Next: add a custom provider",
     actionPlayground: "Required steps done — open Debug",
@@ -236,15 +238,18 @@ export const enMessages: Messages = {
       gateway: {
         label: "Gateway",
         summary: "Create a Cloudflare AI Gateway instance (entry ID)",
+        hint: "Create a Gateway instance",
       },
       provider: {
         label: "Provider",
         summary: "Register custom upstream to get slug (part after custom- in URL)",
+        hint: "Register an upstream provider",
       },
       byok: {
         label: "BYOK keys",
         summary:
           "(Optional) Store upstream API key in Cloudflare; or use DASHSCOPE_API_KEY in .env",
+        hint: "Optional: host upstream keys",
       },
     },
     guide: {
@@ -437,18 +442,22 @@ export const enMessages: Messages = {
       connect: {
         label: "Authorize",
         summary: "Connect to Supabase via Organization OAuth",
+        hint: "OAuth platform connect",
       },
       project: {
         label: "Apply project",
         summary: "Select a project and write SUPABASE_URL and anon key",
+        hint: "Select and apply project",
       },
       database: {
         label: "Database",
         summary: "Compare and apply local SQL migrations and RLS per table",
+        hint: "Apply SQL migrations",
       },
       functions: {
         label: "Edge Functions",
         summary: "Compare and deploy local Edge Functions",
+        hint: "Deploy Edge Functions",
       },
     },
     action: {
@@ -756,22 +765,27 @@ export const enMessages: Messages = {
       project: {
         label: "Project",
         summary: "Pick a local Worker directory and compare with online scripts",
+        hint: "Pick a local Worker directory",
       },
       vars: {
         label: "Vars",
         summary: "Configure wrangler environment variables",
+        hint: "Configure wrangler environment variables",
       },
       secrets: {
         label: "Secrets",
         summary: "Local .dev.vars and production secrets",
+        hint: "Fill local and production secrets",
       },
       ci: {
         label: "GitHub CI",
         summary: "Workers Builds auto deploy (optional)",
+        hint: "Configure GitHub auto builds",
       },
       deploy: {
         label: "Deploy",
         summary: "Local wrangler deploy",
+        hint: "Local wrangler deploy",
       },
     },
     action: {
@@ -791,10 +805,13 @@ export const enMessages: Messages = {
       projectEmpty: "No valid project selected",
       varsReady: "Required Vars ready",
       varsMissing: "Missing {vars}",
+      varsMissingCount: "Missing {count} required Vars",
       varsPending: "Pending",
       secretsLocalMissing: "Pending {secrets}",
+      secretsLocalMissingCount: "Pending {count} local secrets",
       secretsLocalPending: "Pending local secrets",
       secretsProdPending: "Local ready · production pending {secrets}",
+      secretsProdPendingCount: "Production pending {count}",
       secretsAllDone: "Local and production configured",
       ciDone: "GitHub connected · token valid",
       ciNameMismatch: "Worker name mismatch — fix in Dashboard first",
@@ -818,6 +835,7 @@ export const enMessages: Messages = {
       selectLocal: "Select local Worker…",
       selectWorker: "Select Worker",
       selectWorkerHint: "Pick a local directory; online script auto-matches wrangler name",
+      pickLocalDir: "Pick local directory",
       compareTitle: "Local / online",
       dir: "Directory",
       script: "Script",
