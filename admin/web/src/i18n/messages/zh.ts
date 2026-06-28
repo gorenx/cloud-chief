@@ -807,6 +807,15 @@ export const zhMessages: Messages = {
       localDirSuffix: "· 本地 {dir}",
       matchCurrentSuffix: "· 匹配当前",
       selectLocal: "选择本地 Worker…",
+      selectWorker: "选择 Worker",
+      selectWorkerHint: "选择本地目录；线上脚本默认匹配 wrangler name",
+      compareTitle: "本地 / 线上对照",
+      dir: "目录",
+      script: "脚本",
+      status: "状态",
+      url: "URL",
+      manualOnline: "手动选择线上脚本…",
+      noOnlineMatch: "该脚本尚未部署到 Cloudflare，可手动选择其它线上脚本对照",
       localOption: "{dir} · {name}",
       localOptionNoScript: "{dir} · 无 script 名",
       workerName: "Worker",
@@ -814,7 +823,7 @@ export const zhMessages: Messages = {
     card: {
       project: {
         title: "Worker 项目",
-        desc: "本地目录与 Cloudflare 已部署脚本对照",
+        desc: "顶部选择 Worker，下方对照本地目录与 Cloudflare 线上状态",
       },
       deploy: {
         title: "部署",
@@ -822,7 +831,8 @@ export const zhMessages: Messages = {
       },
       varsLocal: {
         title: "环境变量 · 本地",
-        desc: "写入 wrangler.toml [vars]；保存后点「同步到 Cloudflare」更新线上 plain_text",
+        descWrangler: "写入 wrangler.toml [vars]",
+        descSync: "保存后点「同步到 Cloudflare」更新线上 plain_text",
         cfMismatch: "与 Cloudflare 线上不一致（高亮项见右侧）。先保存本地，再同步到 CF。",
         saveBeforeSync: "有未保存修改；请先「保存变量」再同步到 Cloudflare。",
       },

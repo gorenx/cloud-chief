@@ -4,6 +4,7 @@ import { ClickTarget } from "@/components/ui/ClickTarget";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import { SetupStepBadge, setupStepCardClasses } from "@/components/ui/SetupStepBadge";
 import type { WizardLocalizedStep, WizardStepHandlers } from "@/components/wizard/types";
+import type { TranslateFn } from "@/i18n";
 
 export function WizardFlowStepNav<TStep extends string, TStatus>({
   steps,
@@ -13,6 +14,7 @@ export function WizardFlowStepNav<TStep extends string, TStatus>({
   stepDone,
   stepWarn,
   formatStepMeta,
+  formatStepDetail,
   optionalLabel,
 }: {
   steps: WizardLocalizedStep<TStep>[];
@@ -20,6 +22,7 @@ export function WizardFlowStepNav<TStep extends string, TStatus>({
   selectedStep: TStep;
   onSelect: (step: TStep) => void;
   optionalLabel?: string;
+  formatStepDetail?: (t: TranslateFn, step: TStep, status: TStatus) => string | null;
 } & WizardStepHandlers<TStep, TStatus>) {
   const t = useT();
   const scrollRef = useScrollContainer();
@@ -30,6 +33,7 @@ export function WizardFlowStepNav<TStep extends string, TStatus>({
         const done = stepDone(step.id, status);
         const warn = stepWarn?.(step.id, status) ?? false;
         const isSelected = step.id === selectedStep;
+        const detail = formatStepDetail?.(t, step.id, status);
 
         return (
           <div key={step.id} className="flex min-w-0 flex-1 items-stretch gap-2">
@@ -60,6 +64,11 @@ export function WizardFlowStepNav<TStep extends string, TStatus>({
                 <p className="mt-1.5 text-xs text-[var(--color-muted)]">
                   {formatStepMeta(t, step.id, status)}
                 </p>
+                {detail && (
+                  <p className="mt-1 break-all font-mono text-[10px] leading-relaxed text-[var(--color-muted)]/90">
+                    {detail}
+                  </p>
+                )}
               </ClickTarget>
             </div>
           </div>

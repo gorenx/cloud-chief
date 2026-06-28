@@ -15,6 +15,7 @@ import {
   formatNextWorkerSetupAction,
   formatWorkerSetupWarnings,
   formatWorkerStepMeta,
+  formatWorkerStepDetail,
   getLocalizedWorkerSteps,
 } from "@/i18n/worker-ui";
 
@@ -90,6 +91,7 @@ export const WorkerSetupFlow = forwardRef<
       stepDone={workerStepDone}
       stepWarn={(step, status) => step === "ci" && status.ciWarn && !workerStepDone(step, status)}
       formatStepMeta={formatWorkerStepMeta}
+      formatStepDetail={formatWorkerStepDetail}
     />
   );
 });

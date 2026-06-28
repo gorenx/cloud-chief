@@ -13,11 +13,11 @@ import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import {
+  flashFlowInert,
   pinScrollTop,
   readMainScrollTop,
   resetWizardMainScroll,
   restoreMainScrollTop,
-  setFlowInert,
 } from "@/lib/prevent-nav-scroll";
 import { useSupabaseSetupFlowStatus } from "@/hooks/useSupabaseSetupFlowStatus";
 import { getLocalizedSupabaseSteps } from "@/i18n/supabase-ui";
@@ -38,6 +38,7 @@ export function SupabasePage() {
   const [activeStep, setActiveStep] = useState<SupabaseViewMode>("connect");
   const [activeInit, setActiveInit] = useState(false);
   const pendingScrollTop = useRef<number | null>(null);
+  const flowInertClear = useRef<(() => void) | null>(null);
 
   const configQ = useQuery({
     queryKey: ["public-config"],
@@ -62,11 +63,14 @@ export function SupabasePage() {
       pinStop.current?.();
       pendingScrollTop.current = readMainScrollTop(scrollRef);
       resetWizardMainScroll(scrollRef);
-      setFlowInert(flowRef.current, true);
       pinStop.current = pinScrollTop(pendingScrollTop.current, scrollRef);
+      flowInertClear.current?.();
+      if (step !== activeStep) {
+        flowInertClear.current = flashFlowInert(flowRef.current);
+      }
       setActiveStep(step);
     },
-    [scrollRef],
+    [scrollRef, activeStep],
   );
 
   useLayoutEffect(() => {
@@ -76,13 +80,21 @@ export function SupabasePage() {
   }, [activeStep, scrollRef]);
 
   useEffect(() => {
+    flowRef.current?.removeAttribute("inert");
+    return () => flowInertClear.current?.();
+  }, []);
+
+  useEffect(() => {
     const id = window.setTimeout(() => {
       pinStop.current?.();
       pinStop.current = null;
-      setFlowInert(flowRef.current, false);
     }, 600);
     return () => clearTimeout(id);
   }, [activeStep]);
+
+  useEffect(() => {
+    return () => pinStop.current?.();
+  }, []);
 
   const steps = useMemo(() => getLocalizedSupabaseSteps(t), [t]);
 

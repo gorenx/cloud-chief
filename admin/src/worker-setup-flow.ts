@@ -65,6 +65,8 @@ export interface WorkerSetupStatus {
   missingVars: string[];
   missingLocalSecrets: string[];
   missingProdSecrets: string[];
+  /** 当前 worker 需关注的 secret 名（来自 .dev.vars.example / status） */
+  secretNames: string[];
   ciConnected: boolean;
   ciTokenOk: boolean;
   nameMismatch: boolean;
@@ -108,6 +110,17 @@ export interface DeriveWorkerSetupInput {
   matchedOnline: boolean;
 }
 
+function trackedSecretNames(
+  status: WorkerSetupStatusSnapshot | undefined,
+  secrets: WorkerSetupSecretRow[],
+): string[] {
+  const fromStatus = (status?.secrets ?? [])
+    .map((s) => s.name.trim())
+    .filter(Boolean);
+  if (fromStatus.length > 0) return fromStatus;
+  return secrets.map((s) => s.name.trim()).filter(Boolean);
+}
+
 function requiredSecrets(
   status: WorkerSetupStatusSnapshot | undefined,
   secrets: WorkerSetupSecretRow[],
@@ -142,6 +155,7 @@ export function deriveWorkerSetupStatus(input: DeriveWorkerSetupInput): WorkerSe
   const varsDone = projectDone && missingVars.length === 0;
 
   const required = requiredSecrets(status, secrets);
+  const secretNames = trackedSecretNames(status, secrets);
   const missingLocalSecrets = required
     .map((s) => s.name)
     .filter((name) => !secretHasLocalValue(name, secrets, devVars));
@@ -182,6 +196,7 @@ export function deriveWorkerSetupStatus(input: DeriveWorkerSetupInput): WorkerSe
     missingVars: [...missingVars],
     missingLocalSecrets,
     missingProdSecrets,
+    secretNames,
     ciConnected,
     ciTokenOk,
     nameMismatch,

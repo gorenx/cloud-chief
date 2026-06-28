@@ -260,10 +260,11 @@ export function useWorkerPage(token: string) {
     Boolean(statusQ.data?.worker_name) &&
     onlineScript?.name === statusQ.data?.worker_name;
 
-  const varsOutOfSync =
+  const varsOutOfSync = Boolean(
     matchedOnline &&
-    onlineScript &&
-    workerVarsDiffer(vars, onlineScript.vars);
+      onlineScript &&
+      workerVarsDiffer(vars, onlineScript.vars),
+  );
 
   const varsUnsaved =
     statusAligned && statusQ.data

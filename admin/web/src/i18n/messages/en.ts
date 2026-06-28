@@ -816,6 +816,15 @@ export const enMessages: Messages = {
       localDirSuffix: "· local {dir}",
       matchCurrentSuffix: "· matches current",
       selectLocal: "Select local Worker…",
+      selectWorker: "Select Worker",
+      selectWorkerHint: "Pick a local directory; online script auto-matches wrangler name",
+      compareTitle: "Local / online",
+      dir: "Directory",
+      script: "Script",
+      status: "Status",
+      url: "URL",
+      manualOnline: "Pick online script…",
+      noOnlineMatch: "Script not deployed to Cloudflare — pick another online script to compare",
       localOption: "{dir} · {name}",
       localOptionNoScript: "{dir} · no script name",
       workerName: "Worker",
@@ -823,7 +832,7 @@ export const enMessages: Messages = {
     card: {
       project: {
         title: "Worker project",
-        desc: "Local directories vs deployed Cloudflare scripts",
+        desc: "Select a Worker at the top, compare local directory vs Cloudflare below",
       },
       deploy: {
         title: "Deploy",
@@ -831,7 +840,8 @@ export const enMessages: Messages = {
       },
       varsLocal: {
         title: "Environment variables · local",
-        desc: "wrangler.toml [vars]; save locally then sync plain_text to Cloudflare",
+        descWrangler: "Written to wrangler.toml [vars]",
+        descSync: "Save locally, then use Sync to Cloudflare for online plain_text",
         cfMismatch: "Differs from Cloudflare online (see highlights on the right). Save locally, then sync.",
         saveBeforeSync: "Unsaved edits — save variables locally before syncing to Cloudflare.",
       },

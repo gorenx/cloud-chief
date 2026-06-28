@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useT } from "@/contexts/LocaleContext";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { WorkerOnlineScriptMeta } from "@/components/worker/WorkerOnlineScriptMeta";
+import { WorkerVarsCardHeader } from "@/components/worker/WorkerVarsCardHeader";
 import { WorkerVarRow } from "@/components/worker/WorkerVarRow";
 import { buildOnlineVarRows, type WorkerVarRow as WorkerVarRowState } from "@/lib/worker-config";
 import type { CfDeployedWorker } from "@/types";
@@ -30,24 +31,21 @@ export function WorkerOnlineVarsCard({
     return out;
   }, [localVars]);
 
+  const alert =
+    script && !matched ? (
+      <p className="text-amber-300">{t("worker.card.varsOnline.scriptMismatch")}</p>
+    ) : !script && !loading && !error ? (
+      <p className="text-[var(--color-muted)]">{t("worker.params.selectDeployed")}</p>
+    ) : undefined;
+
   return (
-    <Card>
-      <CardTitle
-        desc={t("worker.card.varsOnline.desc")}
-        trailing={script ? <WorkerOnlineScriptMeta script={script} /> : undefined}
-        footer={
-          script && !matched ? (
-            <p className="text-amber-300">{t("worker.card.varsOnline.scriptMismatch")}</p>
-          ) : undefined
-        }
-      >
-        {t("worker.card.varsOnline.title")}
-      </CardTitle>
+    <Card className="flex h-full flex-col">
+      <WorkerVarsCardHeader title={t("worker.card.varsOnline.title")} alert={alert}>
+        <p>{t("worker.card.varsOnline.desc")}</p>
+        {script ? <WorkerOnlineScriptMeta script={script} /> : <p aria-hidden>&nbsp;</p>}
+      </WorkerVarsCardHeader>
       {loading && <p className="text-sm text-[var(--color-muted)]">{t("common.loading")}</p>}
       {error && <p className="text-sm text-amber-300">{error}</p>}
-      {!loading && !error && !script && (
-        <p className="text-sm text-[var(--color-muted)]">{t("worker.params.selectDeployed")}</p>
-      )}
       {script && (
         <>
           {rows.length > 0 ? (

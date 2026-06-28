@@ -90,8 +90,8 @@ export function GatewaysPage() {
 
       <GatewaySetupFlow current="gateway" collapsible />
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="space-y-4 lg:col-span-3">
+      <div className={cn("grid gap-6", selectedId && "lg:grid-cols-5")}>
+        <div className={cn("space-y-4", selectedId && "lg:col-span-3")}>
           <Card>
             <CardTitle>{t("gateways.list")}</CardTitle>
             {gateways.length === 0 ? (

@@ -5,6 +5,7 @@ import { ClickTarget } from "@/components/ui/ClickTarget";
 import { FlowPanel, FlowProgressBar } from "@/components/ui/SetupStepBadge";
 import { WizardFlowStepNav } from "@/components/wizard/WizardFlowStepNav";
 import type { WizardLocalizedStep, WizardStepHandlers, WizardViewMode } from "@/components/wizard/types";
+import type { TranslateFn } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 
@@ -26,7 +27,9 @@ export type WizardFlowShellProps<TStep extends string, TStatus> = {
   showAllDone?: boolean;
   allDoneMessage?: string;
   optionalLabel?: string;
-} & WizardStepHandlers<TStep, TStatus>;
+} & WizardStepHandlers<TStep, TStatus> & {
+  formatStepDetail?: (t: TranslateFn, step: TStep, status: TStatus) => string | null;
+};
 
 function WizardFlowShellInner<TStep extends string, TStatus>(
   {
@@ -50,6 +53,7 @@ function WizardFlowShellInner<TStep extends string, TStatus>(
     stepDone,
     stepWarn,
     formatStepMeta,
+    formatStepDetail,
   }: WizardFlowShellProps<TStep, TStatus>,
   ref: React.Ref<HTMLDivElement>,
 ) {
@@ -66,9 +70,10 @@ function WizardFlowShellInner<TStep extends string, TStatus>(
           open && "border-b border-[var(--color-border-subtle)]",
         )}
       >
-        <ClickTarget
+        <button
+          type="button"
           onClick={toggleOpen}
-          scrollRef={scrollRef}
+          aria-expanded={open}
           className="flex min-w-0 flex-1 items-start gap-2 text-left"
         >
           <ChevronDown
@@ -107,20 +112,21 @@ function WizardFlowShellInner<TStep extends string, TStatus>(
             {open && <p className="mt-0.5 text-xs text-[var(--color-muted)]">{subtitle}</p>}
             <FlowProgressBar value={progressPct} />
           </div>
-        </ClickTarget>
+        </button>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {coreDone && coreDoneBadge && (
             <span className="rounded-full bg-emerald-950/50 px-2.5 py-0.5 text-xs text-emerald-400">
               {coreDoneBadge}
             </span>
           )}
-          <ClickTarget
+          <button
+            type="button"
             onClick={toggleOpen}
-            scrollRef={scrollRef}
+            aria-expanded={open}
             className="rounded-lg px-2 py-1 text-xs text-[var(--color-muted)] hover:bg-[var(--color-panel-elevated)] hover:text-[var(--color-text)]"
           >
             {open ? t("btn.common.collapse") : t("btn.common.expand")}
-          </ClickTarget>
+          </button>
         </div>
       </div>
 
@@ -136,6 +142,7 @@ function WizardFlowShellInner<TStep extends string, TStatus>(
             stepDone={stepDone}
             stepWarn={stepWarn}
             formatStepMeta={formatStepMeta}
+            formatStepDetail={formatStepDetail}
             optionalLabel={optionalLabel}
           />
 

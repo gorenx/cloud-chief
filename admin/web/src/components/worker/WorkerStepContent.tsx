@@ -66,9 +66,7 @@ export function WorkerStepContent({
         deployedScriptNames={page.deployedScriptNames}
         cfScriptName={page.cfScriptName}
         status={page.statusQ.data}
-        onSelectDir={page.setWorkerDir}
         onCfScriptNameChange={page.setCfScriptName}
-        onRefresh={page.refreshLists}
         embedded={embedded}
       />
     );
@@ -76,7 +74,7 @@ export function WorkerStepContent({
 
   if (step === "vars") {
     return (
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
         <WorkerVarsCard
           vars={page.vars}
           onChange={page.setVars}

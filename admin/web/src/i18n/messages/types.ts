@@ -736,6 +736,15 @@ export interface Messages {
       localDirSuffix: string;
       matchCurrentSuffix: string;
       selectLocal: string;
+      selectWorker: string;
+      selectWorkerHint: string;
+      compareTitle: string;
+      dir: string;
+      script: string;
+      status: string;
+      url: string;
+      manualOnline: string;
+      noOnlineMatch: string;
       localOption: string;
       localOptionNoScript: string;
       workerName: string;
@@ -743,7 +752,7 @@ export interface Messages {
     card: {
       project: { title: string; desc: string };
       deploy: { title: string; desc: string };
-      varsLocal: { title: string; desc: string; cfMismatch: string; saveBeforeSync: string };
+      varsLocal: { title: string; descWrangler: string; descSync: string; cfMismatch: string; saveBeforeSync: string };
       varsOnline: { title: string; desc: string; scriptMismatch: string; pendingDeploy: string };
       secretsLocal: { title: string; desc: string };
       secretsOnline: { title: string; desc: string };

@@ -107,6 +107,20 @@ export function formatWorkerStepMeta(
   return t("worker.meta.deployPending");
 }
 
+export function formatWorkerStepDetail(
+  t: TranslateFn,
+  step: WorkerSetupStep,
+  status: WorkerSetupStatus,
+): string | null {
+  if (step === "secrets" && status.secretNames.length > 0) {
+    return joinList(t, status.secretNames);
+  }
+  if (step === "vars" && status.missingVars.length > 0) {
+    return joinList(t, status.missingVars);
+  }
+  return null;
+}
+
 export function formatWorkerSetupWarnings(
   t: TranslateFn,
   status: WorkerSetupStatus,

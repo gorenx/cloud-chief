@@ -79,6 +79,11 @@ describe("worker-setup-flow", () => {
     expect(s.missingLocalSecrets).toContain("CF_AIG_TOKEN");
   });
 
+  it("tracks secret names for flow card detail", () => {
+    const s = derive();
+    expect(s.secretNames).toEqual(["CF_AIG_TOKEN", "DASHSCOPE_API_KEY"]);
+  });
+
   it("suggests optional CI after deploy when CI not configured", () => {
     const s = derive({
       builds: {

@@ -1,7 +1,8 @@
 import type { UseMutationResult } from "@tanstack/react-query";
 import { useT } from "@/contexts/LocaleContext";
-import { Card, CardTitle } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { WorkerVarsCardHeader } from "@/components/worker/WorkerVarsCardHeader";
 import { WorkerVarRow } from "@/components/worker/WorkerVarRow";
 import type { WorkerVarRow as WorkerVarRowState } from "@/lib/worker-config";
 
@@ -32,14 +33,18 @@ export function WorkerVarsCard({
   varsUnsaved?: boolean;
 }) {
   const t = useT();
+  const alert = varsUnsaved ? (
+    <p className="text-[var(--color-muted)]">{t("worker.card.varsLocal.saveBeforeSync")}</p>
+  ) : varsOutOfSync ? (
+    <p className="text-amber-300">{t("worker.card.varsLocal.cfMismatch")}</p>
+  ) : undefined;
+
   return (
-    <Card>
-      <CardTitle desc={t("worker.card.varsLocal.desc")}>{t("worker.card.varsLocal.title")}</CardTitle>
-      {varsUnsaved ? (
-        <p className="mb-3 text-sm text-[var(--color-muted)]">{t("worker.card.varsLocal.saveBeforeSync")}</p>
-      ) : varsOutOfSync ? (
-        <p className="mb-3 text-sm text-amber-300">{t("worker.card.varsLocal.cfMismatch")}</p>
-      ) : null}
+    <Card className="flex h-full flex-col">
+      <WorkerVarsCardHeader title={t("worker.card.varsLocal.title")} alert={alert}>
+        <p>{t("worker.card.varsLocal.descWrangler")}</p>
+        <p>{t("worker.card.varsLocal.descSync")}</p>
+      </WorkerVarsCardHeader>
       <div className="space-y-2">
         {vars.map((row, i) => (
           <WorkerVarRow

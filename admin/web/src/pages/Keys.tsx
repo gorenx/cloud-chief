@@ -183,170 +183,185 @@ export function KeysPage() {
         </Select>
       </Card>
 
-      {ctxQ.data && (
-        <div className="max-w-xl">
-          <ModelDetailCard
-            modelId={ctxQ.data.routing.model}
-            modelMeta={ctxQ.data.model_meta}
-            routing={ctxQ.data.routing}
-            compact
-          />
-        </div>
-      )}
+      {gateway ? (
+        <div className="grid gap-6 lg:grid-cols-5">
+          <div className="space-y-4 lg:col-span-3">
+            {ctxQ.data ? (
+              <ModelDetailCard
+                modelId={ctxQ.data.routing.model}
+                modelMeta={ctxQ.data.model_meta}
+                routing={ctxQ.data.routing}
+                compact
+              />
+            ) : ctxQ.isLoading ? (
+              <p className="text-sm text-[var(--color-muted)]">{t("common.loading")}</p>
+            ) : null}
 
-      <Card>
-        <CardTitle>{t("keys.keyList")}</CardTitle>
-        {!gateway ? (
-          <p className="text-sm text-[var(--color-muted)]">{t("keys.selectGatewayFirst")}</p>
-        ) : keysQ.isLoading ? (
-          <p className="text-sm text-[var(--color-muted)]">{t("common.loading")}</p>
-        ) : (keysQ.data?.length ?? 0) === 0 ? (
-          <p className="text-sm text-[var(--color-muted)]">{t("keys.emptyForGateway")}</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-muted)]">
-                <th className="pb-2">provider_slug</th>
-                <th className="pb-2">alias</th>
-                <th className="pb-2">{t("keys.defaultChip")}</th>
-                <th className="pb-2">{t("common.details")}</th>
-                <th className="pb-2">{t("common.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {keysQ.data!.map((k) => (
-                <tr
-                  key={k.id}
-                  className="border-b border-[var(--color-border)]/60"
-                >
-                  <td className="py-2">
-                    <code className="mono">{k.provider_slug}</code>
-                  </td>
-                  <td className="py-2">{k.alias}</td>
-                  <td className="py-2">
-                    {k.default_config && <Chip variant="on">{t("keys.defaultChip")}</Chip>}
-                  </td>
-                  <td className="py-2 text-xs text-[var(--color-muted)]">
-                    {k.secret_preview}
-                  </td>
-                  <td className="py-2">
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => {
-                        if (confirm(t("keys.confirmDelete"))) delMut.mutate(k.id);
-                      }}
+            <Card>
+              <CardTitle>{t("keys.addKey")}</CardTitle>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--color-muted)]">
+                    provider_slug
+                  </label>
+                  <Select
+                    value={slugSel}
+                    onChange={(e) => setSlugSel(e.target.value)}
+                  >
+                    {providers.length === 0 ? (
+                      <option value="">{t("keys.noProviders")}</option>
+                    ) : (
+                      providers.map((p) => (
+                        <option key={p.id} value={p.slug}>
+                          {p.slug}
+                        </option>
+                      ))
+                    )}
+                  </Select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--color-muted)]">
+                    {t("keys.manualSlug")}
+                  </label>
+                  <Input
+                    value={slugManual}
+                    onChange={(e) => setSlugManual(e.target.value)}
+                    onFocus={() => setSlugManualFocused(true)}
+                    onBlur={() => setSlugManualFocused(false)}
+                    placeholder={t("keys.manualSlugPlaceholder")}
+                    className={
+                      slugManualFocused
+                        ? "border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]/25"
+                        : undefined
+                    }
+                  />
+                  {slugManualFocused && (
+                    <div
+                      role="note"
+                      className="mt-2 flex gap-2.5 rounded-lg border border-[var(--color-accent)]/60 bg-[var(--color-accent)]/15 px-3 py-2.5 shadow-sm"
                     >
-                      {t("common.delete")}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
-
-      <Card>
-        <CardTitle>{t("keys.addKey")}</CardTitle>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs text-[var(--color-muted)]">
-              provider_slug
-            </label>
-            <Select
-              value={slugSel}
-              onChange={(e) => setSlugSel(e.target.value)}
-            >
-              {providers.length === 0 ? (
-                <option value="">{t("keys.noProviders")}</option>
-              ) : (
-                providers.map((p) => (
-                  <option key={p.id} value={p.slug}>
-                    {p.slug}
-                  </option>
-                ))
-              )}
-            </Select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-[var(--color-muted)]">
-              {t("keys.manualSlug")}
-            </label>
-            <Input
-              value={slugManual}
-              onChange={(e) => setSlugManual(e.target.value)}
-              onFocus={() => setSlugManualFocused(true)}
-              onBlur={() => setSlugManualFocused(false)}
-              placeholder={t("keys.manualSlugPlaceholder")}
-              className={
-                slugManualFocused
-                  ? "border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]/25"
-                  : undefined
-              }
-            />
-            {slugManualFocused && (
-              <div
-                role="note"
-                className="mt-2 flex gap-2.5 rounded-lg border border-[var(--color-accent)]/60 bg-[var(--color-accent)]/15 px-3 py-2.5 shadow-sm"
-              >
-                <Info
-                  className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-accent)]"
-                  aria-hidden
-                />
-                <p className="text-sm leading-relaxed text-[var(--color-text)]">
-                  <span className="font-medium text-[var(--color-accent)]">
-                    {t("keys.manualSlugTitle")}
-                  </span>
-                  {" — "}
-                  {t("keys.manualSlugDesc")}
-                </p>
+                      <Info
+                        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-accent)]"
+                        aria-hidden
+                      />
+                      <p className="text-sm leading-relaxed text-[var(--color-text)]">
+                        <span className="font-medium text-[var(--color-accent)]">
+                          {t("keys.manualSlugTitle")}
+                        </span>
+                        {" — "}
+                        {t("keys.manualSlugDesc")}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--color-muted)]">alias</label>
+                  <Input value={alias} onChange={(e) => setAlias(e.target.value)} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-[var(--color-muted)]">
+                    {t("keys.secretValue")}
+                  </label>
+                  <Input
+                    type="password"
+                    value={secret}
+                    onChange={(e) => setSecret(e.target.value)}
+                  />
+                </div>
               </div>
-            )}
+              {effectiveSlug && (
+                <p
+                  className={`mt-2 text-xs ${slugMatch ? "text-emerald-400" : "text-amber-400"}`}
+                >
+                  {slugMatch
+                    ? t("keys.slugMatch", { slug: effectiveSlug })
+                    : t("keys.slugMismatch")}
+                </p>
+              )}
+              <label className="mt-3 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={isDefault}
+                  onChange={(e) => setIsDefault(e.target.checked)}
+                  className="accent-[var(--color-accent)]"
+                />
+                {t("keys.setDefault")}
+              </label>
+              <Button
+                className="mt-4"
+                disabled={
+                  !gateway || !effectiveSlug || !secret.trim() || saveMut.isPending
+                }
+                onClick={() => saveMut.mutate()}
+              >
+                {t("keys.addKeyBtn")}
+              </Button>
+            </Card>
           </div>
-          <div>
-            <label className="mb-1 block text-xs text-[var(--color-muted)]">alias</label>
-            <Input value={alias} onChange={(e) => setAlias(e.target.value)} />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-[var(--color-muted)]">
-              {t("keys.secretValue")}
-            </label>
-            <Input
-              type="password"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-            />
+
+          <div className="lg:col-span-2">
+            <Card className="lg:sticky lg:top-4">
+              <CardTitle>{t("keys.keyList")}</CardTitle>
+              {keysQ.isLoading ? (
+                <p className="text-sm text-[var(--color-muted)]">{t("common.loading")}</p>
+              ) : (keysQ.data?.length ?? 0) === 0 ? (
+                <p className="text-sm text-[var(--color-muted)]">{t("keys.emptyForGateway")}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-muted)]">
+                        <th className="pb-2">provider_slug</th>
+                        <th className="pb-2">alias</th>
+                        <th className="pb-2">{t("keys.defaultChip")}</th>
+                        <th className="pb-2">{t("common.details")}</th>
+                        <th className="pb-2">{t("common.actions")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {keysQ.data!.map((k) => (
+                        <tr
+                          key={k.id}
+                          className="border-b border-[var(--color-border)]/60"
+                        >
+                          <td className="py-2">
+                            <code className="mono">{k.provider_slug}</code>
+                          </td>
+                          <td className="py-2">{k.alias}</td>
+                          <td className="py-2">
+                            {k.default_config && (
+                              <Chip variant="on">{t("keys.defaultChip")}</Chip>
+                            )}
+                          </td>
+                          <td className="py-2 text-xs text-[var(--color-muted)]">
+                            {k.secret_preview}
+                          </td>
+                          <td className="py-2">
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm(t("keys.confirmDelete"))) delMut.mutate(k.id);
+                              }}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
           </div>
         </div>
-        {effectiveSlug && (
-          <p
-            className={`mt-2 text-xs ${slugMatch ? "text-emerald-400" : "text-amber-400"}`}
-          >
-            {slugMatch
-              ? t("keys.slugMatch", { slug: effectiveSlug })
-              : t("keys.slugMismatch")}
-          </p>
-        )}
-        <label className="mt-3 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isDefault}
-            onChange={(e) => setIsDefault(e.target.checked)}
-            className="accent-[var(--color-accent)]"
-          />
-          {t("keys.setDefault")}
-        </label>
-        <Button
-          className="mt-4"
-          disabled={
-            !gateway || !effectiveSlug || !secret.trim() || saveMut.isPending
-          }
-          onClick={() => saveMut.mutate()}
-        >
-          {t("keys.addKeyBtn")}
-        </Button>
-      </Card>
+      ) : (
+        <Card>
+          <CardTitle>{t("keys.keyList")}</CardTitle>
+          <p className="text-sm text-[var(--color-muted)]">{t("keys.selectGatewayFirst")}</p>
+        </Card>
+      )}
     </div>
   );
 }

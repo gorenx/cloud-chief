@@ -47,6 +47,20 @@ export function setFlowInert(flowRoot: HTMLElement | null | undefined, inert: bo
   else flowRoot.removeAttribute("inert");
 }
 
+/** 短暂禁用流程卡片交互（切换步骤防滚动跳动）；返回 cleanup，务必在超时或卸载时调用 */
+export function flashFlowInert(
+  flowRoot: HTMLElement | null | undefined,
+  ms = 600,
+): () => void {
+  if (!flowRoot) return () => {};
+  setFlowInert(flowRoot, true);
+  const id = window.setTimeout(() => setFlowInert(flowRoot, false), ms);
+  return () => {
+    window.clearTimeout(id);
+    setFlowInert(flowRoot, false);
+  };
+}
+
 /** 执行动作并在布局刷新后恢复滚动位置。 */
 export function runWithoutScrollJump(
   ref: RefObject<HTMLElement | null>,
