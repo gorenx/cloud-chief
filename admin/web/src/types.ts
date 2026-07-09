@@ -195,6 +195,8 @@ export interface WorkerStatus {
   compatibility_date: string | null;
   vars: Record<string, string>;
   secrets: Array<{ name: string; optional: boolean }>;
+  d1_databases: D1DatabaseBinding[];
+  d1_migrations: Array<{ filename: string }>;
   dev_vars: Record<string, string>;
   local_secrets: string[];
   has_dev_vars: boolean;
@@ -203,6 +205,35 @@ export interface WorkerStatus {
   logged_in: boolean;
   whoami: string;
   cf_match?: WorkerCfMatch | null;
+}
+
+export interface D1DatabaseBinding {
+  binding: string;
+  database_name: string;
+  database_id: string;
+}
+
+export interface D1DatabaseRow {
+  id: string;
+  name: string;
+  created_at?: string | null;
+  version?: string | null;
+}
+
+export interface WorkerD1CreateResponse {
+  ok: boolean;
+  database: D1DatabaseRow;
+  binding: D1DatabaseBinding;
+  wrangler: {
+    updated: boolean;
+    databases: D1DatabaseBinding[] | null;
+    error: string | null;
+  };
+  migrations: {
+    ok: boolean;
+    applied: string[];
+    error?: string;
+  };
 }
 
 export interface WorkerListEntry {

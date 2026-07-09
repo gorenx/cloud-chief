@@ -95,6 +95,7 @@ export interface Messages {
     gateways: string;
     providers: string;
     keys: string;
+    cloudflareDb: string;
     worker: string;
     supabase: string;
     settings: string;
@@ -198,6 +199,35 @@ export interface Messages {
     authenticatedOpt: string;
     unauthenticatedOpt: string;
     noProviders: string;
+  };
+  cloudflareDb: {
+    page: {
+      title: string;
+      desc: string;
+    };
+    card: {
+      worker: { title: string; desc: string };
+      create: { title: string; desc: string };
+      scope: { title: string; desc: string };
+    };
+    workerProject: string;
+    workerName: string;
+    cloudflareToken: string;
+    bindings: string;
+    noBindings: string;
+    migrations: string;
+    noMigrations: string;
+    noWorkers: string;
+    currentBinding: string;
+    databaseName: string;
+    binding: string;
+    applyMigrations: string;
+    create: string;
+    creating: string;
+    toast: {
+      created: string;
+      createdWithMigrations: string;
+    };
   };
   setupFlow: {
     title: string;

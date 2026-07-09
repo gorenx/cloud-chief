@@ -30,6 +30,7 @@ import {
   workerBuilderTokenSet,
   zodMessage,
 } from "../schemas";
+import { listD1MigrationFiles, parseD1Databases } from "../d1-database";
 
 export const deploy = new Hono();
 
@@ -226,6 +227,8 @@ deploy.get("/status", async (c) => {
     compatibility_date: toml ? parseCompatibilityDate(toml) : null,
     vars: toml ? parseVars(toml) : {},
     secrets: example ? parseSecretManifest(example) : [],
+    d1_databases: toml ? parseD1Databases(toml) : [],
+    d1_migrations: listD1MigrationFiles(dir).map((f) => ({ filename: f.filename })),
     dev_vars: devVars,
     local_secrets: Object.keys(devVars),
     has_dev_vars: devvars !== null,

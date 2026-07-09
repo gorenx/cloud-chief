@@ -96,6 +96,7 @@ export const enMessages: Messages = {
     gateways: "Gateways",
     providers: "Providers",
     keys: "BYOK Keys",
+    cloudflareDb: "Cloudflare DB",
     worker: "Worker deploy",
     supabase: "Supabase",
     settings: "Settings",
@@ -201,6 +202,44 @@ export const enMessages: Messages = {
     authenticatedOpt: "(authenticated)",
     unauthenticatedOpt: "(unauthenticated)",
     noProviders: "(No providers)",
+  },
+  cloudflareDb: {
+    page: {
+      title: "Cloudflare DB",
+      desc: "Create Cloudflare D1 databases and bind them to the selected Worker.",
+    },
+    card: {
+      worker: {
+        title: "Target Worker",
+        desc: "Choose the local Worker project whose wrangler.toml [[d1_databases]] binding should be updated.",
+      },
+      create: {
+        title: "Create D1 database",
+        desc: "Calls the Cloudflare D1 API to create a database, optionally writes the binding, and runs local migrations/*.sql.",
+      },
+      scope: {
+        title: "Required permission",
+        desc: "CF_API_TOKEN in admin/.env needs D1 Edit permission. The returned database_id is written to the selected Worker's wrangler.toml.",
+      },
+    },
+    workerProject: "Worker project",
+    workerName: "Worker name",
+    cloudflareToken: "Cloudflare token",
+    bindings: "D1 bindings",
+    noBindings: "No D1 bindings",
+    migrations: "Local migrations/*.sql",
+    noMigrations: "No migrations/*.sql files for this Worker",
+    noWorkers: "No Workers found",
+    currentBinding: "Current wrangler.toml binding",
+    databaseName: "Database name",
+    binding: "Binding",
+    applyMigrations: "Run migrations/*.sql after create ({count})",
+    create: "Create and bind D1",
+    creating: "Creating…",
+    toast: {
+      created: "D1 database created and bound",
+      createdWithMigrations: "D1 database created and {count} migration(s) applied",
+    },
   },
   setupFlow: {
     title: "Setup flow",

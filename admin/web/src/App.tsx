@@ -11,6 +11,7 @@ import { GatewaysPage } from "@/pages/Gateways";
 import { ProvidersPage } from "@/pages/Providers";
 import { KeysPage } from "@/pages/Keys";
 import { WorkerPage } from "@/pages/Worker";
+import { CloudflareDbPage } from "@/pages/CloudflareDb";
 import { SupabasePage } from "@/pages/Supabase";
 import { SettingsPage } from "@/pages/Settings";
 import { AppConfigPage } from "@/pages/AppConfig";
@@ -37,6 +38,7 @@ export function App() {
                 <Route path="gateways" element={<GatewaysPage />} />
                 <Route path="providers" element={<ProvidersPage />} />
                 <Route path="keys" element={<KeysPage />} />
+                <Route path="cloudflare-db" element={<CloudflareDbPage />} />
                 <Route path="worker" element={<WorkerPage />} />
                 <Route path="supabase" element={<SupabasePage />} />
                 <Route path="app-config" element={<AppConfigPage />} />

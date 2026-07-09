@@ -15,6 +15,7 @@ import { deploy } from "./routes/deploy";
 import { chat } from "./routes/chat";
 import { workerChat } from "./routes/worker-chat";
 import { supabaseConnect } from "./routes/supabase-connect";
+import { cloudflareDb } from "./routes/cloudflare-db";
 import { authRoutes } from "./routes/auth";
 import { initDatabase } from "./db/connection";
 import { overlayAppConfigFromDb } from "./app-config-overlay";
@@ -70,6 +71,7 @@ export function createApp(): Hono {
   app.route("/api/chat", chat);
   app.route("/api/worker-chat", workerChat);
   app.route("/admin/supabase", supabaseConnect);
+  app.route("/admin/cloudflare-db", cloudflareDb);
   app.route("/admin/worker", deploy);
   app.route("/admin", admin);
 

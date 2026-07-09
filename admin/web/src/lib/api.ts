@@ -9,6 +9,7 @@ import type {
   CfDeployedList,
   WorkerStatus,
   WorkerBuildsStatus,
+  WorkerD1CreateResponse,
 } from "@/types";
 import type { ApiI18nError } from "@/i18n/api-error";
 
@@ -140,6 +141,25 @@ export async function fetchWorkerSecrets(token: string, dir?: string) {
 
 export async function fetchCfDeployedWorkers(token: string) {
   return adminFetch<CfDeployedList>(token, "GET", "/admin/worker/cf-deployed");
+}
+
+export async function createCloudflareD1Database(
+  token: string,
+  body: {
+    name: string;
+    binding: string;
+    update_wrangler: boolean;
+    apply_migrations: boolean;
+  },
+  dir?: string,
+) {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<WorkerD1CreateResponse>(
+    token,
+    "POST",
+    `/admin/cloudflare-db/d1/databases${q}`,
+    body,
+  );
 }
 
 export async function fetchWorkerBuildsStatus(token: string, dir?: string) {

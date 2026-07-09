@@ -47,6 +47,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/gateways", labelKey: "nav.gateways", icon: Network },
       { to: "/providers", labelKey: "nav.providers", icon: Boxes },
       { to: "/keys", labelKey: "nav.keys", icon: KeyRound },
+      { to: "/cloudflare-db", labelKey: "nav.cloudflareDb", icon: Database },
     ],
   },
   {

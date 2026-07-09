@@ -96,6 +96,7 @@ export const zhMessages: Messages = {
     gateways: "网关",
     providers: "提供商",
     keys: "BYOK 密钥",
+    cloudflareDb: "Cloudflare DB",
     worker: "Worker 部署",
     supabase: "Supabase",
     settings: "设置",
@@ -200,6 +201,44 @@ export const zhMessages: Messages = {
     authenticatedOpt: "（已鉴权）",
     unauthenticatedOpt: "（未鉴权）",
     noProviders: "（暂无提供商）",
+  },
+  cloudflareDb: {
+    page: {
+      title: "Cloudflare DB",
+      desc: "创建 Cloudflare D1 数据库，并绑定到选中的 Worker。",
+    },
+    card: {
+      worker: {
+        title: "目标 Worker",
+        desc: "选择要写入 wrangler.toml [[d1_databases]] 的本地 Worker 项目。",
+      },
+      create: {
+        title: "创建 D1 数据库",
+        desc: "调用 Cloudflare D1 API 创建数据库，可同时写入 binding 并执行本地 migrations/*.sql。",
+      },
+      scope: {
+        title: "所需权限",
+        desc: "admin/.env 中的 CF_API_TOKEN 需要 D1 Edit 权限；创建后返回的 database_id 会写入当前 Worker 的 wrangler.toml。",
+      },
+    },
+    workerProject: "Worker 项目",
+    workerName: "Worker 名称",
+    cloudflareToken: "Cloudflare Token",
+    bindings: "D1 绑定",
+    noBindings: "暂无 D1 binding",
+    migrations: "本地 migrations/*.sql",
+    noMigrations: "当前 Worker 没有 migrations/*.sql",
+    noWorkers: "未找到 Worker",
+    currentBinding: "当前 wrangler.toml 绑定",
+    databaseName: "数据库名",
+    binding: "Binding",
+    applyMigrations: "创建后执行 migrations/*.sql（{count} 个）",
+    create: "创建并绑定 D1",
+    creating: "创建中…",
+    toast: {
+      created: "D1 数据库已创建并绑定",
+      createdWithMigrations: "D1 数据库已创建并执行 {count} 个 migration",
+    },
   },
   setupFlow: {
     title: "配置流程",

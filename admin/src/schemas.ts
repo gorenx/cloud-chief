@@ -24,7 +24,8 @@ export const keyCreate = z.object({
 
 // 通用的环境变量/Secret 名校验：大写字母开头，只含大写字母、数字、下划线。
 // 作为 wrangler 参数使用，限制字符集可避免越权与异常名。
-const ENV_NAME = /^[A-Z][A-Z0-9_]*$/;
+export const ENV_NAME = /^[A-Z][A-Z0-9_]*$/;
+const D1_DATABASE_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 
 export const secretSet = z.object({
   name: z.string().regex(ENV_NAME, "Secret 名需大写字母开头，仅含大写字母/数字/下划线"),
@@ -53,6 +54,20 @@ export const devVarsUpdate = z.object({
 
 export const workerBuilderTokenSet = z.object({
   token: z.string().min(1, "缺少 API Token"),
+});
+
+export const d1DatabaseCreate = z.object({
+  name: z
+    .string()
+    .trim()
+    .regex(D1_DATABASE_NAME, "数据库名仅支持字母、数字、下划线、连字符，长度 1-64"),
+  binding: z
+    .string()
+    .trim()
+    .regex(ENV_NAME, "binding 需大写字母开头，仅含大写字母/数字/下划线")
+    .default("DB"),
+  update_wrangler: z.boolean().optional().default(true),
+  apply_migrations: z.boolean().optional().default(false),
 });
 
 export function zodMessage(err: z.ZodError): string {
