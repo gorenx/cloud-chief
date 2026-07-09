@@ -84,6 +84,12 @@ export interface Messages {
     unauthenticatedSuffix: string;
     unknownError: string;
     configReadError: string;
+    syncLive: string;
+    syncSnapshot: string;
+    syncNone: string;
+    syncStale: string;
+    syncLast: string;
+    syncError: string;
   };
   nav: {
     sectionMonitor: string;
@@ -218,6 +224,8 @@ export interface Messages {
     migrations: string;
     noMigrations: string;
     noWorkers: string;
+    d1Databases: string;
+    noD1Databases: string;
     currentBinding: string;
     databaseName: string;
     databaseId: string;

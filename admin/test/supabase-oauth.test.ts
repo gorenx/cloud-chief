@@ -1,11 +1,19 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, it, expect, afterEach } from "vitest";
+import { beforeEach, describe, it, expect, afterEach } from "vitest";
 import { createHash } from "node:crypto";
 import { generatePkce } from "../src/supabase-oauth-pkce";
 import { unrecognizedClientIdHelp, validateOAuthRedirectUri } from "../src/supabase-oauth-probe";
 import { pickAnonKey, projectUrl } from "../src/supabase-management";
+import { closeDatabase, initDatabase } from "../src/db/connection";
+import { getDb } from "../src/db/connection";
+import {
+  clearSupabaseOAuthTokens,
+  readSupabaseOAuthTokens,
+  writeSupabaseOAuthTokens,
+} from "../src/supabase-oauth-store";
+import { env } from "../src/env";
 import {
   discoverWorkerDirs,
   setWranglerVars,
@@ -47,6 +55,45 @@ describe("supabase-management", () => {
       { name: "anon", api_key: "anon-key" },
     ]);
     expect(key).toBe("anon-key");
+  });
+});
+
+describe("supabase-oauth-store", () => {
+  let dbPath = "";
+
+  beforeEach(() => {
+    closeDatabase();
+    dbPath = path.join(os.tmpdir(), `supabase-oauth-${Date.now()}-${Math.random()}.db`);
+    env.ADMIN_DB_PATH = dbPath;
+    env.ADMIN_DB_ENCRYPT = false;
+    process.env.ADMIN_DB_PATH = dbPath;
+    initDatabase();
+  });
+
+  afterEach(() => {
+    clearSupabaseOAuthTokens();
+    closeDatabase();
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    delete process.env.ADMIN_DB_PATH;
+  });
+
+  it("stores Supabase OAuth tokens in SQLite", () => {
+    writeSupabaseOAuthTokens({
+      access_token: "access",
+      refresh_token: "refresh",
+      expires_at: 123,
+      token_type: "bearer",
+    });
+    expect(readSupabaseOAuthTokens()).toEqual({
+      access_token: "access",
+      refresh_token: "refresh",
+      expires_at: 123,
+      token_type: "bearer",
+    });
+    const row = getDb()
+      .prepare("SELECT provider, access_token FROM oauth_tokens WHERE provider = 'supabase'")
+      .get() as { provider: string; access_token: string } | undefined;
+    expect(row).toEqual({ provider: "supabase", access_token: "access" });
   });
 });
 

@@ -13,6 +13,7 @@ import { GatewayDetailPanel } from "@/components/GatewayDetailPanel";
 import { GatewayApiPathsPanel } from "@/components/GatewayApiPathsPanel";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
+import { SyncStatus } from "@/components/SyncStatus";
 import { cn } from "@/lib/utils";
 
 export function GatewaysPage() {
@@ -22,11 +23,12 @@ export function GatewaysPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [gwId, setGwId] = useState("");
   const [gwAuth, setGwAuth] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const stateQ = useQuery({
-    queryKey: ["state", token],
+    queryKey: ["state", token, refreshTick],
     queryFn: async () => {
-      const r = await fetchState(token);
+      const r = await fetchState(token, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -34,9 +36,9 @@ export function GatewaysPage() {
   });
 
   const ctxQ = useQuery({
-    queryKey: ["gateway-context", token, selectedId],
+    queryKey: ["gateway-context", token, selectedId, refreshTick],
     queryFn: async () => {
-      const r = await fetchGatewayContext(token, selectedId!);
+      const r = await fetchGatewayContext(token, selectedId!, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -71,10 +73,6 @@ export function GatewaysPage() {
     onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
-  if (!token) {
-    return <NoTokenPrompt />;
-  }
-
   const gateways = stateQ.data?.gateways ?? [];
   const providers = stateQ.data?.providers ?? [];
   const accountId = stateQ.data?.account_id ?? "";
@@ -84,11 +82,32 @@ export function GatewaysPage() {
     if (!gwId && defaultGw) setGwId(defaultGw);
   }, [defaultGw, gwId]);
 
+  if (!token) {
+    return <NoTokenPrompt />;
+  }
+
   return (
     <div className="space-y-8">
       <PageHeader title={t("gateways.title")} description={t("gateways.desc")} />
 
       <GatewaySetupFlow current="gateway" collapsible />
+
+      {stateQ.data?._sync && (
+        <div className="grid gap-2 md:grid-cols-2">
+          <SyncStatus
+            label={t("gateways.list")}
+            meta={stateQ.data._sync.gateways}
+            onRefresh={() => setRefreshTick((v) => v + 1)}
+            refreshing={stateQ.isFetching}
+          />
+          <SyncStatus
+            label={t("providers.list")}
+            meta={stateQ.data._sync.providers}
+            onRefresh={() => setRefreshTick((v) => v + 1)}
+            refreshing={stateQ.isFetching}
+          />
+        </div>
+      )}
 
       <div className={cn("grid gap-6", selectedId && "lg:grid-cols-5")}>
         <div className={cn("space-y-4", selectedId && "lg:col-span-3")}>

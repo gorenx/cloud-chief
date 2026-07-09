@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useLocale } from "@/contexts/LocaleContext";
 import { fetchState, fetchGatewayContext, fetchWorkerStatus } from "@/lib/api";
@@ -8,15 +9,17 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ModelDetailCard } from "@/components/ModelDetailCard";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
+import { SyncStatus } from "@/components/SyncStatus";
 
 export function DashboardPage() {
   const { token } = useAdminToken();
   const { t, displayError } = useLocale();
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const stateQ = useQuery({
-    queryKey: ["state", token],
+    queryKey: ["state", token, refreshTick],
     queryFn: async () => {
-      const r = await fetchState(token);
+      const r = await fetchState(token, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -63,6 +66,23 @@ export function DashboardPage() {
         <p className="text-sm text-[var(--color-err)]">
           {displayError(stateQ.error instanceof Error ? stateQ.error.message : String(stateQ.error))}
         </p>
+      )}
+
+      {s?._sync && (
+        <div className="grid gap-2 md:grid-cols-2">
+          <SyncStatus
+            label={t("dashboard.gateways")}
+            meta={s._sync.gateways}
+            onRefresh={() => setRefreshTick((v) => v + 1)}
+            refreshing={stateQ.isFetching}
+          />
+          <SyncStatus
+            label={t("dashboard.providers")}
+            meta={s._sync.providers}
+            onRefresh={() => setRefreshTick((v) => v + 1)}
+            refreshing={stateQ.isFetching}
+          />
+        </div>
       )}
 
       {s && (

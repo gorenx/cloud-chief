@@ -1,230 +1,192 @@
 # 数据来源
 
-本文说明 Admin 界面与 API 中**每一类数据**的权威来源。记住一条原则：
+本文说明 Admin 界面与 API 中每一类数据的权威来源、缓存位置和刷新方式。当前实现的核心原则：
 
-> **Cloudflare 管资源真身，`.env` 管默认展示，本地文件管模型目录与 Worker 配置。**
+> **SQLite 管本地权威配置和同步记录；Cloudflare/Supabase 管远端资源真身；本地文件管 Worker 项目；SQLite 保存远端与文件快照，保证页面可恢复展示。**
+
+更完整的本地存储、同步流程和冲突规则见 [本地存储与数据同步方案](./local-storage-sync.md)。
 
 ## 来源总览
 
-| 来源类型                | 读取方式                         | 典型数据                                   |
-| ----------------------- | -------------------------------- | ------------------------------------------ |
-| **环境变量**            | `src/env.ts` 启动时加载          | 账号 ID、默认网关、模型、提供商 slug、密钥 |
-| **Cloudflare API**      | `src/cf.ts` 实时请求             | 网关列表、提供商、BYOK 配置                |
-| **AI Gateway 上游**     | `POST /api/chat` 转发            | 模型推理结果（SSE）                        |
-| **本地 TypeScript**     | `model-catalog.ts` 硬编码        | Qwen 模型族、思考模式说明                  |
-| **本地 TOML/vars**      | `routing.ts`、`deploy.ts` 读文件 | Worker `DEFAULT_MODEL`、`[vars]`           |
-| **本地文件系统**        | `deploy.ts` 扫描                 | worker 项目列表、`.dev.vars`               |
-| **wrangler 子进程**     | `wrangler.ts` spawn              | 部署日志、secret 名、whoami                |
-| **浏览器 localStorage** | 前端 only                        | `admin_token`                              |
+| 来源类型 | 读取方式 | 典型数据 | 本地持久化 |
+| --- | --- | --- | --- |
+| SQLite | `src/db/*` | admin 用户、会话、`app_config`、同步记录、资源快照 | 权威或快照 |
+| 环境变量 / `admin/.env` | `src/env.ts` 启动加载 | 首次默认值、bootstrap 配置 | 只 seed DB 缺失值 |
+| Cloudflare API | `cf-resolve.ts`、`d1-sync.ts`、`cf-worker-resolve.ts` | AI Gateway、Provider、D1、线上 Worker | SQLite 快照 |
+| Supabase API | `supabase-project-sync.ts` | Supabase 项目列表 | SQLite 快照 |
+| 本地 TOML / vars | `worker-project-sync.ts`、`worker-runtime.ts` | Worker 项目、vars、D1 binding、dev secret 名称 | SQLite 索引和 hash |
+| wrangler 子进程 | `wrangler.ts` | 部署、secret put/list、whoami | 同步事件 |
+| 本地 TypeScript | `model-catalog.ts` | Qwen 模型目录 | 代码 |
+| 浏览器 localStorage | 前端 only | `admin_token` | 浏览器 |
 
-### 环境变量加载顺序
+## 启动与配置覆盖
 
+启动顺序：
+
+1. `src/env.ts` 读取 `process.env` 和 `admin/.env`。
+2. `initDatabase()` 初始化 SQLite schema 和迁移表。
+3. `seedAppConfigFromEnv()` 只把 DB 缺失的配置从 env seed 到 `app_config`。
+4. `overlayAppConfigFromDb()` 用 SQLite 覆盖运行时 `env`。
+
+因此 `app_config` 是 Admin 配置的本地权威源，`.env` 是首次启动种子和兼容入口。后续保存配置应写 SQLite；已经存在于 DB 的 key 不会被 `.env` 覆盖。
+
+## 同步元信息
+
+所有缓存型资源响应会尽量带 `_sync`：
+
+```json
+{
+  "_sync": {
+    "source": "local_snapshot",
+    "stale": false,
+    "last_synced_at": 1783620000000,
+    "error": null,
+    "run_id": "..."
+  }
+}
 ```
-process.env（已存在则不覆盖）
-    ↓
-admin/.env   ← Admin 仅此一处；保存后自动热重载（PORT/ADMIN_BIND 除外）
-```
 
-Worker 使用 `worker/wrangler.toml` `[vars]` 与 `worker/.dev.vars`（或 `wrangler secret`）。
+同步端点：
 
-仓库根 `setup.sh` / `test.sh` 与 Admin 共用 `admin/.env`。
+| 端点 | 作用 |
+| --- | --- |
+| `GET /admin/sync/status` | 查看各 source/scope 最新同步结果 |
+| `GET /admin/sync/runs/:id` | 查看单次同步 run 和 events |
+| `POST /admin/sync/refresh` | 手动刷新 Cloudflare、Worker 文件或 Supabase 快照 |
 
----
+支持 `refresh=1` 的读取端点会强制请求远端或重新扫描文件；失败时返回最近快照和错误信息，不清空旧数据。
 
-## 按数据字段说明
+## 按数据域说明
 
 ### 账号与默认值
 
-| 字段                     | 来源                           | 说明                           |
-| ------------------------ | ------------------------------ | ------------------------------ |
-| `account_id`             | `env.CF_ACCOUNT_ID`            | 概览、invoke_url               |
-| `has_api_token`          | `Boolean(env.CF_API_TOKEN)`    | 是否可调 CF API                |
-| `defaults.gateway`       | CF API `pickDefaultGateway()`  | `is_default` 或首个非内置网关  |
-| `defaults.provider_slug` | CF API `pickDefaultProvider()` | 首个已启用的自定义提供商       |
-| `defaults.base_url`      | CF 提供商对象                  |                                |
-| `defaults.path`          | 代码常量 `RESPONSES_API_PATH`  | CF 不存储 path                 |
-| `defaults.model`         | `env.MODEL`                    | Playground 与 routing 默认模型 |
+| 字段 | 权威来源 | 本地行为 |
+| --- | --- | --- |
+| `account_id` | `app_config` / env `CF_ACCOUNT_ID` | DB 优先 |
+| `has_api_token` | `app_config` / env `CF_API_TOKEN` | 只暴露布尔值 |
+| `defaults.gateway` | Cloudflare snapshot + `CF_GATEWAY_ID` | `loadCfLists()` 读快照，可 `refresh=1` |
+| `defaults.provider_slug` | Cloudflare snapshot + `PROVIDER_SLUG` | 匹配不到时返回 warning |
+| `defaults.model` | `MODEL` | DB 优先 |
 
-出现位置：`GET /admin/state`、`GET /config`（部分字段）。
+出现位置：`GET /admin/state`、`GET /config`。
 
----
+### AI Gateway
 
-### 网关 (Gateway)
+| 字段 | 权威来源 | 快照表 |
+| --- | --- | --- |
+| `id`、`authentication`、`collect_logs`、`is_default` | Cloudflare | `cf_gateways` |
 
-| 字段             | 来源       | API                                |
-| ---------------- | ---------- | ---------------------------------- |
-| `id`             | Cloudflare | `GET /ai-gateway/gateways`         |
-| `authentication` | Cloudflare | 单网关 `GET .../gateways/{id}`     |
-| `collect_logs`   | Cloudflare | 同上                               |
-| `is_default`     | Cloudflare | 仅 UI 标签；**不参与**默认选中逻辑 |
+读取路径统一走 `loadCfLists()`：
 
-列表：`GET /admin/state` → `gateways`。
+- 有可用快照时先返回 SQLite。
+- `refresh=1` 或测试场景会请求 Cloudflare 并 upsert 快照。
+- Cloudflare 失败时保留旧快照，并在 `_sync.error` 和 `sync_events` 记录错误。
 
-`/config` 的 `gateways` 数组：有 `CF_API_TOKEN` 时从 CF 拉取；若 `CF_GATEWAY_ID` 不在列表中，会**插入到数组头部**（保证 Playground 总能选到配置的默认网关）。
+列表出现在 `GET /admin/state`、`GET /config`、网关页。
 
-无 `CF_API_TOKEN` 时：列表可能为空，但 `gateway` 字段仍为 env 值。
+### Custom Provider
 
----
+| 字段 | 权威来源 | 快照表 |
+| --- | --- | --- |
+| `id`、`slug`、`name`、`base_url`、`enable` | Cloudflare | `cf_providers` |
 
-### 自定义提供商 (Custom Provider)
+Provider 列表和 Gateway 列表一起由 `loadCfLists()` 刷新。`slug` 建唯一索引，用于路由预览和默认 provider 解析。
 
-| 字段                     | 来源       | API                                |
-| ------------------------ | ---------- | ---------------------------------- |
-| `id`, `slug`, `base_url` | Cloudflare | `GET /ai-gateway/custom-providers` |
-| `enable`                 | Cloudflare | 影响是否可作为上游                 |
+### BYOK Provider Config
 
-`routing.provider`：在 `buildRouting()` 中用 `env.PROVIDER_SLUG` 匹配 CF 列表中的项；匹配不到则为 `null`（`RoutingWarnings` 会提示）。
+| 字段 | 权威来源 | 快照表 |
+| --- | --- | --- |
+| `id`、`provider_slug`、`alias`、`default_config` | Cloudflare | `cf_provider_configs` |
+| `secret` 明文 | 用户提交到 Cloudflare | 不入库 |
 
----
+网关详情和 BYOK 页通过 `ai-gateway-sync.ts` 读取。创建、更新、删除成功后更新快照并写 `sync_events`；失败时不伪造本地成功状态。
 
-### 路由链 (Routing)
+### D1 Database
 
-`buildRouting(gatewayId, providers)` 合成，**不单独存储**：
+| 数据 | 权威来源 | 本地行为 |
+| --- | --- | --- |
+| D1 database 列表 | Cloudflare | `cf_d1_databases` 快照 |
+| 创建 D1 database | Cloudflare | 创建成功后 upsert 快照 |
+| Worker D1 binding | `wrangler.toml` | 写文件后扫描到 `worker_project_d1_bindings` |
+| Migration 执行结果 | Cloudflare D1 / wrangler | 写 `sync_events` |
 
-| 字段            | 来源                                                     |
-| --------------- | -------------------------------------------------------- |
-| `model`         | `env.MODEL`（或 override）                               |
-| `worker_model`  | 读 `{WORKER_DIR}/wrangler.toml` → `[vars].DEFAULT_MODEL` |
-| `provider_slug` | CF 默认提供商 `.slug`                                    |
-| `provider`      | 同上提供商对象                                           |
-| `path`          | 常量 `/compatible-mode/v1/responses`                     |
-| `base_url`      | CF 默认提供商 `.base_url`                                |
-| `invoke_url`    | 计算：`gatewayUrl(gatewayId, providerSlug, path)`        |
-| `api_type`      | 固定 `"responses"`                                       |
+Cloudflare DB 页面使用独立左侧标签，`GET /admin/cloudflare-db/d1/databases?refresh=1` 可强刷远端 D1 列表。创建数据库、绑定 Worker、执行 migration 是拆开的状态，不会因为后一步失败而隐藏前一步成功结果。
 
-公式：
+### Worker 项目与部署状态
 
-```
-https://gateway.ai.cloudflare.com/v1/{CF_ACCOUNT_ID}/{gatewayId}/custom-{PROVIDER_SLUG}{PROVIDER_PATH}
-```
+| 数据 | 权威来源 | 本地行为 |
+| --- | --- | --- |
+| 本地 Worker 项目列表 | `WORKER_ROOT` 下 `wrangler.toml` | `worker_projects` 索引 |
+| Worker vars | `wrangler.toml [vars]` | `worker_project_vars` 快照 |
+| Dev secrets | `.dev.vars` | 只保存 key 和 hash 到 `worker_project_secret_names` |
+| D1 bindings | `wrangler.toml [[d1_databases]]` | `worker_project_d1_bindings` 快照 |
+| 线上 Worker | Cloudflare | `cf_workers` 快照 |
+| 自定义域 | Cloudflare | `cf_worker_domains` 快照 |
 
-出现位置：`GET /config` → `routing_preview`；`GET /admin/gateways/:id/context` → `routing`。
+读取路径：
 
----
+- `GET /admin/worker/workers` 扫描本地项目并更新 DB 索引。
+- `GET /admin/worker/status?refresh=1` 刷新本地文件和线上 Worker 匹配状态。
+- `GET /admin/worker/cf-deployed?refresh=1` 刷新 Cloudflare 已部署 Worker 快照。
 
-### BYOK 密钥 (Provider Config)
+文件写操作仍以文件为准：`PUT /admin/worker/config` 写 `wrangler.toml`，`PUT /admin/worker/devvars` 写 `.dev.vars`，成功后重新扫描更新 SQLite。
 
-| 字段                           | 来源       | API                                      |
-| ------------------------------ | ---------- | ---------------------------------------- |
-| `id`, `provider_slug`, `alias` | Cloudflare | `GET .../gateways/{gw}/provider_configs` |
-| `secret` 明文                  | 用户提交   | 仅 `POST` 时写入 CF，**不可读回**        |
+### Supabase OAuth 与项目
 
-网关详情 `keys` 与 BYOK 页列表同源。
+| 数据 | 权威来源 | 本地行为 |
+| --- | --- | --- |
+| OAuth token | Supabase OAuth | `oauth_tokens`，使用现有加密 helper |
+| 旧 token 文件 | `.supabase-oauth.json` | 首次发现时迁移到 SQLite 并删除旧文件 |
+| 项目列表 | Supabase Management API | `supabase_projects` 快照 |
 
----
+`GET /admin/supabase/projects?refresh=1` 会刷新 Supabase 项目。API 临时失败时返回最近项目快照和同步错误。
 
-### 模型目录 (Model Catalog)
+### 模型目录
 
-| 字段                                                         | 来源                                           |
-| ------------------------------------------------------------ | ---------------------------------------------- |
-| `id`, `display_name`, `family`, `supports_thinking`, `notes` | `src/model-catalog.ts` 内 `MODEL_CATALOG` 数组 |
+| 字段 | 来源 |
+| --- | --- |
+| `id`、`display_name`、`family`、`supports_thinking`、`notes` | `src/model-catalog.ts` |
 
-- **不**从 Cloudflare 或阿里云拉取。
-- `listModels()` → `GET /config` → `models`
-- `lookupModel(modelId)` → 网关 context 的 `model_meta`；找不到则 `null`
+模型目录不从 Cloudflare 或阿里云拉取。更新模型说明或新增型号需要改代码并重新部署 Admin。
 
-更新模型说明或新增型号：改 `model-catalog.ts` 并重新部署 Admin。
+### Playground 聊天
 
----
+| 模式 | 来源 |
+| --- | --- |
+| 直连 Gateway | 浏览器请求 `/api/chat`，Admin 转发到 AI Gateway |
+| 经 Worker | 浏览器请求 `/api/worker-chat`，Admin 转发到本地或线上 Worker |
+| 网关/模型下拉 | `GET /config`，含本地快照和 `_sync` |
 
-### Playground 聊天（直连 Gateway）
-
-| 数据                | 来源                                                 |
-| ------------------- | ---------------------------------------------------- |
-| 网关/模型下拉初始值 | `GET /config`                                        |
-| 流式回复            | 上游 AI Gateway → 阿里云 MaaS                        |
-| 请求鉴权            | `Authorization: Bearer {DASHSCOPE_API_KEY}`（env）   |
-| 网关鉴权（可选）    | `cf-aig-authorization: Bearer {CF_AIG_TOKEN}`（env） |
-| 覆盖网关/提供商     | 请求体 `gateway`、`provider_slug`                    |
-
-前置条件：`PROVIDER_SLUG` 与 `DASHSCOPE_API_KEY` 必须在 env 中配置。
-
----
-
-### Playground 聊天（经 Worker）
-
-| 数据 | 来源 |
-| ---- | ---- |
-| Worker URL（展示） | `worker-runtime.ts`：本地 `WORKER_URL` 或 `:8788`；线上 CF workers.dev |
-| Worker vars | CF 部署 vars 与 `wrangler.toml` 合并 |
-| `worker_target` | 请求体 / 健康检查 query：`local` \| `online` |
-| Supabase JWT | 请求体 `access_token`，或 `SUPABASE_ANON_KEY` + 测试账号代登录 |
-| 测试账号邮箱 | **仅** `GET /admin/supabase/status` → `local_test.email`（不在 `/config` 公开） |
-| 模型 / 网关锁定 | 「Worker 配置」模式用 wrangler `[vars]`；「调试界面」用 CF/env 默认 |
-
-流量：浏览器 → `POST /api/worker-chat` → Worker `/v1/responses` → AI Gateway。
-
-Supabase 项目 URL / anon key：OAuth `POST /admin/supabase/apply` 写入 `admin/.env` 与 `worker/wrangler.toml`。
-
----
-
-### Worker 部署相关
-
-| 数据                            | 来源                                                      | 端点                        |
-| ------------------------------- | --------------------------------------------------------- | --------------------------- |
-| `workers[]`                     | 扫描 `WORKER_ROOT` 下含 `wrangler.toml` 的目录（深度 ≤3） | `GET /admin/worker/workers` |
-| `vars`                          | 解析 `{dir}/wrangler.toml` `[vars]`                       | `GET /admin/worker/status`  |
-| `dev_vars`, `local_secrets`     | 读 `{dir}/.dev.vars`                                      | 同上                        |
-| `secrets` 清单（名）            | `.dev.vars.example` 注释 + CF `wrangler secret list`      | status / secrets            |
-| `wrangler_version`, `logged_in` | `npx wrangler --version` / `whoami`                       | status                      |
-| 部署日志                        | `npx wrangler deploy` stdout/stderr                       | SSE                         |
-| 写入 `[vars]`                   | 本地改 `wrangler.toml`                                    | `PUT /admin/worker/config`  |
-| 写入本地 secret                 | 本地改 `.dev.vars`                                        | `PUT /admin/worker/devvars` |
-| 推生产 secret                   | stdin → `wrangler secret put`                             | `POST /admin/worker/secret` |
-| 本地 dev 进程                   | `worker-dev-process.ts` spawn `wrangler dev`              | `POST /admin/worker/dev/start` |
-| 本地 dev 健康                   | `GET {local}/health`                                      | `GET /admin/worker/dev/status` |
-| CF 已部署 Worker vars           | `cf-worker-resolve.ts`                                    | `GET /admin/worker/cf-deployed`、status 内 `cf_match` |
-
-子进程环境注入 `CLOUDFLARE_API_TOKEN`（若配置）；与 `CF_API_TOKEN` **不是同一个 token**。
-
-目录安全：`dir` 参数必须落在 `WORKER_ROOT` 解析后的路径内，防止目录穿越。
-
----
-
-### 前端令牌
-
-| 数据          | 来源                                             |
-| ------------- | ------------------------------------------------ |
-| `admin_token` | 用户输入 → `localStorage`（`AdminTokenContext`） |
-
-仅用于请求头 `Authorization: Bearer ...`；服务端比对 `env.ADMIN_TOKEN`。
-
----
+生产聊天应走已部署 Worker；Playground 仍是调试入口。
 
 ## 数据流简图
 
-```
-                    ┌──────────────┐
-                    │   .env       │
-                    └──────┬───────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         ▼                 ▼                 ▼
-   /admin/state      /config           /api/chat
-         │                 │                 │
-         ▼                 ▼                 ▼
-   CF API 拉取      CF API +          AI Gateway
-   gateways/       model-catalog +        │
-   providers        routing.ts             ▼
-         │                 │           阿里云 MaaS
-         └────────┬────────┘
-                  ▼
-         gateways/:id/context
-                  │
-                  ├── CF gateway + keys
-                  ├── routing (env + CF)
-                  ├── worker_model (wrangler.toml)
-                  └── model_meta (catalog)
-```
+```mermaid
+flowchart TD
+  Env["admin/.env / process.env"] --> Seed["seedAppConfigFromEnv"]
+  Seed --> DB["SQLite app_config / snapshots / sync_runs"]
+  DB --> Overlay["overlayAppConfigFromDb"]
+  Overlay --> API["Admin API"]
 
----
+  CF["Cloudflare API"] --> Sync["Sync services"]
+  Supabase["Supabase API"] --> Sync
+  Files["wrangler.toml / .dev.vars"] --> Scan["Worker file scanner"]
+  Sync --> DB
+  Scan --> DB
+  DB --> UI["React Admin UI"]
+  API --> UI
+
+  UI --> Chat["/api/chat or /api/worker-chat"]
+  Chat --> Gateway["AI Gateway / Worker"]
+```
 
 ## 常见误解
 
-| 误解                         | 事实                                            |
-| ---------------------------- | ----------------------------------------------- |
-| 默认网关来自 CF `is_default` | 来自 `CF_GATEWAY_ID` env                        |
-| 模型列表来自 CF              | 来自本地 `model-catalog.ts`                     |
-| Playground 只走 Worker         | 可选经 Worker：`/api/worker-chat`；直连仍用 `/api/chat` |
-| `CF_API_TOKEN` 能部署 Worker | 需要 `CLOUDFLARE_API_TOKEN` 或 `wrangler login` |
-| BYOK 密钥存在 Admin 数据库   | 存在 Cloudflare Secrets Store，Admin 无持久化   |
+| 误解 | 事实 |
+| --- | --- |
+| SQLite 会替代 Cloudflare 管资源 | Cloudflare 仍是远端资源权威，SQLite 只是快照和审计 |
+| `.env` 每次启动都会覆盖 DB | `.env` 只 seed 缺失配置，DB 已有值优先 |
+| 默认网关来自 CF `is_default` | 默认选择以配置和解析策略为准，`is_default` 主要用于展示 |
+| 模型列表来自 CF | 来自本地 `model-catalog.ts` |
+| `CF_API_TOKEN` 能部署 Worker | 部署仍需要 `CLOUDFLARE_API_TOKEN` 或 `wrangler login` |
+| BYOK / Worker secret 明文存在 Admin 数据库 | 明文不入库，只保存存在状态、名称或 hash |

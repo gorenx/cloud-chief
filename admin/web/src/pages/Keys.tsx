@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ModelDetailCard } from "@/components/ModelDetailCard";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
+import { SyncStatus } from "@/components/SyncStatus";
 import type { ByokKey } from "@/types";
 import { Info } from "lucide-react";
 
@@ -32,11 +33,12 @@ export function KeysPage() {
   const [isDefault, setIsDefault] = useState(true);
   const [slugSel, setSlugSel] = useState("");
   const [slugManualFocused, setSlugManualFocused] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const stateQ = useQuery({
-    queryKey: ["state", token],
+    queryKey: ["state", token, refreshTick],
     queryFn: async () => {
-      const r = await fetchState(token);
+      const r = await fetchState(token, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -44,9 +46,9 @@ export function KeysPage() {
   });
 
   const keysQ = useQuery({
-    queryKey: ["keys", token, gateway],
+    queryKey: ["keys", token, gateway, refreshTick],
     queryFn: async () => {
-      const r = await fetchKeys(token, gateway);
+      const r = await fetchKeys(token, gateway, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return (r.data.result ?? []) as ByokKey[];
     },
@@ -54,9 +56,9 @@ export function KeysPage() {
   });
 
   const ctxQ = useQuery({
-    queryKey: ["gateway-context", token, gateway],
+    queryKey: ["gateway-context", token, gateway, refreshTick],
     queryFn: async () => {
-      const r = await fetchGatewayContext(token, gateway);
+      const r = await fetchGatewayContext(token, gateway, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -133,14 +135,14 @@ export function KeysPage() {
     onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
-  if (!token) {
-    return <NoTokenPrompt />;
-  }
-
   const d = stateQ.data?.defaults;
   const guideGateway = gateway || d?.gateway || "";
   const guideSlug = effectiveSlug || d?.provider_slug || "";
   const byokForGateway = (keysQ.data?.length ?? 0) > 0;
+
+  if (!token) {
+    return <NoTokenPrompt />;
+  }
 
   return (
     <div className="space-y-8">
@@ -163,6 +165,21 @@ export function KeysPage() {
             : undefined
         }
       />
+
+      <div className="grid gap-2 md:grid-cols-2">
+        <SyncStatus
+          label={t("gateways.list")}
+          meta={stateQ.data?._sync?.gateways}
+          onRefresh={() => setRefreshTick((v) => v + 1)}
+          refreshing={stateQ.isFetching || ctxQ.isFetching || keysQ.isFetching}
+        />
+        <SyncStatus
+          label={t("keys.keyList")}
+          meta={ctxQ.data?._sync?.keys}
+          onRefresh={() => setRefreshTick((v) => v + 1)}
+          refreshing={ctxQ.isFetching || keysQ.isFetching}
+        />
+      </div>
 
       <Card>
         <label className="mb-1 block text-xs text-[var(--color-muted)]">

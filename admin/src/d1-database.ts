@@ -46,6 +46,30 @@ export async function createD1Database(
   return { ok: true, database };
 }
 
+export async function listD1Databases(): Promise<
+  { ok: true; databases: D1DatabaseRow[] } | { ok: false; status: number; error: string; json: unknown }
+> {
+  const r = await cfApi("GET", "/d1/database");
+  if (!r.json.success) {
+    return {
+      ok: false,
+      status: r.status,
+      error: cfErrorMessage(r.json, `读取 D1 数据库列表失败（HTTP ${r.status}）`),
+      json: r.json,
+    };
+  }
+
+  const rows = Array.isArray(r.json.result)
+    ? r.json.result
+    : Array.isArray((r.json.result as { result?: unknown[] } | undefined)?.result)
+      ? ((r.json.result as { result: unknown[] }).result)
+      : [];
+  return {
+    ok: true,
+    databases: rows.map((row) => normalizeD1Database(row)).filter((row): row is D1DatabaseRow => row !== null),
+  };
+}
+
 export function normalizeD1Database(result: unknown): D1DatabaseRow | null {
   if (!result || typeof result !== "object") return null;
   const row = result as Record<string, unknown>;

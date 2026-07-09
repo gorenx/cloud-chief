@@ -20,6 +20,14 @@ export interface Provider {
   enable?: boolean;
 }
 
+export interface SyncMeta {
+  source: "live" | "local_snapshot" | "none";
+  stale: boolean;
+  last_synced_at: number | null;
+  error: string | null;
+  run_id?: string;
+}
+
 export interface AdminState {
   account_id: string;
   has_api_token: boolean;
@@ -34,6 +42,10 @@ export interface AdminState {
   gateways_error: unknown;
   providers: Provider[];
   providers_error: unknown;
+  _sync?: {
+    gateways?: SyncMeta;
+    providers?: SyncMeta;
+  };
 }
 
 export interface GatewayPathEntry {
@@ -128,6 +140,10 @@ export interface GatewayContext {
   keys_error: unknown;
   model_meta: ModelMeta | null;
   _meta: ResponseMeta;
+  _sync?: {
+    gateway?: SyncMeta;
+    keys?: SyncMeta;
+  };
 }
 
 export interface ByokKey {
@@ -177,6 +193,10 @@ export interface PublicConfig {
   /** 本次 /config 自动写入 MODEL_CATALOG 的模型 id */
   catalog_synced?: string[];
   _meta: ResponseMeta;
+  _sync?: {
+    gateways?: SyncMeta;
+    providers?: SyncMeta;
+  };
 }
 
 export interface WorkerCfMatch {
@@ -205,6 +225,10 @@ export interface WorkerStatus {
   logged_in: boolean;
   whoami: string;
   cf_match?: WorkerCfMatch | null;
+  _sync?: {
+    worker_project?: SyncMeta;
+    cf_match?: SyncMeta;
+  };
 }
 
 export interface D1DatabaseBinding {
@@ -260,6 +284,7 @@ export interface WorkerList {
   root: string;
   default: string;
   workers: WorkerListEntry[];
+  _sync?: SyncMeta;
 }
 
 export interface CfDeployedWorker {
@@ -277,6 +302,7 @@ export interface CfDeployedList {
   account_subdomain: string | null;
   scripts: CfDeployedWorker[];
   error?: string;
+  _sync?: SyncMeta;
 }
 
 export interface BuildRepoConnection {

@@ -2,13 +2,11 @@ import { Hono } from "hono";
 import { adminAuth } from "../auth";
 import { cfApi } from "../cf";
 import { env } from "../env";
-import { buildRouting, modelMetaFor } from "../routing";
-import { gatewayContextMeta } from "../field-meta";
+import type { ProviderInfo } from "../routing";
 import {
   loadCfLists,
   pickDefaultGateway,
   pickDefaultProvider,
-  parseProviderList,
   RESPONSES_API_PATH,
 } from "../cf-resolve";
 import {
@@ -19,6 +17,17 @@ import {
 } from "../schemas";
 import { gatewayApiPaths } from "./gateway-api-paths";
 import { appConfigRoutes } from "./app-config";
+import {
+  markCfGatewayDeleted,
+  markCfProviderConfigDeleted,
+  markCfProviderDeleted,
+  upsertCfGateway,
+  upsertCfProvider,
+  upsertCfProviderConfigs,
+  type ProviderConfigSnapshot,
+} from "../db/resource-store";
+import { recordSyncEvent } from "../db/sync-store";
+import { getGatewayContextCached, listProviderConfigsCached } from "../ai-gateway-sync";
 
 export const admin = new Hono();
 
@@ -26,7 +35,9 @@ admin.use("*", adminAuth);
 
 // 账号信息 + CF 解析的默认路由 + 网关/提供商列表
 admin.get("/state", async (c) => {
-  const { gateways, providers, gateways_error, providers_error } = await loadCfLists();
+  const { gateways, providers, gateways_error, providers_error, _sync } = await loadCfLists({
+    refresh: c.req.query("refresh") === "1",
+  });
   const defaultGw = pickDefaultGateway(gateways);
   const defaultProvider = pickDefaultProvider(providers);
   return c.json({
@@ -43,6 +54,7 @@ admin.get("/state", async (c) => {
     gateways_error,
     providers,
     providers_error,
+    _sync,
   });
 });
 
@@ -50,29 +62,7 @@ admin.get("/state", async (c) => {
 admin.get("/gateways/:id/context", async (c) => {
   const id = c.req.param("id");
   if (!id) return c.json({ error: "缺少网关 id" }, 400);
-
-  const [gwRes, provRes, keysRes] = await Promise.all([
-    cfApi("GET", `/ai-gateway/gateways/${id}`),
-    cfApi("GET", "/ai-gateway/custom-providers?per_page=100"),
-    cfApi("GET", `/ai-gateway/gateways/${id}/provider_configs?per_page=100`),
-  ]);
-
-  const providers = parseProviderList(provRes.json.result);
-  const gateway = gwRes.json.success ? gwRes.json.result : null;
-  const provider = pickDefaultProvider(providers);
-  const routing = buildRouting(id, provider);
-  const keys = keysRes.json.success ? keysRes.json.result ?? [] : [];
-  const model_meta = modelMetaFor(routing.model);
-
-  return c.json({
-    gateway,
-    gateway_error: gwRes.json.success ? null : gwRes.json.errors,
-    routing,
-    keys,
-    keys_error: keysRes.json.success ? null : keysRes.json.errors,
-    model_meta,
-    _meta: gatewayContextMeta(id),
-  });
+  return c.json(await getGatewayContextCached(id, { refresh: c.req.query("refresh") === "1" }));
 });
 
 // 网关：创建/更新（upsert）
@@ -93,6 +83,20 @@ admin.post("/gateways", async (c) => {
   const r = exists.json.success
     ? await cfApi("PUT", `/ai-gateway/gateways/${id}`, payload)
     : await cfApi("POST", "/ai-gateway/gateways", { id, ...payload });
+  if (r.json.success) {
+    upsertCfGateway(env.CF_ACCOUNT_ID, {
+      id,
+      authentication,
+      collect_logs: true,
+      ...(typeof r.json.result === "object" && r.json.result ? (r.json.result as object) : {}),
+    } as { id: string; authentication?: boolean; collect_logs?: boolean; is_default?: boolean });
+    recordSyncEvent({
+      resource_type: "cf_gateway",
+      resource_id: id,
+      action: exists.json.success ? "update" : "create",
+      status: "success",
+    });
+  }
   return c.json(r.json, r.json.success ? 200 : 400);
 });
 
@@ -100,6 +104,15 @@ admin.delete("/gateways", async (c) => {
   const id = c.req.query("id");
   if (!id) return c.json({ error: "缺少 id" }, 400);
   const r = await cfApi("DELETE", `/ai-gateway/gateways/${id}`);
+  if (r.json.success) {
+    markCfGatewayDeleted(env.CF_ACCOUNT_ID, id);
+    recordSyncEvent({
+      resource_type: "cf_gateway",
+      resource_id: id,
+      action: "delete",
+      status: "success",
+    });
+  }
   return c.json(r.json, r.json.success ? 200 : 400);
 });
 
@@ -118,6 +131,25 @@ admin.post("/providers", async (c) => {
   const r = b.id
     ? await cfApi("PATCH", `/ai-gateway/custom-providers/${b.id}`, payload)
     : await cfApi("POST", "/ai-gateway/custom-providers", payload);
+  if (r.json.success) {
+    const result =
+      typeof r.json.result === "object" && r.json.result
+        ? (r.json.result as Record<string, unknown>)
+        : {};
+    upsertCfProvider(env.CF_ACCOUNT_ID, {
+      id: typeof result.id === "string" ? result.id : b.id,
+      slug: b.slug,
+      base_url: b.base_url,
+      enable: b.enable !== false,
+      ...result,
+    } as ProviderInfo);
+    recordSyncEvent({
+      resource_type: "cf_provider",
+      resource_id: b.id || b.slug,
+      action: b.id ? "update" : "create",
+      status: "success",
+    });
+  }
   return c.json(r.json, r.json.success ? 200 : 400);
 });
 
@@ -125,6 +157,15 @@ admin.delete("/providers", async (c) => {
   const id = c.req.query("id");
   if (!id) return c.json({ error: "缺少 id" }, 400);
   const r = await cfApi("DELETE", `/ai-gateway/custom-providers/${id}`);
+  if (r.json.success) {
+    markCfProviderDeleted(env.CF_ACCOUNT_ID, id);
+    recordSyncEvent({
+      resource_type: "cf_provider",
+      resource_id: id,
+      action: "delete",
+      status: "success",
+    });
+  }
   return c.json(r.json, r.json.success ? 200 : 400);
 });
 
@@ -132,11 +173,7 @@ admin.delete("/providers", async (c) => {
 admin.get("/keys", async (c) => {
   const gw = c.req.query("gateway");
   if (!gw) return c.json({ error: "缺少 gateway" }, 400);
-  const r = await cfApi(
-    "GET",
-    `/ai-gateway/gateways/${gw}/provider_configs?per_page=100`,
-  );
-  return c.json(r.json, r.json.success ? 200 : 400);
+  return c.json(await listProviderConfigsCached(gw, { refresh: c.req.query("refresh") === "1" }));
 });
 
 admin.post("/keys", async (c) => {
@@ -154,6 +191,15 @@ admin.post("/keys", async (c) => {
     `/ai-gateway/gateways/${b.gateway}/provider_configs`,
     payload,
   );
+  if (r.json.success && typeof r.json.result === "object" && r.json.result) {
+    upsertCfProviderConfigs(env.CF_ACCOUNT_ID, b.gateway, [r.json.result as ProviderConfigSnapshot]);
+    recordSyncEvent({
+      resource_type: "cf_provider_config",
+      resource_id: `${b.gateway}:${(r.json.result as { id?: string }).id ?? b.alias ?? "default"}`,
+      action: "create",
+      status: "success",
+    });
+  }
   return c.json(r.json, r.json.success ? 200 : 400);
 });
 
@@ -165,6 +211,15 @@ admin.delete("/keys", async (c) => {
     "DELETE",
     `/ai-gateway/gateways/${gw}/provider_configs/${id}`,
   );
+  if (r.json.success) {
+    markCfProviderConfigDeleted(env.CF_ACCOUNT_ID, gw, id);
+    recordSyncEvent({
+      resource_type: "cf_provider_config",
+      resource_id: `${gw}:${id}`,
+      action: "delete",
+      status: "success",
+    });
+  }
   return c.json(r.json, r.json.success ? 200 : 400);
 });
 

@@ -11,6 +11,8 @@ import type {
   WorkerBuildsStatus,
   WorkerD1CreateResponse,
   WorkerD1BindResponse,
+  D1DatabaseRow,
+  SyncMeta,
 } from "@/types";
 import type { ApiI18nError } from "@/i18n/api-error";
 
@@ -71,12 +73,18 @@ export async function adminFetch<T>(
   return { ok: true, data: j as T };
 }
 
-export async function fetchState(token: string) {
-  return adminFetch<AdminState>(token, "GET", "/admin/state");
+export async function fetchState(token: string, options: { refresh?: boolean } = {}) {
+  const q = options.refresh ? "?refresh=1" : "";
+  return adminFetch<AdminState>(token, "GET", `/admin/state${q}`);
 }
 
-export async function fetchGatewayContext(token: string, id: string) {
-  return adminFetch<GatewayContext>(token, "GET", `/admin/gateways/${encodeURIComponent(id)}/context`);
+export async function fetchGatewayContext(
+  token: string,
+  id: string,
+  options: { refresh?: boolean } = {},
+) {
+  const q = options.refresh ? "?refresh=1" : "";
+  return adminFetch<GatewayContext>(token, "GET", `/admin/gateways/${encodeURIComponent(id)}/context${q}`);
 }
 
 export async function fetchGatewayApiPaths(
@@ -110,19 +118,24 @@ export async function saveGatewayApiPaths(
   );
 }
 
-export async function fetchPublicConfig(workerDir?: string) {
-  const q = workerDir ? `?worker_dir=${encodeURIComponent(workerDir)}` : "";
+export async function fetchPublicConfig(workerDir?: string, options: { refresh?: boolean } = {}) {
+  const params = new URLSearchParams();
+  if (workerDir) params.set("worker_dir", workerDir);
+  if (options.refresh) params.set("refresh", "1");
+  const q = params.toString() ? `?${params}` : "";
   const res = await fetch(`/config${q}`);
   const j = await parseJson<PublicConfig>(res);
   if (!res.ok || !j) return { ok: false as const, status: res.status, error: "common.configReadError" };
   return { ok: true as const, data: j };
 }
 
-export async function fetchKeys(token: string, gateway: string) {
-  return adminFetch<{ result?: unknown[] }>(
+export async function fetchKeys(token: string, gateway: string, options: { refresh?: boolean } = {}) {
+  const params = new URLSearchParams({ gateway });
+  if (options.refresh) params.set("refresh", "1");
+  return adminFetch<{ result?: unknown[]; _sync?: SyncMeta }>(
     token,
     "GET",
-    `/admin/keys?gateway=${encodeURIComponent(gateway)}`,
+    `/admin/keys?${params}`,
   );
 }
 
@@ -130,8 +143,11 @@ export async function fetchWorkerList(token: string) {
   return adminFetch<WorkerList>(token, "GET", "/admin/worker/workers");
 }
 
-export async function fetchWorkerStatus(token: string, dir?: string) {
-  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+export async function fetchWorkerStatus(token: string, dir?: string, options: { refresh?: boolean } = {}) {
+  const params = new URLSearchParams();
+  if (dir) params.set("dir", dir);
+  if (options.refresh) params.set("refresh", "1");
+  const q = params.toString() ? `?${params}` : "";
   return adminFetch<WorkerStatus>(token, "GET", `/admin/worker/status${q}`);
 }
 
@@ -140,8 +156,18 @@ export async function fetchWorkerSecrets(token: string, dir?: string) {
   return adminFetch<{ ok: boolean; names: string[] }>(token, "GET", `/admin/worker/secrets${q}`);
 }
 
-export async function fetchCfDeployedWorkers(token: string) {
-  return adminFetch<CfDeployedList>(token, "GET", "/admin/worker/cf-deployed");
+export async function fetchCfDeployedWorkers(token: string, options: { refresh?: boolean } = {}) {
+  const q = options.refresh ? "?refresh=1" : "";
+  return adminFetch<CfDeployedList>(token, "GET", `/admin/worker/cf-deployed${q}`);
+}
+
+export async function fetchCloudflareD1Databases(token: string, options: { refresh?: boolean } = {}) {
+  const q = options.refresh ? "?refresh=1" : "";
+  return adminFetch<{ ok: boolean; databases: D1DatabaseRow[]; error?: string; _sync: SyncMeta }>(
+    token,
+    "GET",
+    `/admin/cloudflare-db/d1/databases${q}`,
+  );
 }
 
 export async function createCloudflareD1Database(
@@ -268,8 +294,25 @@ export async function startSupabaseConnect(token: string) {
   return adminFetchWithCredentials<{ url: string }>(token, "POST", "/admin/supabase/connect");
 }
 
-export async function fetchSupabaseProjects(token: string) {
-  return adminFetch<{ projects: SupabaseProjectRow[] }>(token, "GET", "/admin/supabase/projects");
+export async function fetchSupabaseProjects(token: string, options: { refresh?: boolean } = {}) {
+  const q = options.refresh ? "?refresh=1" : "";
+  return adminFetch<{ projects: SupabaseProjectRow[]; error?: string; _sync?: SyncMeta }>(
+    token,
+    "GET",
+    `/admin/supabase/projects${q}`,
+  );
+}
+
+export async function refreshSync(
+  token: string,
+  body: { source?: "all" | "cloudflare" | "worker_fs" | "supabase"; scope?: string },
+) {
+  return adminFetch<{ ok: boolean; results: Record<string, unknown> }>(
+    token,
+    "POST",
+    "/admin/sync/refresh",
+    body,
+  );
 }
 
 export async function applySupabaseProject(token: string, ref: string) {

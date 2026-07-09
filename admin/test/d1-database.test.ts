@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  listD1Databases,
   parseD1Databases,
   setD1DatabaseBinding,
   splitD1SqlStatements,
@@ -42,6 +43,37 @@ APP_NAME = "Auth"
     expect(parseD1Databases(next)).toEqual([
       { binding: "DB", database_name: "cloud-chief-auth", database_id: "new-id" },
     ]);
+  });
+});
+
+describe("listD1Databases", () => {
+  it("normalizes Cloudflare D1 list results", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          result: [
+            { uuid: "db1", name: "one", created_at: "2026-01-01", version: "alpha" },
+            { id: "db2", name: "two" },
+            { name: "missing-id" },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      )) as typeof fetch;
+
+    try {
+      const r = await listD1Databases();
+      expect(r.ok).toBe(true);
+      if (r.ok) {
+        expect(r.databases).toEqual([
+          { id: "db1", name: "one", created_at: "2026-01-01", version: "alpha" },
+          { id: "db2", name: "two", created_at: null, version: null },
+        ]);
+      }
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });
 

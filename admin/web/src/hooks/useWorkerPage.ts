@@ -33,6 +33,7 @@ export function useWorkerPage(token: string) {
   const [prodSet, setProdSet] = useState<Set<string> | null>(null);
   const [cfScriptName, setCfScriptName] = useState("");
   const [manualDeployState, setManualDeployState] = useState<WorkerManualDeployState>("idle");
+  const [refreshTick, setRefreshTick] = useState(0);
   const deploy = useSSEStream();
   const mainScrollLock = useRef<number | null>(null);
 
@@ -41,7 +42,7 @@ export function useWorkerPage(token: string) {
   }
 
   const workersQ = useQuery({
-    queryKey: ["worker-list", token],
+    queryKey: ["worker-list", token, refreshTick],
     queryFn: async () => {
       const r = await fetchWorkerList(token);
       if (!r.ok) throw new Error(r.error);
@@ -51,9 +52,9 @@ export function useWorkerPage(token: string) {
   });
 
   const cfDeployedQ = useQuery({
-    queryKey: ["worker-cf-deployed", token],
+    queryKey: ["worker-cf-deployed", token, refreshTick],
     queryFn: async () => {
-      const r = await fetchCfDeployedWorkers(token);
+      const r = await fetchCfDeployedWorkers(token, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -74,9 +75,9 @@ export function useWorkerPage(token: string) {
   const wq = workerDir ? `?dir=${encodeURIComponent(workerDir)}` : "";
 
   const statusQ = useQuery({
-    queryKey: ["worker-status", token, workerDir],
+    queryKey: ["worker-status", token, workerDir, refreshTick],
     queryFn: async () => {
-      const r = await fetchWorkerStatus(token, workerDir || undefined);
+      const r = await fetchWorkerStatus(token, workerDir || undefined, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -184,6 +185,7 @@ export function useWorkerPage(token: string) {
   });
 
   function refreshLists() {
+    setRefreshTick((v) => v + 1);
     void qc.invalidateQueries({ queryKey: ["worker-status"] });
     void qc.invalidateQueries({ queryKey: ["worker-cf-deployed"] });
     void qc.invalidateQueries({ queryKey: ["worker-list"] });
@@ -191,6 +193,7 @@ export function useWorkerPage(token: string) {
 
   function refreshStatus() {
     lockMainScrollPosition();
+    setRefreshTick((v) => v + 1);
     void qc.invalidateQueries({ queryKey: ["worker-status"] });
     void qc.invalidateQueries({ queryKey: ["worker-cf-deployed"] });
   }

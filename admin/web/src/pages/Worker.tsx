@@ -10,6 +10,7 @@ import { WorkerStepContent } from "@/components/worker/WorkerStepContent";
 import { WorkerStepHeader } from "@/components/worker/WorkerStepHeader";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SyncStatus } from "@/components/SyncStatus";
 import type { WorkerViewMode } from "@/components/worker/WorkerSetupWorkspace";
 import { resolveWorkerSetupCurrent, type WorkerSetupStep } from "@/lib/worker-setup-flow";
 import { getLocalizedWorkerSteps } from "@/i18n/worker-ui";
@@ -128,6 +129,21 @@ export function WorkerPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("worker.page.title")} description={t("worker.page.desc")} />
+
+      <div className="grid gap-2 md:grid-cols-2">
+        <SyncStatus
+          label={t("nav.worker")}
+          meta={page.workersQ.data?._sync}
+          onRefresh={page.refreshLists}
+          refreshing={page.workersQ.isFetching}
+        />
+        <SyncStatus
+          label="Cloudflare"
+          meta={page.cfDeployedQ.data?._sync}
+          onRefresh={page.refreshStatus}
+          refreshing={page.cfDeployedQ.isFetching}
+        />
+      </div>
 
       <WorkerSetupFlow
         ref={flowRef}

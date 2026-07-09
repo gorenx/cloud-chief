@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { pickWorkerUrl, type WorkerRuntimeConfig } from "../src/worker-runtime";
+import { closeDatabase, initDatabase } from "../src/db/connection";
+import { upsertCfWorker } from "../src/db/resource-store";
+import { resolveWorkerFromCf } from "../src/cf-worker-resolve";
+import { env } from "../src/env";
 import {
   buildWorkerEndpointOptions,
   WORKER_ENDPOINT_LOCAL,
@@ -68,5 +75,43 @@ describe("pickWorkerUrl", () => {
     const picked = pickWorkerUrl(r, WORKER_ENDPOINT_WORKERS_DEV);
     expect(picked.error).toMatch(/线上 Worker/);
     expect(picked.url).toBe("http://127.0.0.1:8788");
+  });
+});
+
+describe("resolveWorkerFromCf snapshot fallback", () => {
+  let dbPath = "";
+
+  beforeEach(() => {
+    closeDatabase();
+    dbPath = path.join(os.tmpdir(), `worker-runtime-${Date.now()}-${Math.random()}.db`);
+    env.ADMIN_DB_PATH = dbPath;
+    env.CF_ACCOUNT_ID = "acct";
+    process.env.ADMIN_DB_PATH = dbPath;
+    initDatabase();
+  });
+
+  afterEach(() => {
+    closeDatabase();
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
+    delete process.env.ADMIN_DB_PATH;
+  });
+
+  it("uses cached deployed worker when CF token is unavailable", async () => {
+    upsertCfWorker("acct", {
+      name: "cached-worker",
+      url: "https://cached.example.workers.dev",
+      subdomain_enabled: true,
+      vars: { DEFAULT_MODEL: "qwen3" },
+      secret_names: ["SECRET"],
+      compatibility_date: "2026-01-01",
+      usage_model: null,
+    });
+
+    const r = await resolveWorkerFromCf("cached-worker", false);
+    expect(r.ok).toBe(true);
+    expect(r.url).toBe("https://cached.example.workers.dev");
+    expect(r.vars.DEFAULT_MODEL).toBe("qwen3");
+    expect(r.secret_names).toEqual(["SECRET"]);
+    expect(r.error).toContain("本地 Worker 快照");
   });
 });

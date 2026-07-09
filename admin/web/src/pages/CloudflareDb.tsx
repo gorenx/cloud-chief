@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, FileCode2 } from "lucide-react";
-import { fetchState, fetchWorkerList, fetchWorkerStatus } from "@/lib/api";
+import { fetchCloudflareD1Databases, fetchState, fetchWorkerList, fetchWorkerStatus } from "@/lib/api";
 import { useAdminToken } from "@/contexts/AdminTokenContext";
 import { useT, useLocale } from "@/contexts/LocaleContext";
 import { CloudflareD1DatabaseCard } from "@/components/CloudflareD1DatabaseCard";
@@ -11,6 +11,7 @@ import { Card, CardTitle } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Select } from "@/components/ui/Select";
+import { SyncStatus } from "@/components/SyncStatus";
 
 export function CloudflareDbPage() {
   const { token } = useAdminToken();
@@ -18,6 +19,7 @@ export function CloudflareDbPage() {
   const t = useT();
   const qc = useQueryClient();
   const [workerDir, setWorkerDir] = useState("");
+  const [d1RefreshTick, setD1RefreshTick] = useState(0);
 
   const workersQ = useQuery({
     queryKey: ["cloudflare-db-worker-list", token],
@@ -51,6 +53,16 @@ export function CloudflareDbPage() {
       return r.data;
     },
     enabled: Boolean(token && workerDir),
+  });
+
+  const d1Q = useQuery({
+    queryKey: ["cloudflare-db-d1-list", token, d1RefreshTick],
+    queryFn: async () => {
+      const r = await fetchCloudflareD1Databases(token ?? "", { refresh: d1RefreshTick > 0 });
+      if (!r.ok) throw new Error(r.error);
+      return r.data;
+    },
+    enabled: Boolean(token),
   });
 
   const workers = workersQ.data?.workers ?? [];
@@ -164,10 +176,58 @@ export function CloudflareDbPage() {
           status={status}
           onCreated={() => {
             void qc.invalidateQueries({ queryKey: ["cloudflare-db-worker-status"] });
+            void qc.invalidateQueries({ queryKey: ["cloudflare-db-d1-list"] });
             void qc.invalidateQueries({ queryKey: ["worker-status"] });
           }}
         />
       </div>
+
+      <Card>
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <CardTitle>{t("cloudflareDb.d1Databases")}</CardTitle>
+          <SyncStatus
+            meta={d1Q.data?._sync}
+            onRefresh={() => setD1RefreshTick((v) => v + 1)}
+            refreshing={d1Q.isFetching}
+            compact
+          />
+        </div>
+        {d1Q.data?.databases.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-muted)]">
+                  <th className="pb-2 pr-3">{t("cloudflareDb.databaseName")}</th>
+                  <th className="pb-2 pr-3">{t("cloudflareDb.databaseId")}</th>
+                  <th className="pb-2">{t("common.details")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d1Q.data.databases.map((db) => (
+                  <tr key={db.id} className="border-b border-[var(--color-border)]/60">
+                    <td className="py-3 pr-3">
+                      <code className="mono">{db.name}</code>
+                    </td>
+                    <td className="mono max-w-[18rem] break-all py-3 pr-3 text-xs text-[var(--color-muted)]">
+                      {db.id}
+                    </td>
+                    <td className="py-3 text-xs text-[var(--color-muted)]">
+                      {db.version ?? db.created_at ?? "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--color-muted)]">{t("cloudflareDb.noD1Databases")}</p>
+        )}
+        {d1Q.isError && (
+          <p className="mt-3 text-xs text-[var(--color-err)]">
+            {displayError(d1Q.error instanceof Error ? d1Q.error.message : String(d1Q.error))}
+          </p>
+        )}
+      </Card>
 
       <Card>
         <div className="flex items-start gap-3">

@@ -45,7 +45,7 @@ export function useSupabaseSetupFlowStatus({
     queryFn: async () => {
       const r = await fetchSupabaseProjects(token);
       if (!r.ok) throw new Error(r.error);
-      return r.data.projects;
+      return r.data;
     },
     enabled: Boolean(token && statusQ.data?.connected),
   });
@@ -61,7 +61,7 @@ export function useSupabaseSetupFlowStatus({
   });
 
   const appliedProject = useMemo(
-    () => projectFromUrl(supabaseUrl, projectsQ.data ?? []),
+    () => projectFromUrl(supabaseUrl, projectsQ.data?.projects ?? []),
     [supabaseUrl, projectsQ.data],
   );
 
@@ -112,7 +112,7 @@ export function useSupabaseSetupFlowStatus({
         hasAnonKey,
         projectRef: appliedProject?.ref ?? null,
         projectName: appliedProject?.name ?? null,
-        projectsCount: statusQ.data?.account?.projects_count ?? projectsQ.data?.length ?? 0,
+        projectsCount: statusQ.data?.account?.projects_count ?? projectsQ.data?.projects.length ?? 0,
         pendingMigrations: migrationsQ.data?.pending_count ?? 0,
         migrationFileCount: migrationsQ.data?.migration_files?.length ?? 0,
         pendingFunctions: functionsQ.data?.pending_count ?? 0,
@@ -129,7 +129,7 @@ export function useSupabaseSetupFlowStatus({
       functionsQ.data,
       migrationErr?.needsDbScope,
       functionsErr?.needsFunctionsScope,
-      projectsQ.data?.length,
+      projectsQ.data?.projects.length,
     ],
   );
 

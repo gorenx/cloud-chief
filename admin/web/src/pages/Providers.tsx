@@ -11,6 +11,7 @@ import { Chip } from "@/components/ui/Chip";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GatewaySetupFlow } from "@/components/GatewaySetupFlow";
 import { NoTokenPrompt } from "@/components/NoTokenPrompt";
+import { SyncStatus } from "@/components/SyncStatus";
 
 export function ProvidersPage() {
   const { token } = useAdminToken();
@@ -18,11 +19,12 @@ export function ProvidersPage() {
   const qc = useQueryClient();
   const [slug, setSlug] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const stateQ = useQuery({
-    queryKey: ["state", token],
+    queryKey: ["state", token, refreshTick],
     queryFn: async () => {
-      const r = await fetchState(token);
+      const r = await fetchState(token, { refresh: refreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
       return r.data;
     },
@@ -59,10 +61,6 @@ export function ProvidersPage() {
     onError: (e) => toast.error(displayError(e instanceof Error ? e.message : String(e))),
   });
 
-  if (!token) {
-    return <NoTokenPrompt />;
-  }
-
   const list = stateQ.data?.providers ?? [];
 
   useEffect(() => {
@@ -72,11 +70,22 @@ export function ProvidersPage() {
     if (!baseUrl && d.base_url) setBaseUrl(d.base_url);
   }, [stateQ.data?.defaults, slug, baseUrl]);
 
+  if (!token) {
+    return <NoTokenPrompt />;
+  }
+
   return (
     <div className="space-y-8">
       <PageHeader title={t("providers.title")} description={t("providers.desc")} />
 
       <GatewaySetupFlow current="provider" collapsible />
+
+      <SyncStatus
+        label={t("providers.list")}
+        meta={stateQ.data?._sync?.providers}
+        onRefresh={() => setRefreshTick((v) => v + 1)}
+        refreshing={stateQ.isFetching}
+      />
 
       <Card>
         <CardTitle>{t("providers.list")}</CardTitle>

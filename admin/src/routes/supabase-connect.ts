@@ -21,8 +21,8 @@ import {
   buildSupabaseAccountSummary,
   exchangeOAuthCode,
   fetchProjectConfig,
-  listSupabaseProjects,
 } from "../supabase-management";
+import { listSupabaseProjectsCached } from "../supabase-project-sync";
 import {
   applyFunctionMigration,
   applyPendingFunctions,
@@ -221,9 +221,11 @@ supabaseConnect.get("/status", adminAuth, async (c) => {
 });
 
 supabaseConnect.get("/projects", adminAuth, async (c) => {
-  const r = await listSupabaseProjects();
-  if (!r.ok) return c.json({ error: r.error }, r.error.includes("未连接") ? 401 : 502);
-  return c.json({ projects: r.projects });
+  const r = await listSupabaseProjectsCached({ refresh: c.req.query("refresh") === "1" });
+  if (!r.ok && r.projects.length === 0) {
+    return c.json({ error: r.error, projects: [], _sync: r._sync }, r.error?.includes("未连接") ? 401 : 502);
+  }
+  return c.json({ projects: r.projects, error: r.error, _sync: r._sync });
 });
 
 supabaseConnect.post("/apply", adminAuth, async (c) => {

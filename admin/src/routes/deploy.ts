@@ -31,6 +31,8 @@ import {
   zodMessage,
 } from "../schemas";
 import { listD1MigrationFiles, parseD1Databases } from "../d1-database";
+import { scanWorkerProjectsToDb } from "../worker-project-sync";
+import { syncMeta } from "../db/sync-store";
 
 export const deploy = new Hono();
 
@@ -175,16 +177,28 @@ function setVars(toml: string, vars: Record<string, string>): string {
 
 // 可选 worker 目录列表（相对 WORKER_ROOT）+ wrangler name + 当前默认
 deploy.get("/workers", (c) => {
-  return c.json({
-    root: workerRoot,
-    default: path.relative(workerRoot, workerDir) || ".",
-    workers: listWorkerEntries(),
-  });
+  try {
+    return c.json(scanWorkerProjectsToDb());
+  } catch {
+    return c.json({
+      root: workerRoot,
+      default: path.relative(workerRoot, workerDir) || ".",
+      workers: listWorkerEntries(),
+      _sync: {
+        source: "none",
+        stale: true,
+        last_synced_at: null,
+        error: "扫描 Worker 项目失败",
+      },
+    });
+  }
 });
 
 // CF 账号下已部署的 Worker 脚本列表
 deploy.get("/cf-deployed", async (c) => {
-  const r = await listCfDeployedWorkers(Boolean(env.CF_API_TOKEN));
+  const r = await listCfDeployedWorkers(Boolean(env.CF_API_TOKEN), {
+    refresh: c.req.query("refresh") === "1",
+  });
   return c.json(r);
 });
 
@@ -237,6 +251,26 @@ deploy.get("/status", async (c) => {
     logged_in: who.code === 0,
     whoami: who.output.trim(),
     cf_match,
+    _sync: {
+      worker_project: syncMeta({
+        source: "live",
+        lastSyncedAt: Date.now(),
+        ttlMs: 30_000,
+      }),
+      cf_match: cf_match
+        ? syncMeta({
+            source: cf_match.error ? "none" : "live",
+            lastSyncedAt: cf_match.error ? null : Date.now(),
+            ttlMs: 30_000,
+            error: cf_match.error ?? null,
+          })
+        : syncMeta({
+            source: "none",
+            lastSyncedAt: null,
+            ttlMs: 30_000,
+            error: worker_name && !env.CF_API_TOKEN ? "未配置 CF_API_TOKEN" : null,
+          }),
+    },
   });
 });
 
@@ -284,6 +318,7 @@ deploy.put("/devvars", async (c) => {
   } catch (e) {
     return c.json({ error: `写入 .dev.vars 失败: ${(e as Error).message}` }, 500);
   }
+  scanWorkerProjectsToDb();
   return c.json({ ok: true, dev_vars: parseDevVars(next), local_secrets: parseLocalSecretNames(next) });
 });
 
@@ -304,6 +339,7 @@ deploy.put("/config", async (c) => {
   } catch (e) {
     return c.json({ error: `写入失败: ${(e as Error).message}` }, 500);
   }
+  scanWorkerProjectsToDb();
   return c.json({ ok: true, vars: parseVars(next) });
 });
 

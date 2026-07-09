@@ -1,4 +1,21 @@
 import { cfApi, cfApiWorkerSettingsPatch } from "./cf";
+import { env } from "./env";
+import {
+  cfWorkersLastSyncedAt,
+  getCfWorker,
+  listCfWorkerDomains,
+  listCfWorkers,
+  upsertCfWorkerDomains,
+  upsertCfWorker,
+  upsertCfWorkers,
+} from "./db/resource-store";
+import {
+  finishSyncRun,
+  recordSyncEvent,
+  startSyncRun,
+  syncMeta,
+  type SyncMeta,
+} from "./db/sync-store";
 
 export interface CfWorkerBinding {
   type?: string;
@@ -112,21 +129,52 @@ async function fetchScriptDeployMeta(
 }
 
 /** 列出账号下已部署的 Worker 脚本（CF API） */
-export async function listCfDeployedWorkers(hasApiToken: boolean): Promise<{
+export async function listCfDeployedWorkers(
+  hasApiToken: boolean,
+  options: { refresh?: boolean } = {},
+): Promise<{
   ok: boolean;
   account_subdomain: string | null;
   scripts: CfDeployedWorker[];
   error?: string;
+  _sync?: SyncMeta;
 }> {
+  const accountId = env.CF_ACCOUNT_ID;
+  const cached = listCfWorkers(accountId);
+  const lastSyncedAt = cfWorkersLastSyncedAt(accountId);
+  const ttlMs = 30_000;
+
   if (!hasApiToken) {
     return {
-      ok: false,
+      ok: cached.length > 0,
       account_subdomain: null,
-      scripts: [],
+      scripts: cached,
       error: "未配置 CF_API_TOKEN",
+      _sync: syncMeta({
+        source: cached.length ? "local_snapshot" : "none",
+        lastSyncedAt,
+        ttlMs,
+        error: "未配置 CF_API_TOKEN",
+      }),
     };
   }
 
+  if (
+    !options.refresh &&
+    !process.env.VITEST &&
+    lastSyncedAt !== null &&
+    Date.now() - lastSyncedAt <= ttlMs &&
+    cached.length > 0
+  ) {
+    return {
+      ok: true,
+      account_subdomain: null,
+      scripts: cached,
+      _sync: syncMeta({ source: "local_snapshot", lastSyncedAt, ttlMs }),
+    };
+  }
+
+  const runId = startSyncRun("cloudflare", "workers");
   const [accountSubdomain, listRes] = await Promise.all([
     fetchAccountSubdomain(),
     cfApi("GET", "/workers/scripts"),
@@ -136,7 +184,28 @@ export async function listCfDeployedWorkers(hasApiToken: boolean): Promise<{
     const msg =
       (listRes.json.errors as Array<{ message?: string }> | undefined)?.[0]?.message ??
       `Worker 列表 HTTP ${listRes.status}`;
-    return { ok: false, account_subdomain: accountSubdomain, scripts: [], error: msg };
+    recordSyncEvent({
+      run_id: runId,
+      resource_type: "cf_workers",
+      resource_id: accountId,
+      action: "refresh",
+      status: "failed",
+      message: msg,
+    });
+    finishSyncRun(runId, "failed", { error: msg });
+    return {
+      ok: cached.length > 0,
+      account_subdomain: accountSubdomain,
+      scripts: cached,
+      error: msg,
+      _sync: syncMeta({
+        source: cached.length ? "local_snapshot" : "none",
+        lastSyncedAt,
+        ttlMs,
+        error: msg,
+        runId,
+      }),
+    };
   }
 
   const names = normalizeScriptNames(listRes.json.result);
@@ -144,8 +213,28 @@ export async function listCfDeployedWorkers(hasApiToken: boolean): Promise<{
     names.map((name) => fetchScriptDeployMeta(name, accountSubdomain)),
   );
   const scripts = settled.filter((s): s is CfDeployedWorker => s !== null);
+  upsertCfWorkers(accountId, scripts);
+  recordSyncEvent({
+    run_id: runId,
+    resource_type: "cf_workers",
+    resource_id: accountId,
+    action: "refresh",
+    status: "success",
+    message: `${scripts.length} workers`,
+  });
+  finishSyncRun(runId, "success", { stats: { count: scripts.length } });
 
-  return { ok: true, account_subdomain: accountSubdomain, scripts };
+  return {
+    ok: true,
+    account_subdomain: accountSubdomain,
+    scripts,
+    _sync: syncMeta({
+      source: "live",
+      lastSyncedAt: Date.now(),
+      ttlMs,
+      runId,
+    }),
+  };
 }
 
 export function findCfWorkerByName(
@@ -161,8 +250,13 @@ export async function listWorkerCustomDomains(
   scriptName: string,
   hasApiToken: boolean,
 ): Promise<{ ok: boolean; hostnames: string[]; error?: string }> {
+  const cached = listCfWorkerDomains(env.CF_ACCOUNT_ID, scriptName);
   if (!hasApiToken) {
-    return { ok: false, hostnames: [], error: "未配置 CF_API_TOKEN" };
+    return {
+      ok: cached.length > 0,
+      hostnames: cached,
+      error: "未配置 CF_API_TOKEN",
+    };
   }
   if (!scriptName) {
     return { ok: false, hostnames: [], error: "缺少 worker 脚本名" };
@@ -177,7 +271,7 @@ export async function listWorkerCustomDomains(
     const msg =
       (res.json.errors as Array<{ message?: string }> | undefined)?.[0]?.message ??
       `Worker domains HTTP ${res.status}`;
-    return { ok: false, hostnames: [], error: msg };
+    return { ok: cached.length > 0, hostnames: cached, error: msg };
   }
 
   const rows = Array.isArray(res.json.result) ? res.json.result : [];
@@ -185,6 +279,7 @@ export async function listWorkerCustomDomains(
     .map((row) => (row as { hostname?: string }).hostname)
     .filter((h): h is string => typeof h === "string" && h.length > 0);
 
+  upsertCfWorkerDomains(env.CF_ACCOUNT_ID, scriptName, hostnames);
   return { ok: true, hostnames };
 }
 
@@ -193,6 +288,7 @@ export async function resolveWorkerFromCf(
   scriptName: string,
   hasApiToken: boolean,
 ): Promise<CfWorkerResolveResult> {
+  const cached = scriptName ? getCfWorker(env.CF_ACCOUNT_ID, scriptName) : null;
   const empty: CfWorkerResolveResult = {
     ok: false,
     script_name: scriptName,
@@ -204,6 +300,18 @@ export async function resolveWorkerFromCf(
   };
 
   if (!hasApiToken || !scriptName) {
+    if (cached) {
+      return {
+        ok: true,
+        script_name: cached.name,
+        account_subdomain: null,
+        subdomain_enabled: cached.subdomain_enabled,
+        url: cached.url,
+        vars: cached.vars,
+        secret_names: cached.secret_names,
+        error: hasApiToken ? "缺少 worker 脚本名" : "未配置 CF_API_TOKEN，使用本地 Worker 快照",
+      };
+    }
     return { ...empty, error: hasApiToken ? "缺少 worker 脚本名" : "未配置 CF_API_TOKEN" };
   }
 
@@ -217,6 +325,18 @@ export async function resolveWorkerFromCf(
     const msg =
       (settingsRes.json.errors as Array<{ message?: string }> | undefined)?.[0]?.message ??
       `Worker settings HTTP ${settingsRes.status}`;
+    if (cached) {
+      return {
+        ok: true,
+        script_name: cached.name,
+        account_subdomain: null,
+        subdomain_enabled: cached.subdomain_enabled,
+        url: cached.url,
+        vars: cached.vars,
+        secret_names: cached.secret_names,
+        error: `${msg}，使用本地 Worker 快照`,
+      };
+    }
     return { ...empty, error: msg };
   }
 
@@ -237,7 +357,7 @@ export async function resolveWorkerFromCf(
 
   const url = buildWorkersDevUrl(scriptName, accountSubdomain, subdomainEnabled);
 
-  return {
+  const resolved = {
     ok: true,
     script_name: scriptName,
     account_subdomain: accountSubdomain,
@@ -246,6 +366,16 @@ export async function resolveWorkerFromCf(
     vars,
     secret_names,
   };
+  upsertCfWorker(env.CF_ACCOUNT_ID, {
+    name: scriptName,
+    url,
+    subdomain_enabled: subdomainEnabled,
+    vars,
+    secret_names,
+    compatibility_date: null,
+    usage_model: null,
+  });
+  return resolved;
 }
 
 /** 合并 CF 部署 vars 与本地 wrangler.toml（CF 优先） */

@@ -9,10 +9,23 @@ import {
   parseD1Databases,
   writeD1DatabaseBinding,
 } from "../d1-database";
+import { upsertCfD1Database } from "../db/resource-store";
+import {
+  finishSyncRun,
+  recordSyncEvent,
+  startSyncRun,
+} from "../db/sync-store";
+import { scanWorkerProjectsToDb } from "../worker-project-sync";
+import { listD1DatabasesCached } from "../d1-sync";
 
 export const cloudflareDb = new Hono();
 
 cloudflareDb.use("*", adminAuth);
+
+// Cloudflare D1：读取账号下数据库列表。默认读本地快照，过期或 refresh=1 时刷新。
+cloudflareDb.get("/d1/databases", async (c) => {
+  return c.json(await listD1DatabasesCached({ refresh: c.req.query("refresh") === "1" }));
+});
 
 // Cloudflare D1：创建数据库，并可选写入选中 worker 的 wrangler.toml binding / 执行 migrations/*.sql。
 cloudflareDb.post("/d1/databases", async (c) => {
@@ -24,13 +37,32 @@ cloudflareDb.post("/d1/databases", async (c) => {
   if (!parsed.success) return c.json({ error: zodMessage(parsed.error) }, 400);
 
   const { name, binding, update_wrangler, apply_migrations } = parsed.data;
+  const runId = startSyncRun("cloudflare", "d1");
   const created = await createD1Database(name);
   if (!created.ok) {
+    recordSyncEvent({
+      run_id: runId,
+      resource_type: "cf_d1_database",
+      resource_id: name,
+      action: "create",
+      status: "failed",
+      message: created.error,
+    });
+    finishSyncRun(runId, "failed", { error: created.error });
     return c.json(
       { error: created.error, cloudflare: created.json },
       created.status === 401 || created.status === 403 ? 403 : 400,
     );
   }
+  upsertCfD1Database(env.CF_ACCOUNT_ID, created.database);
+  recordSyncEvent({
+    run_id: runId,
+    resource_type: "cf_d1_database",
+    resource_id: created.database.id,
+    action: "create",
+    status: "success",
+    message: created.database.name,
+  });
 
   const bindingConfig = {
     binding,
@@ -51,12 +83,29 @@ cloudflareDb.post("/d1/databases", async (c) => {
     const write = writeD1DatabaseBinding(dir, bindingConfig);
     if (!write.ok) {
       wrangler = { updated: false, databases: null, error: write.error };
+      recordSyncEvent({
+        run_id: runId,
+        resource_type: "worker_d1_binding",
+        resource_id: `${binding}:${created.database.id}`,
+        action: "bind",
+        status: "failed",
+        message: write.error,
+      });
     } else {
       wrangler = { updated: true, databases: write.databases, error: null };
+      scanWorkerProjectsToDb();
+      recordSyncEvent({
+        run_id: runId,
+        resource_type: "worker_d1_binding",
+        resource_id: `${binding}:${created.database.id}`,
+        action: "bind",
+        status: "success",
+      });
     }
   }
 
   if (wrangler.error) {
+    finishSyncRun(runId, "partial", { error: wrangler.error });
     return c.json(
       {
         ok: false,
@@ -74,6 +123,15 @@ cloudflareDb.post("/d1/databases", async (c) => {
     : { ok: true as const, applied: [] };
 
   if (!migrations.ok) {
+    recordSyncEvent({
+      run_id: runId,
+      resource_type: "cf_d1_migrations",
+      resource_id: created.database.id,
+      action: "migrate",
+      status: "failed",
+      message: migrations.error,
+    });
+    finishSyncRun(runId, "partial", { error: migrations.error, stats: { applied: migrations.applied } });
     return c.json(
       {
         ok: false,
@@ -86,6 +144,17 @@ cloudflareDb.post("/d1/databases", async (c) => {
       500,
     );
   }
+  recordSyncEvent({
+    run_id: runId,
+    resource_type: "cf_d1_migrations",
+    resource_id: created.database.id,
+    action: "migrate",
+    status: "success",
+    message: migrations.applied.join(", "),
+  });
+  finishSyncRun(runId, "success", {
+    stats: { database_id: created.database.id, applied: migrations.applied },
+  });
 
   return c.json({
     ok: true,
@@ -108,17 +177,44 @@ cloudflareDb.put("/d1/binding", async (c) => {
   const { database_name, database_id, binding, apply_migrations } = parsed.data;
   if (apply_migrations && !env.CF_API_TOKEN) return c.json({ error: "未配置 CF_API_TOKEN" }, 400);
 
+  const runId = startSyncRun("worker_fs", "d1_binding");
   const bindingConfig = { binding, database_name, database_id };
   const write = writeD1DatabaseBinding(dir, bindingConfig);
   if (!write.ok) {
+    recordSyncEvent({
+      run_id: runId,
+      resource_type: "worker_d1_binding",
+      resource_id: `${binding}:${database_id}`,
+      action: "bind",
+      status: "failed",
+      message: write.error,
+    });
+    finishSyncRun(runId, "failed", { error: write.error });
     return c.json({ error: `写入 wrangler.toml 失败: ${write.error}` }, 500);
   }
+  scanWorkerProjectsToDb();
+  recordSyncEvent({
+    run_id: runId,
+    resource_type: "worker_d1_binding",
+    resource_id: `${binding}:${database_id}`,
+    action: "bind",
+    status: "success",
+  });
 
   const migrations = apply_migrations
     ? await applyD1Migrations(database_id, dir)
     : { ok: true as const, applied: [] };
 
   if (!migrations.ok) {
+    recordSyncEvent({
+      run_id: runId,
+      resource_type: "cf_d1_migrations",
+      resource_id: database_id,
+      action: "migrate",
+      status: "failed",
+      message: migrations.error,
+    });
+    finishSyncRun(runId, "partial", { error: migrations.error, stats: { applied: migrations.applied } });
     return c.json(
       {
         ok: false,
@@ -130,6 +226,15 @@ cloudflareDb.put("/d1/binding", async (c) => {
       500,
     );
   }
+  recordSyncEvent({
+    run_id: runId,
+    resource_type: "cf_d1_migrations",
+    resource_id: database_id,
+    action: "migrate",
+    status: "success",
+    message: migrations.applied.join(", "),
+  });
+  finishSyncRun(runId, "success", { stats: { applied: migrations.applied } });
 
   return c.json({
     ok: true,

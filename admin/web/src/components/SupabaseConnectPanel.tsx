@@ -19,6 +19,7 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { SourceBadge } from "./SourceBadge";
+import { SyncStatus } from "./SyncStatus";
 import { SupabaseSchemaSection } from "./SupabaseSchemaSection";
 import { SupabaseFunctionsSection } from "./SupabaseFunctionsSection";
 import type { SupabaseViewMode } from "@/components/supabase/SupabaseSetupWorkspace";
@@ -91,6 +92,7 @@ export function SupabaseConnectPanel({
   const queryClient = useQueryClient();
   const [selectedRef, setSelectedRef] = useState("");
   const [awaitingTestAccount, setAwaitingTestAccount] = useState(false);
+  const [projectsRefreshTick, setProjectsRefreshTick] = useState(0);
   const emailRef = useRef<HTMLInputElement>(null);
 
   const statusQ = useQuery({
@@ -104,17 +106,17 @@ export function SupabaseConnectPanel({
   });
 
   const projectsQ = useQuery({
-    queryKey: ["supabase-projects", token],
+    queryKey: ["supabase-projects", token, projectsRefreshTick],
     queryFn: async () => {
-      const r = await fetchSupabaseProjects(token);
+      const r = await fetchSupabaseProjects(token, { refresh: projectsRefreshTick > 0 });
       if (!r.ok) throw new Error(r.error);
-      return r.data.projects;
+      return r.data;
     },
     enabled: Boolean(token && statusQ.data?.connected),
   });
 
   const appliedProject = useMemo(() => {
-    const projects = projectsQ.data ?? [];
+    const projects = projectsQ.data?.projects ?? [];
     if (!supabaseUrl) return null;
     const ref = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
     if (!ref) return null;
@@ -246,7 +248,7 @@ export function SupabaseConnectPanel({
   }, [awaitingTestAccount, hasTestCredentials]);
 
   const status = statusQ.data;
-  const projects = projectsQ.data ?? [];
+  const projects = projectsQ.data?.projects ?? [];
   const resolvedTestEmail =
     testEmail.trim() ||
     status?.local_test?.email ||
@@ -421,6 +423,12 @@ export function SupabaseConnectPanel({
 
       {showStep("project") && status.connected && (
         <div className="space-y-3">
+          <SyncStatus
+            meta={projectsQ.data?._sync}
+            onRefresh={() => setProjectsRefreshTick((v) => v + 1)}
+            refreshing={projectsQ.isFetching}
+            compact
+          />
           {!stepApply || applyM.isPending ? (
             <div className="space-y-2">
               <p className="text-xs text-[var(--color-muted)]">{t("supabase.step2Title")}</p>

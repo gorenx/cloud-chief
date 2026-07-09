@@ -17,8 +17,14 @@ import { workerChat } from "./routes/worker-chat";
 import { supabaseConnect } from "./routes/supabase-connect";
 import { cloudflareDb } from "./routes/cloudflare-db";
 import { authRoutes } from "./routes/auth";
+import { syncRoutes } from "./routes/sync";
 import { initDatabase } from "./db/connection";
-import { overlayAppConfigFromDb } from "./app-config-overlay";
+import { overlayAppConfigFromDb, seedAppConfigFromEnv } from "./app-config-overlay";
+import { scanWorkerProjectsToDb } from "./worker-project-sync";
+import { listD1DatabasesCached } from "./d1-sync";
+import { listCfDeployedWorkers } from "./cf-worker-resolve";
+import { listSupabaseProjectsCached } from "./supabase-project-sync";
+import { readSupabaseOAuthTokens } from "./supabase-oauth-store";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(here, "..");
@@ -26,14 +32,18 @@ const webDist = path.join(adminRoot, "web", "dist");
 
 export function createApp(): Hono {
   initDatabase();
+  seedAppConfigFromEnv();
   overlayAppConfigFromDb();
+  scheduleStartupSync();
   const app = new Hono();
 
   app.get("/health", (c) => c.json({ ok: true }));
   app.route("/auth", authRoutes);
 
   app.get("/config", async (c) => {
-    const { gateways, providers } = await loadCfLists();
+    const { gateways, providers, _sync } = await loadCfLists({
+      refresh: c.req.query("refresh") === "1",
+    });
     const defaultGw = pickDefaultGateway(gateways);
     const defaultProvider = pickDefaultProvider(providers);
     const gatewayId = defaultGw?.id ?? "";
@@ -65,6 +75,7 @@ export function createApp(): Hono {
       worker_routing: workerRouting,
       worker: buildWorkerDebugInfo(runtime),
       _meta: patchWorkerRuntimeMeta(configMeta(), runtime),
+      _sync,
     });
   });
 
@@ -73,6 +84,7 @@ export function createApp(): Hono {
   app.route("/admin/supabase", supabaseConnect);
   app.route("/admin/cloudflare-db", cloudflareDb);
   app.route("/admin/worker", deploy);
+  app.route("/admin/sync", syncRoutes);
   app.route("/admin", admin);
 
   const hasWebDist = fs.existsSync(path.join(webDist, "index.html"));
@@ -108,3 +120,35 @@ export function createApp(): Hono {
 }
 
 export const app = createApp();
+
+function scheduleStartupSync(): void {
+  if (process.env.VITEST) return;
+
+  try {
+    scanWorkerProjectsToDb();
+  } catch (e) {
+    console.warn(`[admin] Worker project startup scan failed: ${(e as Error).message}`);
+  }
+
+  if (env.CF_API_TOKEN) {
+    setTimeout(() => {
+      void loadCfLists({ refresh: true }).catch((e) => {
+        console.warn(`[admin] Cloudflare AI Gateway startup sync failed: ${(e as Error).message}`);
+      });
+      void listD1DatabasesCached({ refresh: true }).catch((e) => {
+        console.warn(`[admin] Cloudflare D1 startup sync failed: ${(e as Error).message}`);
+      });
+      void listCfDeployedWorkers(true, { refresh: true }).catch((e) => {
+        console.warn(`[admin] Cloudflare Worker startup sync failed: ${(e as Error).message}`);
+      });
+    }, 0);
+  }
+
+  if (readSupabaseOAuthTokens()) {
+    setTimeout(() => {
+      void listSupabaseProjectsCached({ refresh: true }).catch((e) => {
+        console.warn(`[admin] Supabase project startup sync failed: ${(e as Error).message}`);
+      });
+    }, 0);
+  }
+}

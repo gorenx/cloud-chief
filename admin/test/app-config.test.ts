@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { app } from "../src/app";
 import { closeDatabase, initDatabase } from "../src/db/connection";
 import { getConfigValue, setConfigValue } from "../src/db/config-store";
-import { overlayAppConfigFromDb } from "../src/app-config-overlay";
+import { overlayAppConfigFromDb, seedAppConfigFromEnv } from "../src/app-config-overlay";
 import { env } from "../src/env";
 
 const TOKEN = "test-token";
@@ -36,6 +36,16 @@ describe("app-config", () => {
     setConfigValue("MODEL", "from-db");
     overlayAppConfigFromDb();
     expect(env.MODEL).toBe("from-db");
+  });
+
+  it("seeds SQLite app_config from env only when DB is missing a value", () => {
+    env.MODEL = "from-env";
+    seedAppConfigFromEnv();
+    expect(getConfigValue("MODEL")).toBe("from-env");
+
+    env.MODEL = "changed-env";
+    seedAppConfigFromEnv();
+    expect(getConfigValue("MODEL")).toBe("from-env");
   });
 
   it("GET /admin/app-config lists sections", async () => {
