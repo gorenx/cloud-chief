@@ -1,0 +1,25 @@
+{
+  "name": "cloud-chief-auth-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create cloud-chief-auth",
+    "db:migrate:local": "wrangler d1 migrations apply cloud-chief-auth --local",
+    "db:migrate:remote": "wrangler d1 migrations apply cloud-chief-auth --remote",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@better-auth/oauth-provider": "^1.0.18",
+    "better-auth": "^1.6.23",
+    "hono": "^4.12.25",
+    "jose": "^6.2.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260617.1",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.101.0"
+  }
+}

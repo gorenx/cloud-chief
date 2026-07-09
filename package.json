@@ -1,0 +1,18 @@
+{
+  "name": "cloud-chief",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.12.4",
+  "scripts": {
+    "install:all": "pnpm install",
+    "dev:admin": "pnpm --filter aigateway-admin dev",
+    "dev:web": "pnpm --filter aigateway-admin-web dev",
+    "dev:ai": "pnpm --filter ai-gateway-proxy dev",
+    "dev:revenuecat": "pnpm --filter revenuecat-proxy dev",
+    "dev:auth": "pnpm --filter cloud-chief-auth-worker dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test"
+  }
+}

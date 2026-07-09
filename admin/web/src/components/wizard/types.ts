@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import type { TranslateFn } from "@/i18n";
 import type { FlowStepCardContent } from "@/lib/flow-card-content";
 

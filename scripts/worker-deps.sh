@@ -18,6 +18,11 @@ if [ ! -f "$GATEWAY_CORE/package.json" ]; then
   exit 1
 fi
 
+if [[ "${npm_config_user_agent:-}" == *"pnpm"* && "${1:-}" != "ci" ]]; then
+  echo "✓ pnpm workspace install detected; gateway-core is linked by the root workspace"
+  exit 0
+fi
+
 if [ "${1:-}" = "ci" ]; then
   npm ci --ignore-scripts
   npm ci --prefix "$GATEWAY_CORE"

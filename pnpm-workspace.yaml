@@ -1,0 +1,17 @@
+packages:
+  - "admin"
+  - "admin/web"
+  - "ai-gateway-worker"
+  - "auth-worker"
+  - "worker-revenuecat"
+  - "packages/*"
+  - "pg-migration-sql"
+
+onlyBuiltDependencies:
+  - "esbuild"
+  - "sharp"
+  - "workerd"
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true

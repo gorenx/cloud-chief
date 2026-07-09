@@ -11,7 +11,7 @@
     "install:all": "bash scripts/pm.sh install",
     "start": "tsx src/index.ts",
     "build": "bash scripts/pm.sh web build && tsc",
-    "typecheck": "tsc --noEmit && bash scripts/pm.sh web typecheck",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "migrate:env": "tsx scripts/migrate-env-to-db.ts"

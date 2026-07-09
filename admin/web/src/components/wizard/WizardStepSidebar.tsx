@@ -2,7 +2,7 @@ import { LayoutList } from "lucide-react";
 import { useT } from "@/contexts/LocaleContext";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import { WizardSidebarButton, WizardSidebarStep } from "@/components/ui/WizardWorkspace";
-import type { WizardLocalizedStep, WizardStepHandlers, WizardViewMode } from "@/components/wizard/types";
+import type { WizardLocalizedStep, WizardSidebarHandlers, WizardViewMode } from "@/components/wizard/types";
 
 export function WizardShowAllButton({
   active,
@@ -38,7 +38,7 @@ export function WizardStepList<TStep extends string, TStatus>({
   activeStep: WizardViewMode<TStep>;
   onSelect: (step: TStep) => void;
   optionalLabel?: string;
-} & WizardStepHandlers<TStep, TStatus>) {
+} & WizardSidebarHandlers<TStep, TStatus>) {
   const t = useT();
   const scrollRef = useScrollContainer();
 

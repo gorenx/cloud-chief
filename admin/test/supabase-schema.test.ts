@@ -140,7 +140,7 @@ describe("supabase-schema", () => {
   });
 
   it("resolveMigrationsDir accepts repo default migrations dir", () => {
-    const resolved = resolveMigrationsDir("supabase/migrations");
+    const resolved = resolveMigrationsDir("wren-supabase/migrations");
     expect(resolved).toBeTruthy();
     expect(fs.existsSync(resolved!)).toBe(true);
   });

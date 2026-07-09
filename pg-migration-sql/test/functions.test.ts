@@ -10,7 +10,7 @@ import {
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const rpcMigration = readFileSync(
-  join(repoRoot, "supabase/migrations/0003_ai_gateway_rpc.sql"),
+  join(repoRoot, "wren-supabase/migrations/0003_ai_gateway_rpc.sql"),
   "utf8",
 );
 

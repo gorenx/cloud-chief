@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, initDatabase } from "../src/db/connection";
+import { env } from "../src/env";
 import {
   getGatewayApiPathConfig,
   normalizeCustomPaths,
@@ -12,12 +13,18 @@ import { CHAT_API_PATH, RESPONSES_API_PATH } from "../src/gateway-paths";
 
 describe("gateway-api-path-config", () => {
   let dbPath = "";
+  let prevDbPath = "";
+  let prevDbEncrypt = false;
 
   beforeEach(() => {
     closeDatabase();
+    prevDbPath = env.ADMIN_DB_PATH;
+    prevDbEncrypt = env.ADMIN_DB_ENCRYPT;
     dbPath = path.join(os.tmpdir(), `admin-gw-paths-${Date.now()}-${Math.random()}.db`);
     process.env.ADMIN_DB_PATH = dbPath;
     process.env.ADMIN_DB_ENCRYPT = "0";
+    env.ADMIN_DB_PATH = dbPath;
+    env.ADMIN_DB_ENCRYPT = false;
     initDatabase();
   });
 
@@ -25,6 +32,9 @@ describe("gateway-api-path-config", () => {
     closeDatabase();
     if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
     delete process.env.ADMIN_DB_PATH;
+    delete process.env.ADMIN_DB_ENCRYPT;
+    env.ADMIN_DB_PATH = prevDbPath;
+    env.ADMIN_DB_ENCRYPT = prevDbEncrypt;
   });
 
   it("normalizeCustomPaths dedupes and normalizes", () => {

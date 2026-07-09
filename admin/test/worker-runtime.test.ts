@@ -19,7 +19,6 @@ function runtime(partial: Partial<WorkerRuntimeConfig>): WorkerRuntimeConfig {
     online_url: "https://test-worker.sub.workers.dev",
     online_available: true,
     custom_domains: [],
-    url_endpoints,
     url_source: "env",
     vars: {},
     vars_source: "wrangler",

@@ -9,7 +9,7 @@ import {
 } from "./supabase-management";
 import { extractTableSqlFromSources, parsePoliciesFromSql, parseTablesFromSql, parseFunctionsFromSql, extractFunctionSqlFromSources } from "pg-migration-sql";
 
-export const DEFAULT_MIGRATIONS_REL_DIR = "supabase/migrations";
+export const DEFAULT_MIGRATIONS_REL_DIR = "wren-supabase/migrations";
 export const LEGACY_MIGRATIONS_REL_DIR = "supabase/migrations";
 
 export function defaultMigrationsDir(): string {

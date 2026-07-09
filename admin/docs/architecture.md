@@ -121,12 +121,12 @@ Playground 直连 (/api/chat)     Playground 经 Worker (/api/worker-chat)     �
 
 ## Monorepo 与依赖
 
-`admin/` 是 pnpm workspace 根，包含：
+仓库根目录是 pnpm workspace 根，包含：
 
 - `.` — API 包（`package.json`）
 - `web/` — 前端子包
 
-详见仓库内 `pnpm-workspace.yaml`、`admin/.npmrc`（`@types/*` 提升，改善 IDE 类型解析）。
+详见仓库根目录的 `pnpm-workspace.yaml`、`.npmrc`（`@types/*` 提升，改善 IDE 类型解析）。
 
 ## 测试
 

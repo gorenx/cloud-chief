@@ -1,10 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
 import { app } from "../src/app";
 import { env } from "../src/env";
 import { secretSet, gatewayUpsert, devVarsUpdate, workerBuilderTokenSet } from "../src/schemas";
 
 const TOKEN = "test-token";
 const authed = { "content-type": "application/json", authorization: `Bearer ${TOKEN}` };
+
+beforeEach(() => {
+  env.ADMIN_TOKEN = TOKEN;
+});
 
 describe("admin auth", () => {
   it("GET /admin/state without token -> 401", async () => {
@@ -46,7 +50,7 @@ describe("validation", () => {
     const res = await app.request("/admin/worker/secret", {
       method: "POST",
       headers: authed,
-      body: JSON.stringify({ name: "EVIL_NAME", value: "x" }),
+      body: JSON.stringify({ name: "bad name", value: "x" }),
     });
     expect(res.status).toBe(400);
   });
@@ -227,7 +231,11 @@ describe("worker chat", () => {
   it("GET /api/worker-chat/info returns worker debug info", async () => {
     const res = await app.request("/api/worker-chat/info");
     expect(res.status).toBe(200);
-    const j = (await res.json()) as { url: string; endpoints: string[] };
+    const j = (await res.json()) as {
+      url: string;
+      endpoints: string[];
+      capabilities: unknown;
+    };
     expect(j.url).toBeTruthy();
     expect(j.endpoints.length).toBeGreaterThanOrEqual(2);
     expect(j.capabilities).toBeDefined();

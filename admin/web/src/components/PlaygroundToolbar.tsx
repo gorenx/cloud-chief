@@ -1,6 +1,5 @@
 import { useT } from "@/contexts/LocaleContext";
 import { Button } from "@/components/ui/Button";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { FieldLabel, InputWithSourceBadge, SelectWithSourceBadge } from "@/components/SourceBadge";
 import { WorkerConfigSourceToggle } from "@/components/WorkerConfigSourceToggle";
 import { WorkerEndpointSelect, isLocalWorkerEndpoint } from "@/components/WorkerEndpointSelect";

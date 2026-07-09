@@ -344,7 +344,7 @@ export function GatewayApiPathsPanel({
                 }}
               />
             </div>
-            <Button variant="secondary" onClick={addCustomSuffix} disabled={!newSuffix.trim()}>
+            <Button variant="ghost" onClick={addCustomSuffix} disabled={!newSuffix.trim()}>
               {t("gateways.apiPaths.addBtn")}
             </Button>
             {customDirty && (

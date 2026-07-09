@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["test/**/*.test.ts", "web/src/**/*.test.ts"],
+    include: ["test/**/*.test.ts"],
     exclude: ["test/integration/**"],
     env: {
       CF_ACCOUNT_ID: "test-account",

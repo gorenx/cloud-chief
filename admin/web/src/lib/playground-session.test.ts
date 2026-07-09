@@ -10,9 +10,9 @@ import {
   buildChatRequest,
   type PlaygroundConfigSlice,
   type WorkerCapabilities,
-} from "../web/src/lib/playground-session";
-import { resolvePlaygroundDataView } from "../web/src/lib/playground-sources";
-import { translate } from "../web/src/i18n";
+} from "./playground-session";
+import { resolvePlaygroundDataView } from "./playground-sources";
+import { translate } from "../i18n";
 
 const t = (key: Parameters<typeof translate>[1], vars?: Parameters<typeof translate>[2]) =>
   translate("zh", key, vars);
