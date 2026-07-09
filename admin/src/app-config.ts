@@ -20,6 +20,7 @@ export const BOOTSTRAP_ENV_KEYS = [
 
 export const APP_CONFIG_FIELDS: AppConfigFieldDef[] = [
   { key: "CF_ACCOUNT_ID", section: "cloudflare", hint: "Cloudflare 账号 ID" },
+  { key: "CLOUDFLARE_ACCOUNT_ID", section: "cloudflare", hint: "Wrangler 账号 ID（兼容 CF_ACCOUNT_ID）" },
   { key: "CF_API_TOKEN", section: "cloudflare", sensitive: true, hint: "拉取网关/提供商/BYOK" },
   { key: "CF_AIG_TOKEN", section: "cloudflare", sensitive: true, hint: "网关鉴权 cf-aig-authorization" },
   { key: "CLOUDFLARE_API_TOKEN", section: "cloudflare", sensitive: true, hint: "spawn wrangler 时注入" },

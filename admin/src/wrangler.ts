@@ -3,9 +3,24 @@ import { env, workerDir } from "./env";
 
 const NPX = process.platform === "win32" ? "npx.cmd" : "npx";
 
-function childEnv(): NodeJS.ProcessEnv {
-  const e = { ...process.env };
-  if (env.CLOUDFLARE_API_TOKEN) e.CLOUDFLARE_API_TOKEN = env.CLOUDFLARE_API_TOKEN;
+export function buildWranglerEnv(baseEnv: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const e = { ...baseEnv };
+  const apiToken =
+    env.CLOUDFLARE_API_TOKEN.trim() ||
+    env.CF_API_TOKEN.trim() ||
+    baseEnv.CLOUDFLARE_API_TOKEN ||
+    baseEnv.CF_API_TOKEN;
+  const accountId =
+    env.CLOUDFLARE_ACCOUNT_ID.trim() ||
+    env.CF_ACCOUNT_ID.trim() ||
+    baseEnv.CLOUDFLARE_ACCOUNT_ID ||
+    baseEnv.CF_ACCOUNT_ID;
+
+  if (apiToken) e.CLOUDFLARE_API_TOKEN = apiToken;
+  if (accountId) e.CLOUDFLARE_ACCOUNT_ID = accountId;
+
+  delete e.CF_API_TOKEN;
+  delete e.CF_ACCOUNT_ID;
   return e;
 }
 
@@ -13,7 +28,7 @@ export function spawnWrangler(
   args: string[],
   cwd: string = workerDir,
 ): ChildProcessWithoutNullStreams {
-  return spawn(NPX, ["wrangler", ...args], { cwd, env: childEnv() });
+  return spawn(NPX, ["wrangler", ...args], { cwd, env: buildWranglerEnv() });
 }
 
 export interface RunResult {

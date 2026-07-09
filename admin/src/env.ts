@@ -8,7 +8,8 @@ const adminRoot = path.resolve(here, ".."); // admin/
 export const envFilePath = path.join(adminRoot, ".env");
 
 const schema = z.object({
-  CF_ACCOUNT_ID: z.string().min(1, "缺少 CF_ACCOUNT_ID"),
+  CF_ACCOUNT_ID: z.string().default(""),
+  CLOUDFLARE_ACCOUNT_ID: z.string().default(""),
   CF_API_TOKEN: z.string().default(""),
   CF_AIG_TOKEN: z.string().default(""),
   DASHSCOPE_API_KEY: z.string().default(""),
@@ -156,7 +157,15 @@ function parseProcessEnv(): AppEnv {
     const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     throw new Error(msg);
   }
-  return parsed.data;
+  const next = parsed.data;
+  const accountId = next.CF_ACCOUNT_ID.trim() || next.CLOUDFLARE_ACCOUNT_ID.trim();
+  if (!accountId) {
+    throw new Error("缺少 CF_ACCOUNT_ID 或 CLOUDFLARE_ACCOUNT_ID");
+  }
+  next.CF_ACCOUNT_ID = accountId;
+  next.CLOUDFLARE_ACCOUNT_ID = next.CLOUDFLARE_ACCOUNT_ID.trim() || accountId;
+  next.CF_API_TOKEN = next.CF_API_TOKEN.trim() || next.CLOUDFLARE_API_TOKEN.trim();
+  return next;
 }
 
 /** 可变 env 对象；各模块 import 后读取字段即可获得最新值 */
