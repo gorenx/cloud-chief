@@ -20,6 +20,7 @@ import { useSSEStream } from "@/hooks/useSSEStream";
 import { useLocale } from "@/contexts/LocaleContext";
 import { useScrollContainer } from "@/contexts/ScrollContainerContext";
 import { readMainScrollTop, restoreMainScrollTop, pinScrollTop } from "@/lib/prevent-nav-scroll";
+import type { WorkerManualDeployState } from "@/lib/worker-setup-flow";
 import type { WorkerStatus } from "@/types";
 
 export function useWorkerPage(token: string) {
@@ -31,6 +32,7 @@ export function useWorkerPage(token: string) {
   const [secrets, setSecrets] = useState<WorkerSecretRowState[]>([]);
   const [prodSet, setProdSet] = useState<Set<string> | null>(null);
   const [cfScriptName, setCfScriptName] = useState("");
+  const [manualDeployState, setManualDeployState] = useState<WorkerManualDeployState>("idle");
   const deploy = useSSEStream();
   const mainScrollLock = useRef<number | null>(null);
 
@@ -118,6 +120,7 @@ export function useWorkerPage(token: string) {
     setSecrets([{ name: "", value: "", fixed: false, optional: false }]);
     setProdSet(null);
     setCfScriptName("");
+    setManualDeployState("idle");
   }, [workerDir]);
 
   useEffect(() => {
@@ -194,16 +197,24 @@ export function useWorkerPage(token: string) {
 
   function startDeploy() {
     lockMainScrollPosition();
+    setManualDeployState("running");
     void deploy.start(`/admin/worker/deploy${wq}`, {
       headers: { Authorization: `Bearer ${token}` },
       onEvent: (e) => {
         if (e.event === "done") {
-          toast.success(
-            e.data === "0" ? t("worker.toast.deploySuccess") : t("worker.toast.deployExit", { code: e.data }),
-          );
+          const ok = e.data === "0";
+          setManualDeployState(ok ? "succeeded" : "failed");
+          if (ok) {
+            toast.success(t("worker.toast.deploySuccess"));
+          } else {
+            toast.error(t("worker.toast.deployExit", { code: e.data }));
+          }
           refreshStatus();
         }
-        if (e.event === "error") toast.error(e.data);
+        if (e.event === "error") {
+          setManualDeployState("failed");
+          toast.error(e.data);
+        }
       },
     });
   }
@@ -300,6 +311,7 @@ export function useWorkerPage(token: string) {
     localVarsRecord,
     statusAligned,
     matchedOnline,
+    manualDeployState,
     varsOutOfSync,
     varsUnsaved,
     varsSave,

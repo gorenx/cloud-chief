@@ -91,6 +91,7 @@ export function WorkerPage() {
     prodSet: page.prodSet,
     deployedScriptNames: page.deployedScriptNames,
     matchedOnline: page.matchedOnline,
+    manualDeployState: page.manualDeployState,
   });
 
   useEffect(() => {

@@ -70,6 +70,20 @@ export const d1DatabaseCreate = z.object({
   apply_migrations: z.boolean().optional().default(false),
 });
 
+export const d1DatabaseBind = z.object({
+  database_name: z
+    .string()
+    .trim()
+    .regex(D1_DATABASE_NAME, "数据库名仅支持字母、数字、下划线、连字符，长度 1-64"),
+  database_id: z.string().trim().min(1, "缺少 database_id"),
+  binding: z
+    .string()
+    .trim()
+    .regex(ENV_NAME, "binding 需大写字母开头，仅含大写字母/数字/下划线")
+    .default("DB"),
+  apply_migrations: z.boolean().optional().default(false),
+});
+
 export function zodMessage(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join(".") || "body"}: ${i.message}`).join("; ");
 }

@@ -220,13 +220,19 @@ export interface Messages {
     noWorkers: string;
     currentBinding: string;
     databaseName: string;
+    databaseId: string;
+    databaseIdPlaceholder: string;
     binding: string;
     applyMigrations: string;
     create: string;
     creating: string;
+    writeBinding: string;
+    bindingWriting: string;
     toast: {
       created: string;
       createdWithMigrations: string;
+      bound: string;
+      boundWithMigrations: string;
     };
   };
   setupFlow: {
@@ -700,6 +706,8 @@ export interface Messages {
     status: {
       deployed: string;
       notDeployed: string;
+      deploying: string;
+      deployFailed: string;
       ciReady: string;
       ciNotConfigured: string;
       prodSecretsPending: string;
@@ -758,6 +766,8 @@ export interface Messages {
       ciIncomplete: string;
       deployDoneCiSuccess: string;
       deployDone: string;
+      deployRunning: string;
+      deployFailed: string;
       deployPending: string;
     };
     panel: {

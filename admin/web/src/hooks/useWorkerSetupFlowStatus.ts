@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchWorkerBuildsStatus } from "@/lib/api";
-import { deriveWorkerSetupStatus } from "@/lib/worker-setup-flow";
+import { deriveWorkerSetupStatus, type WorkerManualDeployState } from "@/lib/worker-setup-flow";
 import type { WorkerSecretRowState } from "@/lib/worker-config";
 import type { WorkerStatus } from "@/types";
 
@@ -14,6 +14,7 @@ export function useWorkerSetupFlowStatus({
   prodSet,
   deployedScriptNames,
   matchedOnline,
+  manualDeployState,
 }: {
   token: string;
   workerDir: string;
@@ -23,6 +24,7 @@ export function useWorkerSetupFlowStatus({
   prodSet: Set<string> | null;
   deployedScriptNames: Set<string>;
   matchedOnline: boolean;
+  manualDeployState?: WorkerManualDeployState;
 }) {
   const buildsQ = useQuery({
     queryKey: ["worker-builds", token, workerDir],
@@ -46,8 +48,19 @@ export function useWorkerSetupFlowStatus({
         builds: buildsQ.data,
         deployedScriptNames,
         matchedOnline,
+        manualDeployState,
       }),
-    [workerDir, status, vars, secrets, prodSet, buildsQ.data, deployedScriptNames, matchedOnline],
+    [
+      workerDir,
+      status,
+      vars,
+      secrets,
+      prodSet,
+      buildsQ.data,
+      deployedScriptNames,
+      matchedOnline,
+      manualDeployState,
+    ],
   );
 
   return { flowStatus, buildsQ };

@@ -232,13 +232,19 @@ export const enMessages: Messages = {
     noWorkers: "No Workers found",
     currentBinding: "Current wrangler.toml binding",
     databaseName: "Database name",
+    databaseId: "Database ID",
+    databaseIdPlaceholder: "Auto-filled after create, or paste an existing D1 database_id",
     binding: "Binding",
     applyMigrations: "Run migrations/*.sql after create ({count})",
     create: "Create and bind D1",
     creating: "Creating…",
+    writeBinding: "Write to selected Worker",
+    bindingWriting: "Writing…",
     toast: {
       created: "D1 database created and bound",
       createdWithMigrations: "D1 database created and {count} migration(s) applied",
+      bound: "D1 binding written to the selected Worker",
+      boundWithMigrations: "D1 binding written and {count} migration(s) applied",
     },
   },
   setupFlow: {
@@ -781,6 +787,8 @@ export const enMessages: Messages = {
     status: {
       deployed: "Deployed",
       notDeployed: "Not deployed",
+      deploying: "Deploying",
+      deployFailed: "Deploy failed",
       ciReady: "Ready",
       ciNotConfigured: "Not configured",
       prodSecretsPending: "Production secrets pending",
@@ -859,6 +867,8 @@ export const enMessages: Messages = {
       ciIncomplete: "Incomplete (optional)",
       deployDoneCiSuccess: "Deployed · recent CI build succeeded",
       deployDone: "Live {name}",
+      deployRunning: "Deploying",
+      deployFailed: "Recent deploy failed",
       deployPending: "Not deployed to Cloudflare yet",
     },
     panel: {

@@ -17,6 +17,7 @@ export {
   type WorkerSetupStep,
   type WorkerSetupStepDef,
   type WorkerSetupStatus,
+  type WorkerManualDeployState,
   type WorkerSetupWarningKey,
   type DeriveWorkerSetupInput,
 } from "../../../src/worker-setup-flow";

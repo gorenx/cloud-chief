@@ -43,8 +43,22 @@ export const WorkerSetupFlow = forwardRef<
           Worker <code className="mono">{flowStatus.workerName}</code>
         </Chip>
       )}
-      <Chip variant={flowStatus.deployDone ? "on" : "off"}>
-        {flowStatus.deployDone ? t("worker.status.deployed") : t("worker.status.notDeployed")}
+      <Chip
+        variant={
+          flowStatus.manualDeployState === "failed"
+            ? "warn"
+            : flowStatus.deployDone
+              ? "on"
+              : "off"
+        }
+      >
+        {flowStatus.manualDeployState === "running"
+          ? t("worker.status.deploying")
+          : flowStatus.manualDeployState === "failed"
+            ? t("worker.status.deployFailed")
+            : flowStatus.deployDone
+              ? t("worker.status.deployed")
+              : t("worker.status.notDeployed")}
       </Chip>
       <Chip variant={flowStatus.ciDone ? "on" : "off"}>
         GitHub CI{" "}

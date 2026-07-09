@@ -10,6 +10,7 @@ import type {
   WorkerStatus,
   WorkerBuildsStatus,
   WorkerD1CreateResponse,
+  WorkerD1BindResponse,
 } from "@/types";
 import type { ApiI18nError } from "@/i18n/api-error";
 
@@ -158,6 +159,25 @@ export async function createCloudflareD1Database(
     token,
     "POST",
     `/admin/cloudflare-db/d1/databases${q}`,
+    body,
+  );
+}
+
+export async function bindCloudflareD1Database(
+  token: string,
+  body: {
+    database_name: string;
+    database_id: string;
+    binding: string;
+    apply_migrations: boolean;
+  },
+  dir?: string,
+) {
+  const q = dir ? `?dir=${encodeURIComponent(dir)}` : "";
+  return adminFetch<WorkerD1BindResponse>(
+    token,
+    "PUT",
+    `/admin/cloudflare-db/d1/binding${q}`,
     body,
   );
 }

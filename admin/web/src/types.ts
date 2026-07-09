@@ -236,6 +236,21 @@ export interface WorkerD1CreateResponse {
   };
 }
 
+export interface WorkerD1BindResponse {
+  ok: boolean;
+  binding: D1DatabaseBinding;
+  wrangler: {
+    updated: boolean;
+    databases: D1DatabaseBinding[] | null;
+    error: string | null;
+  };
+  migrations: {
+    ok: boolean;
+    applied: string[];
+    error?: string;
+  };
+}
+
 export interface WorkerListEntry {
   dir: string;
   script_name: string | null;

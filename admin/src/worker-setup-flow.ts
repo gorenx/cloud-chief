@@ -1,4 +1,5 @@
 export type WorkerSetupStep = "project" | "vars" | "secrets" | "ci" | "deploy";
+export type WorkerManualDeployState = "idle" | "running" | "failed" | "succeeded";
 
 export interface WorkerSetupStepDef {
   id: WorkerSetupStep;
@@ -61,6 +62,7 @@ export interface WorkerSetupStatus {
   ciDone: boolean;
   ciWarn: boolean;
   deployDone: boolean;
+  manualDeployState: WorkerManualDeployState;
   workerName: string | null;
   missingVars: string[];
   missingLocalSecrets: string[];
@@ -108,6 +110,7 @@ export interface DeriveWorkerSetupInput {
   builds: WorkerSetupBuildsSnapshot | undefined;
   deployedScriptNames: Set<string>;
   matchedOnline: boolean;
+  manualDeployState?: WorkerManualDeployState;
 }
 
 function trackedSecretNames(
@@ -146,6 +149,7 @@ export function deriveWorkerSetupStatus(input: DeriveWorkerSetupInput): WorkerSe
   const { status, vars, secrets, prodSet, builds, deployedScriptNames, matchedOnline } = input;
   const workerName = status?.worker_name ?? null;
   const devVars = status?.dev_vars ?? {};
+  const manualDeployState = input.manualDeployState ?? "idle";
 
   const projectDone = Boolean(
     input.workerDir && status?.worker_dir_exists && workerName,
@@ -178,11 +182,17 @@ export function deriveWorkerSetupStatus(input: DeriveWorkerSetupInput): WorkerSe
   const recentCiSuccess = Boolean(
     builds?.recent_builds?.some((b) => isSuccessfulBuild(b)),
   );
-  const deployDone = Boolean(
+  const cloudDeployDone = Boolean(
     workerName &&
       deployedScriptNames.has(workerName) &&
       (matchedOnline || recentCiSuccess),
   );
+  const deployDone =
+    manualDeployState === "succeeded"
+      ? true
+      : manualDeployState === "failed" || manualDeployState === "running"
+        ? false
+        : cloudDeployDone;
 
   return {
     projectDone,
@@ -192,6 +202,7 @@ export function deriveWorkerSetupStatus(input: DeriveWorkerSetupInput): WorkerSe
     ciDone,
     ciWarn,
     deployDone,
+    manualDeployState,
     workerName,
     missingVars: [...missingVars],
     missingLocalSecrets,
@@ -266,6 +277,8 @@ export function workerStepMeta(step: WorkerSetupStep, status: WorkerSetupStatus)
       ? "已部署 · 最近 CI 构建成功"
       : `已上线 ${status.workerName ?? ""}`;
   }
+  if (status.manualDeployState === "running") return "正在部署";
+  if (status.manualDeployState === "failed") return "最近部署失败";
   return "尚未部署到 Cloudflare";
 }
 

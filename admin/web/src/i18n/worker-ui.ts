@@ -136,6 +136,12 @@ export function formatWorkerStepCardContent(
     const display = t("worker.meta.deployDone", { name: truncateFlowLabel(name) });
     return buildFlowCardStatus(display, full, "done");
   }
+  if (status.manualDeployState === "running") {
+    return { status: t("worker.meta.deployRunning"), tone: "pending" };
+  }
+  if (status.manualDeployState === "failed") {
+    return { status: t("worker.meta.deployFailed"), tone: "warn" };
+  }
   return { status: t("worker.meta.deployPending"), tone: "pending" };
 }
 

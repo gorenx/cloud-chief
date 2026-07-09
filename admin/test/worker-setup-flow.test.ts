@@ -108,6 +108,27 @@ describe("worker-setup-flow", () => {
     expect(nextWorkerSetupAction(s)?.step).toBe("deploy");
   });
 
+  it("manual deploy failure overrides an existing online script", () => {
+    const s = derive({
+      manualDeployState: "failed",
+      deployedScriptNames: new Set(["ai-gateway-proxy"]),
+      matchedOnline: true,
+    });
+    expect(s.deployDone).toBe(false);
+    expect(s.manualDeployState).toBe("failed");
+    expect(nextWorkerSetupAction(s)?.step).toBe("deploy");
+  });
+
+  it("manual deploy success marks deploy done before the Cloudflare list refreshes", () => {
+    const s = derive({
+      manualDeployState: "succeeded",
+      deployedScriptNames: new Set(),
+      matchedOnline: false,
+    });
+    expect(s.deployDone).toBe(true);
+    expect(s.manualDeployState).toBe("succeeded");
+  });
+
   it("workerSetupProgress counts core and total steps", () => {
     const s = derive();
     const p = workerSetupProgress(s);

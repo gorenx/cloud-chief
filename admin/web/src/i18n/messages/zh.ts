@@ -231,13 +231,19 @@ export const zhMessages: Messages = {
     noWorkers: "未找到 Worker",
     currentBinding: "当前 wrangler.toml 绑定",
     databaseName: "数据库名",
+    databaseId: "Database ID",
+    databaseIdPlaceholder: "创建后自动填入，或粘贴已有 D1 database_id",
     binding: "Binding",
     applyMigrations: "创建后执行 migrations/*.sql（{count} 个）",
     create: "创建并绑定 D1",
     creating: "创建中…",
+    writeBinding: "写入选中 Worker",
+    bindingWriting: "写入中…",
     toast: {
       created: "D1 数据库已创建并绑定",
       createdWithMigrations: "D1 数据库已创建并执行 {count} 个 migration",
+      bound: "D1 binding 已写入选中 Worker",
+      boundWithMigrations: "D1 binding 已写入，并执行 {count} 个 migration",
     },
   },
   setupFlow: {
@@ -772,6 +778,8 @@ export const zhMessages: Messages = {
     status: {
       deployed: "已部署",
       notDeployed: "未部署",
+      deploying: "部署中",
+      deployFailed: "部署失败",
       ciReady: "已就绪",
       ciNotConfigured: "未配置",
       prodSecretsPending: "生产 Secret 待推送",
@@ -850,6 +858,8 @@ export const zhMessages: Messages = {
       ciIncomplete: "未完成（可跳过）",
       deployDoneCiSuccess: "已部署 · 最近 CI 构建成功",
       deployDone: "已上线 {name}",
+      deployRunning: "正在部署",
+      deployFailed: "最近部署失败",
       deployPending: "尚未部署到 Cloudflare",
     },
     panel: {

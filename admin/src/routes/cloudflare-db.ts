@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { adminAuth } from "../auth";
 import { env, workerRoot } from "../env";
 import { resolveWorkerDirQuery } from "../worker-dir";
-import { d1DatabaseCreate, zodMessage } from "../schemas";
+import { d1DatabaseBind, d1DatabaseCreate, zodMessage } from "../schemas";
 import {
   applyD1Migrations,
   createD1Database,
@@ -93,6 +93,48 @@ cloudflareDb.post("/d1/databases", async (c) => {
     database: created.database,
     binding: bindingConfig,
     wrangler,
+    migrations,
+  });
+});
+
+// Cloudflare D1：把已有数据库 binding 写入选中的 worker。
+cloudflareDb.put("/d1/binding", async (c) => {
+  const dir = resolveWorkerDirQuery(c.req.query("dir"));
+  if (dir === null) return c.json({ error: "无效的 worker 目录" }, 400);
+
+  const parsed = d1DatabaseBind.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: zodMessage(parsed.error) }, 400);
+
+  const { database_name, database_id, binding, apply_migrations } = parsed.data;
+  if (apply_migrations && !env.CF_API_TOKEN) return c.json({ error: "未配置 CF_API_TOKEN" }, 400);
+
+  const bindingConfig = { binding, database_name, database_id };
+  const write = writeD1DatabaseBinding(dir, bindingConfig);
+  if (!write.ok) {
+    return c.json({ error: `写入 wrangler.toml 失败: ${write.error}` }, 500);
+  }
+
+  const migrations = apply_migrations
+    ? await applyD1Migrations(database_id, dir)
+    : { ok: true as const, applied: [] };
+
+  if (!migrations.ok) {
+    return c.json(
+      {
+        ok: false,
+        error: `binding 已写入，但执行 D1 migration 失败: ${migrations.error}`,
+        binding: bindingConfig,
+        wrangler: { updated: true, databases: write.databases, error: null },
+        migrations,
+      },
+      500,
+    );
+  }
+
+  return c.json({
+    ok: true,
+    binding: bindingConfig,
+    wrangler: { updated: true, databases: write.databases, error: null },
     migrations,
   });
 });
