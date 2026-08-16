@@ -1,161 +1,134 @@
-# Qwen × Cloudflare AI Gateway
+# Cloud Chief — Infrastructure Operations for OPC Projects
 
-把阿里云 MaaS 的千问模型（**Responses API**）接入 Cloudflare AI Gateway，借助网关获得日志、缓存、限流、可观测性等能力。同时提供一个支持**真流式逐字输出**的本地聊天 Web 页面。
+English | [简体中文](README.zh-CN.md)
 
-上游端点（你的业务空间专属域名）：
+Cloud Chief helps OPC projects deploy and operate common infrastructure services from one local control plane, so limited engineering capacity can stay focused on product and business development instead of repeatedly assembling cloud consoles, credentials, deployment commands, and diagnostic scripts.
 
-```
-https://ws-3mll18ey04t6yc61.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/responses
-```
+The current repository coordinates Cloudflare Workers, AI Gateway and D1, Supabase, RevenueCat, authentication, entitlement, quota, and model-provider access. These integrations are the currently implemented service set, not the boundary of the product.
 
-由于该路径是 `/compatible-mode/v1/...`（非标准的 `/v1/...`），所以采用 AI Gateway 的 **自定义提供商（Custom Provider）+ 提供商专用端点**接入。
+## Product goal
 
-> 用的是阿里云 **Responses API**（`/responses`，请求用 `input`、响应在 `output[].content[].text`、支持 SSE 流式），不是 `/chat/completions`。
+- Give an OPC project one local entry point for infrastructure setup, deployment, status inspection, synchronization, and troubleshooting.
+- Turn repeatable operational procedures into guided workflows with explicit configuration sources and safe secret boundaries.
+- Provide deployable backend building blocks—authentication, data, AI access, entitlement, quota, and billing—so business code consumes stable service APIs.
+- Keep external services replaceable through integration adapters and configuration rather than coupling business policy to a vendor.
 
-## 项目结构
+Cloud Chief does not host the application's business domain or replace the connected cloud platforms. It manages the infrastructure integration and operational lifecycle around them.
 
-| 目录 / 文件 | 作用 |
+The repository currently includes a Qwen/DashScope-compatible adapter and model catalog. They are built-in implementations, not the identity or boundary of the system; additional OpenAI-compatible providers can follow the same gateway/provider boundary, while provider-neutral Worker configuration is still an implementation gap.
+
+## Components
+
+| Path | Responsibility |
 | --- | --- |
-| `admin/` | **配置 / 管理服务**（TypeScript + Hono）：管理网关 / 提供商 / BYOK，部署 Worker，本地聊天调试页。详见 [admin/README.md](admin/README.md) |
-| `ai-gateway-worker/` | **生产 AI 网关**（Cloudflare Worker，TS + Hono + jose）：验 Supabase JWT、服务端权威权益/配额，转发到 AI Gateway。详见 [ai-gateway-worker/README.md](ai-gateway-worker/README.md) |
-| `worker-revenuecat/` | **RevenueCat 边界**（webhook、sync-entitlement、只读 API）。详见 [worker-revenuecat/README.md](worker-revenuecat/README.md) |
-| `packages/gateway-core/` | AI 网关与 billing 共享逻辑（配额、权益 mirror） |
-| `setup.sh` | （可选，CLI）创建/更新自定义提供商并确保网关存在（读 `admin/.env`） |
-| `test.sh` | （可选，CLI）用 curl 验证链路（读 `admin/.env`） |
-| `admin.sh` / `admin/run.sh` | 一键安装依赖、开发或生产启动配置后台 |
+| [`admin/`](admin/README.md) | Local or private-network operations console for gateways, providers, keys, Workers, Supabase, and playground requests |
+| [`ai-gateway-worker/`](ai-gateway-worker/README.md) | Production AI proxy: verifies user JWTs, enforces tier and quota, and forwards requests to the configured provider |
+| [`worker-revenuecat/`](worker-revenuecat/README.md) | RevenueCat API, webhook, and entitlement synchronization boundary |
+| [`auth-worker/`](auth-worker/README.md) | Better Auth service backed by Cloudflare D1 |
+| [`wren-supabase/`](wren-supabase/README.md) | Supabase schema, RLS policies, and quota RPCs |
+| [`packages/gateway-core/`](packages/gateway-core/) | Shared entitlement and quota policy code |
+| [`doc/`](doc/README.md) | Worker API and integration documentation |
 
-两条调用路径：
+## Operating model
 
-- **生产**：应用带 Supabase `access_token` → `ai-gateway-worker/`（边缘验签 + 权益/配额 + 持密钥）→ AI Gateway → 阿里云。
-- **运维 / 本地**：浏览器 → `admin/` 配置后台（管理资源、部署 Worker、本地聊天调试）。
+- Operations: operator -> local Admin -> connected platform APIs, local project files, deployment tools, and diagnostics.
+- Delivery: reusable schema and Worker components -> configured cloud environment -> stable APIs consumed by the OPC application.
+- AI requests: application -> `ai-gateway-worker` -> configured AI gateway -> selected model provider.
+- Billing: RevenueCat -> `worker-revenuecat` -> Supabase `user_entitlements` -> protected business services.
 
-## 可视化配置后台（推荐）
+The application sends only its user access token. Upstream API keys and service-role credentials remain in server or Worker secrets.
+
+## Architecture boundary
+
+- The local control plane owns infrastructure configuration, snapshots, synchronization, deployment workflows, and diagnostics; it does not own application business data.
+- Each platform integration owns its API client, credentials, resource mapping, and deployment mechanics.
+- Deployable services expose stable application-facing contracts while keeping provider credentials and service-role access behind the service boundary.
+- Authentication, entitlement, quota, billing, and model policy must not branch on an infrastructure vendor when a neutral business concept is sufficient.
+- Runtime configuration selects an integration or provider adapter; replacing one should not require changing unrelated application clients or workflows.
+
+## Feature matrix
+
+Status meanings:
+
+- **Implemented + automated**: implementation exists and focused automated tests cover the capability.
+- **Implemented**: implementation exists; the matrix does not claim end-to-end acceptance in a real external environment.
+- **Partial**: a usable built-in implementation exists, but the stated general boundary is not complete.
+- **Gap**: required by the architecture but not implemented as a general capability.
+
+### Local control plane
+
+| Capability | Observable behavior | Status | Evidence |
+| --- | --- | --- | --- |
+| Admin authentication | Local login creates an Admin session; management routes reject unauthenticated requests | Implemented + automated | [`admin/src/routes/auth.ts`](admin/src/routes/auth.ts), [`admin/test/auth-routes.test.ts`](admin/test/auth-routes.test.ts) |
+| Local configuration | Seeds configuration from `.env`, persists overrides in SQLite, and can encrypt sensitive values | Implemented + automated | [`admin/src/app-config.ts`](admin/src/app-config.ts), [`admin/test/app-config.test.ts`](admin/test/app-config.test.ts) |
+| Gateway management | Lists context and creates, updates, or deletes Cloudflare AI Gateway instances | Implemented | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts), [Admin API](admin/docs/api.md) |
+| Provider management | Creates and deletes custom providers without making provider identity a policy concern | Implemented | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts), [data authority](admin/docs/data-sources.md) |
+| BYOK management | Lists, stores, and deletes gateway-scoped provider credentials | Implemented | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts), [Admin API](admin/docs/api.md) |
+| API path configuration | Stores Chat, Responses, and custom path suffixes per gateway/provider pair | Implemented + automated | [`admin/src/gateway-api-path-config.ts`](admin/src/gateway-api-path-config.ts), [`admin/test/gateway-api-path-config.test.ts`](admin/test/gateway-api-path-config.test.ts) |
+| Snapshot synchronization | Refreshes remote state, records runs, and retains the last usable local snapshot on refresh failure | Implemented + automated | [`admin/src/routes/sync.ts`](admin/src/routes/sync.ts), [`admin/test/sync-routes.test.ts`](admin/test/sync-routes.test.ts) |
+| Cloudflare D1 management | Lists or creates D1 databases and updates a Worker's D1 binding | Implemented + automated | [`admin/src/routes/cloudflare-db.ts`](admin/src/routes/cloudflare-db.ts), [`admin/test/cloudflare-db-routes.test.ts`](admin/test/cloudflare-db-routes.test.ts) |
+
+### Worker lifecycle and diagnostics
+
+| Capability | Observable behavior | Status | Evidence |
+| --- | --- | --- | --- |
+| Project discovery | Finds local Worker projects and infers chat, gateway, model, and API capabilities | Implemented + automated | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts), [`admin/test/worker-capabilities.test.ts`](admin/test/worker-capabilities.test.ts) |
+| Runtime configuration | Reads and updates `wrangler.toml` vars and local `.dev.vars` secret values | Implemented + automated | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts), [`admin/test/worker-runtime.test.ts`](admin/test/worker-runtime.test.ts) |
+| Local Worker process | Starts Wrangler development mode and reports process and health state | Implemented | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts) |
+| Deployment and secrets | Pushes approved secrets and deploys the selected Worker with streamed logs | Implemented | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts), [Admin API](admin/docs/api.md) |
+| Workers Builds | Reads CI status, synchronizes build configuration, stores the builder token, and triggers builds | Implemented | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts) |
+| Endpoint selection | Resolves local, `workers.dev`, and custom-domain endpoints and rejects unsafe proxy paths | Implemented + automated | [`admin/src/worker-path.ts`](admin/src/worker-path.ts), [`admin/test/worker-endpoints.test.ts`](admin/test/worker-endpoints.test.ts) |
+
+### Supabase operations
+
+| Capability | Observable behavior | Status | Evidence |
+| --- | --- | --- | --- |
+| Organization OAuth | Connects with PKCE, lists projects, applies a selected project, and disconnects | Implemented + automated | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts), [`admin/test/supabase-oauth.test.ts`](admin/test/supabase-oauth.test.ts) |
+| Test identity | Stores local test credentials used to obtain a user JWT for Worker-path diagnostics | Implemented | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts) |
+| Migration operations | Browses migration directories, compares local/remote state, and applies migrations | Implemented + automated | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts), [`admin/test/supabase-schema.test.ts`](admin/test/supabase-schema.test.ts) |
+| Edge Function operations | Browses function sources, compares deployment state, and deploys selected functions | Implemented + automated | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts), [`admin/test/supabase-functions.test.ts`](admin/test/supabase-functions.test.ts) |
+
+### AI request path
+
+| Capability | Observable behavior | Status | Evidence |
+| --- | --- | --- | --- |
+| Playground diagnostics | Sends direct-Gateway or Worker-backed requests and exposes the resolved route and runtime context | Implemented + automated | [`admin/src/routes/chat.ts`](admin/src/routes/chat.ts), [`admin/src/routes/worker-chat.ts`](admin/src/routes/worker-chat.ts), [`admin/test/app.test.ts`](admin/test/app.test.ts) |
+| OpenAI-compatible APIs | Proxies Chat Completions and Responses, including SSE streaming | Implemented + automated | [`ai-gateway-worker/src/index.ts`](ai-gateway-worker/src/index.ts), [`ai-gateway-worker/test/index.test.ts`](ai-gateway-worker/test/index.test.ts) |
+| User authentication | Validates bearer JWT issuer, audience, signature, expiry, and subject before `/v1/*` handling | Implemented + automated | [`ai-gateway-worker/src/auth.ts`](ai-gateway-worker/src/auth.ts), [`ai-gateway-worker/test/index.test.ts`](ai-gateway-worker/test/index.test.ts) |
+| Entitlement and quota | Resolves free/Plus policy, bounds prompts and output, and atomically spends free credits | Implemented + automated | [`ai-gateway-worker/src/enforce.ts`](ai-gateway-worker/src/enforce.ts), [`packages/gateway-core/`](packages/gateway-core/) |
+| Provider-specific forwarding | Builds the upstream URL, injects provider and gateway credentials, and forwards streaming bodies | Partial | [`ai-gateway-worker/src/gateway.ts`](ai-gateway-worker/src/gateway.ts); current implementation uses DashScope-named credentials and compatible paths |
+| Provider-neutral adapter registry | Selects credentials, paths, request normalization, and model metadata through a provider adapter contract | Gap | Architecture boundary above; no runtime adapter registry currently exists |
+
+### Identity, billing, and data plane
+
+| Capability | Observable behavior | Status | Evidence |
+| --- | --- | --- | --- |
+| Authentication service | Provides email/password sessions, JWT issuing, JWKS, OAuth provider endpoints, and optional social login | Implemented | [`auth-worker/src/`](auth-worker/src/), [`auth-worker/README.md`](auth-worker/README.md) |
+| RevenueCat user API | Exposes customer, subscription, and active-entitlement reads scoped by JWT subject | Implemented + automated | [`worker-revenuecat/src/index.ts`](worker-revenuecat/src/index.ts), [`worker-revenuecat/test/index.test.ts`](worker-revenuecat/test/index.test.ts) |
+| Billing reconciliation | Accepts RevenueCat webhooks and user-triggered sync, then updates `user_entitlements` | Implemented | [`worker-revenuecat/src/billing.ts`](worker-revenuecat/src/billing.ts), [`packages/gateway-core/src/revenuecat-entitlement.ts`](packages/gateway-core/src/revenuecat-entitlement.ts) |
+| Administrator metrics | Restricts RevenueCat overview and chart APIs to `ALLOWED_SUBS` | Implemented + automated | [`worker-revenuecat/src/index.ts`](worker-revenuecat/src/index.ts), [`worker-revenuecat/test/index.test.ts`](worker-revenuecat/test/index.test.ts) |
+| Supabase data plane | Defines RLS-protected entitlement, usage, throttle, and atomic quota-spend structures | Implemented | [`wren-supabase/migrations/`](wren-supabase/migrations/), [`wren-supabase/tests/`](wren-supabase/tests/) |
+
+The matrix describes repository implementation and automated evidence only. It does not claim live acceptance against Cloudflare, Supabase, RevenueCat, or a model provider.
+
+## Quick start
+
+Requirements for the current built-in deployment: Node.js 18+, pnpm, a Cloudflare account, and the provider credentials needed by the selected adapter.
 
 ```bash
-./admin.sh           # 或 cd admin && ./run.sh
-# 浏览器打开 http://localhost:5173 ，在「设置」页填入 ADMIN_TOKEN
-```
-
-生产 / 内网：`./admin.sh start` → http://127.0.0.1:8787
-
-后台可以做：
-
-- **网关 Gateways**：查看列表、一键开关 `authentication`、创建命名网关。
-- **自定义提供商 Custom Providers**：查看 / 新建 / 删除（base_url 只填根域名）。
-- **BYOK 存储密钥**：选网关后查看 / 新建 / 删除 provider 密钥（直接填 DashScope Key）。
-- **聊天调试 Playground**：直连 Gateway 或经 Worker（本地 `:8788` / 线上 workers.dev）；Supabase OAuth 向导配置项目与测试账号。
-- **Worker 部署**：查看 wrangler 状态、对比 CF 已部署 vars、编辑 `wrangler.toml`、设置 secret、一键 `wrangler deploy`（实时日志）。
-
-> ⚠️ **服务已加鉴权**：所有 `/admin/*` 接口需要 `.env` 里的 `ADMIN_TOKEN`，服务默认只绑 `127.0.0.1`。
->
-> ⚠️ **Token 权限**：配置后台用 `.env` 里的 `CF_API_TOKEN` 调 Cloudflare API。
-> - 管理网关 / 提供商：需要 `AI Gateway - Edit`。
-> - 管理 **BYOK 存储密钥**：还需要 `Secrets Store - Edit`（否则保存密钥会报 Authentication error）。
-> - **部署 Worker**：依赖本机 `wrangler login` 或 `CLOUDFLARE_API_TOKEN`（Workers Scripts - Edit），与上面是不同 token。
->
-> **BYOK 关键规则**：存储密钥的 `provider_slug` 必须等于你自定义提供商的 slug（即请求 URL 里 `custom-` 后面那个）。配好后请求可去掉 `Authorization` 头，只留 `cf-aig-authorization`。
-
-## 前置条件
-
-- Node.js 18+；推荐安装 pnpm（`admin/` 未装 pnpm 时脚本会回退 npm）
-- `curl`、`python3`（运行可选 CLI 脚本）
-- 一个 Cloudflare 账号，以及权限为 **AI Gateway - Edit** 的 API Token
-- 阿里云 DashScope / 百炼 的 API Key
-
-## 使用步骤
-
-### 1. 配置
-
-```bash
+pnpm install
 cp admin/.env.example admin/.env
-# 编辑 admin/.env，至少填写：
-#   CF_ACCOUNT_ID、CF_API_TOKEN、DASHSCOPE_API_KEY
+./admin.sh
 ```
 
-### 2. 在 Cloudflare 上创建自定义提供商
+Open `http://localhost:5173` and enter the same `ADMIN_TOKEN` configured in `admin/.env`. See each component README for its development and deployment commands.
 
-```bash
-chmod +x setup.sh test.sh
-./setup.sh
-```
+## Documentation convention
 
-成功后会打印出网关调用地址，形如：
+English is the default language and uses the normal `.md` name. Simplified Chinese translations use `.zh-CN.md`. Component READMEs cover setup and deployment; detailed API behavior belongs under [`doc/`](doc/README.md) or `admin/docs/`.
 
-```
-https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>/custom-qwen-maas/compatible-mode/v1/chat/completions
-```
+## Security
 
-### 3. 命令行验证
-
-```bash
-./test.sh
-./test.sh "用 Python 写一个快速排序"
-```
-
-### 4. 启动配置后台 / 聊天页面
-
-```bash
-./admin.sh              # 开发：http://localhost:5173
-./admin.sh start        # 生产：http://127.0.0.1:8787
-```
-
-**Playground 经 Worker 调试**（可选）：
-
-1. `admin/.env` 配置 `SUPABASE_OAUTH_*`（Organization OAuth App）与 `ADMIN_TOKEN`
-2. Playground 切到「经 Worker」→ 侧栏完成 Supabase 向导（或手动配置 `SUPABASE_*` + `ai-gateway-worker/wrangler.toml`）
-3. 顶栏选「本地 Worker」，点击「启动本地 Worker」或于 `ai-gateway-worker/` 执行 `pnpm dev`（默认 `:8788`）
-4. `GET /health` 通过后发送消息
-
-## 直接用 OpenAI SDK 调用（可选）
-
-配置好自定义提供商后，也可以在任意代码里直接用 OpenAI SDK 的 Responses 接口：
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="<DASHSCOPE_API_KEY>",              # 阿里云的 Key
-    base_url="https://gateway.ai.cloudflare.com/v1/<account_id>/qwen-gw/custom-qwen-beijing-maas/compatible-mode/v1",
-    default_headers={
-        "cf-aig-authorization": "Bearer <CF_AIG_TOKEN>",  # 网关开启鉴权时必填
-    },
-)
-
-resp = client.responses.create(
-    model="qwen3-max",
-    input="你好",
-)
-print(resp.output_text)
-```
-
-> SDK 会自动在 `base_url` 后拼接 `/responses`，所以 `base_url` 结尾写到 `/compatible-mode/v1` 即可。
-> 多轮对话可传 `previous_response_id`，或每轮把完整消息数组作为 `input` 传入。
-
-## 实测要点（重要）
-
-经实测，针对这个业务空间专属端点：
-
-1. **模型名**：Responses API **不支持无版本的 `qwen-max`**（会报 `Unsupported model`）。可用：`qwen3-max`、`qwen3.7-max`、`qwen-plus`、`qwen-flash` 等。默认用 `qwen3-max`。
-2. **请求/响应格式**（Responses API）：
-   - 请求体用 `input`（字符串或消息数组），不是 `messages`。
-   - 非流式响应在 `output[]` 里 `type=message` 的 `content[].text`。
-   - 流式是标准 SSE：`response.output_text.delta`（增量 `delta`）→ `response.completed`（结束）。Web 页面据此做逐字渲染。
-3. **网关不要用 `default`**：账号默认网关 `default` 的 `authentication` 无法稳定关闭，会间歇 `401 AiGatewayError`。本项目改用专属命名网关 `qwen-gw`。
-
-## 鉴权说明
-
-AI Gateway 不替你管理上游鉴权，请求需要两个头：
-
-- `Authorization: Bearer <DASHSCOPE_API_KEY>` —— 上游（阿里云）必需。
-- `cf-aig-authorization: Bearer <CF_AIG_TOKEN>` —— 当网关开启 Authenticated Gateway 时必需。
-
-`setup.sh` 会根据 `admin/.env` 的 `CF_AIG_TOKEN` 自动处理网关 `authentication`：
-
-- 填了 `CF_AIG_TOKEN` → 开启网关鉴权（更安全），请求自动带上该令牌。
-- 留空 `CF_AIG_TOKEN` → 关闭网关鉴权（上游仍有 DashScope Key 保护）。
-
-## 安全提示
-
-- `.env` 含密钥，切勿提交到 git（见 `.gitignore`）。
-- 配置后台（`admin/`）默认只绑 `127.0.0.1`，`/admin/*` 接口需 `ADMIN_TOKEN`。
-- 生产聊天走 `ai-gateway-worker/`：密钥放 Worker Secret，应用只持有自己的 Supabase token，拿不到上游密钥。
+- Never commit `.env`, `.dev.vars`, tokens, or API keys.
+- The Admin service binds to `127.0.0.1` by default. Put TLS and an access boundary in front of any private-network deployment.
+- Production clients call the Worker proxy; they must not receive provider, gateway, billing, or service-role secrets.
