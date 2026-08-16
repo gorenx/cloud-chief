@@ -16,6 +16,7 @@
 
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build and generated output
 dist/
