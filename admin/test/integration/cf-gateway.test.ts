@@ -10,7 +10,6 @@ import {
 
 /**
  * 经 Cloudflare AI Gateway 调用百炼（与 admin openai-llm / worker gateway.ts 相同上游）
- * @see ai-gateway-worker/ali-llm-api/
  */
 describe.skipIf(!hasGatewayConfig())("CF AI Gateway · OpenAI TS SDK", () => {
   const model = defaultModel();

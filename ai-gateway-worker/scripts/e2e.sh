@@ -6,23 +6,17 @@
 #   WORKER_URL=https://你的worker.workers.dev ./scripts/e2e.sh
 #   ENDPOINT=chat PROMPT="你好" ./scripts/e2e.sh
 #
-# 凭据来源（优先环境变量，其次 supabase.md）：
+# 凭据只从环境变量读取，避免在仓库文件中保存测试账号或密钥：
 #   EMAIL / PASSWORD / ANON_KEY
 # SUPABASE_URL 默认从 wrangler.toml 读取。
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKER_DIR="$(dirname "$HERE")"
-CRED_FILE="${CRED_FILE:-$WORKER_DIR/supabase.md}"
 
-read_field() {
-  [ -f "$CRED_FILE" ] || return 0
-  grep -i "^$1" "$CRED_FILE" | head -1 | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r'
-}
-
-EMAIL="${EMAIL:-$(read_field 'account')}"
-PASSWORD="${PASSWORD:-$(read_field 'pw')}"
-ANON_KEY="${ANON_KEY:-$(read_field 'anon key')}"
+EMAIL="${EMAIL:-}"
+PASSWORD="${PASSWORD:-}"
+ANON_KEY="${ANON_KEY:-}"
 SUPABASE_URL="${SUPABASE_URL:-$(grep -E '^\s*SUPABASE_URL' "$WORKER_DIR/wrangler.toml" | head -1 | sed -E 's/.*"([^"]*)".*/\1/')}"
 WORKER_URL="${WORKER_URL:-http://127.0.0.1:8788}"
 ENDPOINT="${ENDPOINT:-responses}"   # responses | chat
@@ -30,7 +24,7 @@ MODEL="${MODEL:-qwen3-max}"
 PROMPT="${PROMPT:-用一句话自我介绍}"
 
 if [ -z "$EMAIL" ] || [ -z "$PASSWORD" ] || [ -z "$ANON_KEY" ]; then
-  echo "✘ 缺少凭据：请设置 EMAIL/PASSWORD/ANON_KEY 环境变量，或在 $CRED_FILE 填写 account/pw/anon key" >&2
+  echo "✘ 缺少凭据：请设置 EMAIL/PASSWORD/ANON_KEY 环境变量" >&2
   exit 1
 fi
 if [ -z "$SUPABASE_URL" ]; then

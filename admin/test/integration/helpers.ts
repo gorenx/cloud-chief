@@ -74,7 +74,7 @@ export function defaultModel(): string {
   return gatewayConfig().defaultModel.trim() || "qwen-plus";
 }
 
-/** 直连百炼（ali-llm-api/chat-api） */
+/** 直连百炼 Chat Completions API。 */
 export function createDashScopeClient(): OpenAI {
   const { dashscopeKey } = gatewayConfig();
   return new OpenAI({

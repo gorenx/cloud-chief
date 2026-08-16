@@ -88,7 +88,6 @@ export function toResponsesInput(
 
 /**
  * 百炼 Responses 多轮应使用 previous_response_id，勿把 assistant 历史塞进 input。
- * @see ali-llm-api/respponse-api/create-response.md
  */
 export function buildResponsesCreateParams(
   messages: Array<{ role: string; content: string }>,

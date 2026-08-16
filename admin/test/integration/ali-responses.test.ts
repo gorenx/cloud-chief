@@ -3,7 +3,6 @@ import { createDashScopeClient, defaultModel, hasDashScopeKey } from "./helpers"
 
 /**
  * 阿里云 Responses API（OpenAI 兼容）
- * @see ai-gateway-worker/ali-llm-api/respponse-api/create-response.md
  */
 describe.skipIf(!hasDashScopeKey())("ali Responses API · OpenAI TS SDK", () => {
   const model = defaultModel();

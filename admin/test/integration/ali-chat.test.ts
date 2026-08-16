@@ -3,7 +3,6 @@ import { createDashScopeClient, defaultModel, hasDashScopeKey } from "./helpers"
 
 /**
  * 阿里云 Chat Completions（OpenAI 兼容）
- * @see ai-gateway-worker/ali-llm-api/chat-api/api.md
  */
 describe.skipIf(!hasDashScopeKey())("ali Chat Completions · OpenAI TS SDK", () => {
   const model = defaultModel();
