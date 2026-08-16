@@ -1,8 +1,10 @@
-# Cloud Chief
+# Cloud Chief — 一人公司的本地基础设施控制台
 
 [English](README.md) | 简体中文
 
-Cloud Chief 是给 OPC 项目用的本地基础设施控制台。它把常用服务的配置、部署、状态检查和排障集中到一个地方，业务项目只需要使用部署后的 API，不必自己保管云平台密钥或拼装运维脚本。
+[![许可证：MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+Cloud Chief 是面向一人公司（One-Person Company，OPC）项目的本地基础设施控制台。它把常用服务的配置、部署、运维、状态检查和排障集中到一个地方，业务项目只需使用部署后的 API，不必自行保管云平台密钥或维护分散的运维脚本。
 
 仓库目前接入了 Cloudflare、Supabase 和 RevenueCat，并提供认证、AI 代理、权益和配额等现成组件。这些只是现阶段为 OPC 项目实现的功能，不是固定路线图；后续接什么服务，以实际业务需要为准。
 
@@ -110,3 +112,7 @@ cp admin/.env.example admin/.env
 - 不要提交 `.env`、`.dev.vars`、token 或 API Key。
 - Admin 默认只监听 `127.0.0.1`。部署到内网时仍应增加 TLS 和访问控制。
 - 真实云环境是否可用需要单独验收；自动化测试通过不代表远端配置正确。
+
+## 许可证
+
+Cloud Chief 基于 [MIT 许可证](LICENSE)发布。

@@ -1,8 +1,10 @@
-# Cloud Chief
+# Cloud Chief — Local Infrastructure for One-Person Companies
 
 English | [简体中文](README.zh-CN.md)
 
-Cloud Chief is a local infrastructure console for OPC projects. It keeps service configuration, deployment, status checks, and troubleshooting in one place. Business applications use the deployed APIs without carrying cloud credentials or their own collection of operations scripts.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+Cloud Chief is a local infrastructure console for one-person company (OPC) projects. It keeps service configuration, deployment, operations, status checks, and troubleshooting in one place. Business applications use the deployed APIs without carrying cloud credentials or maintaining separate operations scripts.
 
 The repository currently integrates Cloudflare, Supabase, and RevenueCat, with deployable authentication, AI proxy, entitlement, and quota components. This is the feature set needed by current OPC projects, not a fixed roadmap. Future integrations should follow actual product needs.
 
@@ -110,3 +112,7 @@ Open `http://localhost:5173` and enter the `ADMIN_TOKEN` from `admin/.env`. See 
 - Do not commit `.env`, `.dev.vars`, tokens, or API keys.
 - Admin binds to `127.0.0.1` by default. Private-network deployments still need TLS and access control.
 - Live cloud acceptance is a separate check; passing automated tests does not prove remote configuration.
+
+## License
+
+Cloud Chief is available under the [MIT License](LICENSE).
