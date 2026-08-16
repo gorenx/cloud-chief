@@ -1,119 +1,94 @@
-# Cloud Chief — Infrastructure Operations for OPC Projects
+# Cloud Chief
 
 English | [简体中文](README.zh-CN.md)
 
-Cloud Chief helps OPC projects deploy and operate common infrastructure services from one local control plane, so limited engineering capacity can stay focused on product and business development instead of repeatedly assembling cloud consoles, credentials, deployment commands, and diagnostic scripts.
+Cloud Chief is a local infrastructure console for OPC projects. It keeps service configuration, deployment, status checks, and troubleshooting in one place. Business applications use the deployed APIs without carrying cloud credentials or their own collection of operations scripts.
 
-The current repository coordinates Cloudflare Workers, AI Gateway and D1, Supabase, RevenueCat, authentication, entitlement, quota, and model-provider access. These integrations are the currently implemented service set, not the boundary of the product.
+The repository currently integrates Cloudflare, Supabase, and RevenueCat, with deployable authentication, AI proxy, entitlement, and quota components. This is the feature set needed by current OPC projects, not a fixed roadmap. Future integrations should follow actual product needs.
 
-## Product goal
+## Current features
 
-- Give an OPC project one local entry point for infrastructure setup, deployment, status inspection, synchronization, and troubleshooting.
-- Turn repeatable operational procedures into guided workflows with explicit configuration sources and safe secret boundaries.
-- Provide deployable backend building blocks—authentication, data, AI access, entitlement, quota, and billing—so business code consumes stable service APIs.
-- Keep external services replaceable through integration adapters and configuration rather than coupling business policy to a vendor.
+**Available** means the code path exists. **Partial** means the implementation works but is still tied to a particular platform or adapter. **Not implemented** marks a design direction only. None of these statuses implies acceptance in a live cloud environment.
 
-Cloud Chief does not host the application's business domain or replace the connected cloud platforms. It manages the infrastructure integration and operational lifecycle around them.
+### Local Admin
 
-The repository currently includes a Qwen/DashScope-compatible adapter and model catalog. They are built-in implementations, not the identity or boundary of the system; additional OpenAI-compatible providers can follow the same gateway/provider boundary, while provider-neutral Worker configuration is still an implementation gap.
+| Feature | What it does | Status |
+| --- | --- | --- |
+| Admin login | Protects the local UI and management API | Available, automated tests |
+| Local configuration | Seeds from `.env`, stores changes in SQLite, and can encrypt sensitive values | Available, automated tests |
+| Gateway management | Lists, creates, updates, and deletes Cloudflare AI Gateways | Available |
+| Provider management | Manages custom model providers attached to a Gateway | Available |
+| BYOK | Manages provider credentials scoped to a Gateway | Available |
+| API paths | Configures Chat, Responses, and custom path suffixes | Available, automated tests |
+| State sync | Refreshes remote resources and records local snapshots and sync runs | Available, automated tests |
+| D1 management | Creates or lists D1 databases and updates Worker bindings | Available, automated tests |
 
-## Components
+### Worker deployment and diagnostics
 
-| Path | Responsibility |
+| Feature | What it does | Status |
+| --- | --- | --- |
+| Project discovery | Finds local Workers and detects their endpoints and configuration | Available, automated tests |
+| Configuration editing | Reads and writes `wrangler.toml` and local `.dev.vars` | Available, automated tests |
+| Local runtime | Starts `wrangler dev` and reports process and health state | Available |
+| Secrets and deploy | Sets production secrets and streams deployment logs | Available |
+| Workers Builds | Reads, syncs, and triggers Cloudflare CI builds | Available |
+| Endpoint selection | Supports local URLs, `workers.dev`, and custom domains | Available, automated tests |
+
+### Supabase
+
+| Feature | What it does | Status |
+| --- | --- | --- |
+| Organization OAuth | Connects Supabase, lists projects, and applies the selected project | Available, automated tests |
+| Test identity | Obtains a user JWT for Worker diagnostics | Available |
+| Migrations | Browses local migrations, compares remote state, and applies changes | Available, automated tests |
+| Edge Functions | Browses, compares, and deploys Supabase Functions | Available, automated tests |
+
+### AI requests
+
+| Feature | What it does | Status |
+| --- | --- | --- |
+| Playground | Tests direct-Gateway and production-like Worker paths separately | Available, automated tests |
+| OpenAI-compatible API | Proxies Chat Completions, Responses, and SSE streams | Available, automated tests |
+| User authentication | Validates the user JWT before `/v1/*` handling | Available, automated tests |
+| Entitlement and quota | Applies free/Plus policy, bounds requests, and spends free quota | Available, automated tests |
+| Provider forwarding | Builds upstream URLs, injects credentials, and forwards responses | Partial: currently uses DashScope names and compatible paths |
+| Provider adapter registry | Selects credentials, paths, and model catalogs by provider | Not implemented |
+
+### Authentication, billing, and data
+
+| Feature | What it does | Status |
+| --- | --- | --- |
+| Auth Worker | Email/password login, sessions, JWT, JWKS, and OAuth Provider support | Available |
+| RevenueCat user API | Reads the current user's subscriptions and active entitlements | Available, automated tests |
+| Entitlement sync | Updates `user_entitlements` from webhooks or an explicit sync | Available |
+| Admin metrics | Restricts RevenueCat metric endpoints with `ALLOWED_SUBS` | Available, automated tests |
+| Supabase data plane | RLS-protected entitlement, usage, throttle, and quota-spend structures | Available |
+
+## Repository layout
+
+| Path | Contents |
 | --- | --- |
-| [`admin/`](admin/README.md) | Local or private-network operations console for gateways, providers, keys, Workers, Supabase, and playground requests |
-| [`ai-gateway-worker/`](ai-gateway-worker/README.md) | Production AI proxy: verifies user JWTs, enforces tier and quota, and forwards requests to the configured provider |
-| [`worker-revenuecat/`](worker-revenuecat/README.md) | RevenueCat API, webhook, and entitlement synchronization boundary |
-| [`auth-worker/`](auth-worker/README.md) | Better Auth service backed by Cloudflare D1 |
-| [`wren-supabase/`](wren-supabase/README.md) | Supabase schema, RLS policies, and quota RPCs |
-| [`packages/gateway-core/`](packages/gateway-core/) | Shared entitlement and quota policy code |
-| [`doc/`](doc/README.md) | Worker API and integration documentation |
+| [`admin/`](admin/README.md) | Local console and the Cloudflare, Supabase, and Worker operations API |
+| [`ai-gateway-worker/`](ai-gateway-worker/README.md) | AI proxy called by business applications |
+| [`worker-revenuecat/`](worker-revenuecat/README.md) | RevenueCat reads, webhooks, and entitlement sync |
+| [`auth-worker/`](auth-worker/README.md) | Better Auth and D1 authentication service |
+| [`wren-supabase/`](wren-supabase/README.md) | Supabase migrations, RLS, and quota RPCs |
+| [`packages/gateway-core/`](packages/gateway-core/) | Shared AI quota and RevenueCat entitlement logic |
+| [`admin/docs/`](admin/docs/README.md) | Admin architecture, data sources, and API |
+| [`doc/`](doc/README.md) | Worker APIs and client integration guides |
 
-## Operating model
+## Main flows
 
-- Operations: operator -> local Admin -> connected platform APIs, local project files, deployment tools, and diagnostics.
-- Delivery: reusable schema and Worker components -> configured cloud environment -> stable APIs consumed by the OPC application.
-- AI requests: application -> `ai-gateway-worker` -> configured AI gateway -> selected model provider.
-- Billing: RevenueCat -> `worker-revenuecat` -> Supabase `user_entitlements` -> protected business services.
+- Operators use the local Admin to manage remote resources, local configuration, and deployments.
+- OPC applications call deployed Workers and never receive provider or service-role credentials.
+- RevenueCat state is synchronized into Supabase for protected services to consume.
+- AI requests pass through authentication and quota checks before reaching the configured Gateway and model provider.
 
-The application sends only its user access token. Upstream API keys and service-role credentials remain in server or Worker secrets.
+The current AI implementation includes Qwen/DashScope configuration, but Alibaba models are not required by the project. A fully provider-neutral adapter is still pending.
 
-## Architecture boundary
+## Start the Admin
 
-- The local control plane owns infrastructure configuration, snapshots, synchronization, deployment workflows, and diagnostics; it does not own application business data.
-- Each platform integration owns its API client, credentials, resource mapping, and deployment mechanics.
-- Deployable services expose stable application-facing contracts while keeping provider credentials and service-role access behind the service boundary.
-- Authentication, entitlement, quota, billing, and model policy must not branch on an infrastructure vendor when a neutral business concept is sufficient.
-- Runtime configuration selects an integration or provider adapter; replacing one should not require changing unrelated application clients or workflows.
-
-## Feature matrix
-
-Status meanings:
-
-- **Implemented + automated**: implementation exists and focused automated tests cover the capability.
-- **Implemented**: implementation exists; the matrix does not claim end-to-end acceptance in a real external environment.
-- **Partial**: a usable built-in implementation exists, but the stated general boundary is not complete.
-- **Gap**: required by the architecture but not implemented as a general capability.
-
-### Local control plane
-
-| Capability | Observable behavior | Status | Evidence |
-| --- | --- | --- | --- |
-| Admin authentication | Local login creates an Admin session; management routes reject unauthenticated requests | Implemented + automated | [`admin/src/routes/auth.ts`](admin/src/routes/auth.ts), [`admin/test/auth-routes.test.ts`](admin/test/auth-routes.test.ts) |
-| Local configuration | Seeds configuration from `.env`, persists overrides in SQLite, and can encrypt sensitive values | Implemented + automated | [`admin/src/app-config.ts`](admin/src/app-config.ts), [`admin/test/app-config.test.ts`](admin/test/app-config.test.ts) |
-| Gateway management | Lists context and creates, updates, or deletes Cloudflare AI Gateway instances | Implemented | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts), [Admin API](admin/docs/api.md) |
-| Provider management | Creates and deletes custom providers without making provider identity a policy concern | Implemented | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts), [data authority](admin/docs/data-sources.md) |
-| BYOK management | Lists, stores, and deletes gateway-scoped provider credentials | Implemented | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts), [Admin API](admin/docs/api.md) |
-| API path configuration | Stores Chat, Responses, and custom path suffixes per gateway/provider pair | Implemented + automated | [`admin/src/gateway-api-path-config.ts`](admin/src/gateway-api-path-config.ts), [`admin/test/gateway-api-path-config.test.ts`](admin/test/gateway-api-path-config.test.ts) |
-| Snapshot synchronization | Refreshes remote state, records runs, and retains the last usable local snapshot on refresh failure | Implemented + automated | [`admin/src/routes/sync.ts`](admin/src/routes/sync.ts), [`admin/test/sync-routes.test.ts`](admin/test/sync-routes.test.ts) |
-| Cloudflare D1 management | Lists or creates D1 databases and updates a Worker's D1 binding | Implemented + automated | [`admin/src/routes/cloudflare-db.ts`](admin/src/routes/cloudflare-db.ts), [`admin/test/cloudflare-db-routes.test.ts`](admin/test/cloudflare-db-routes.test.ts) |
-
-### Worker lifecycle and diagnostics
-
-| Capability | Observable behavior | Status | Evidence |
-| --- | --- | --- | --- |
-| Project discovery | Finds local Worker projects and infers chat, gateway, model, and API capabilities | Implemented + automated | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts), [`admin/test/worker-capabilities.test.ts`](admin/test/worker-capabilities.test.ts) |
-| Runtime configuration | Reads and updates `wrangler.toml` vars and local `.dev.vars` secret values | Implemented + automated | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts), [`admin/test/worker-runtime.test.ts`](admin/test/worker-runtime.test.ts) |
-| Local Worker process | Starts Wrangler development mode and reports process and health state | Implemented | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts) |
-| Deployment and secrets | Pushes approved secrets and deploys the selected Worker with streamed logs | Implemented | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts), [Admin API](admin/docs/api.md) |
-| Workers Builds | Reads CI status, synchronizes build configuration, stores the builder token, and triggers builds | Implemented | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts) |
-| Endpoint selection | Resolves local, `workers.dev`, and custom-domain endpoints and rejects unsafe proxy paths | Implemented + automated | [`admin/src/worker-path.ts`](admin/src/worker-path.ts), [`admin/test/worker-endpoints.test.ts`](admin/test/worker-endpoints.test.ts) |
-
-### Supabase operations
-
-| Capability | Observable behavior | Status | Evidence |
-| --- | --- | --- | --- |
-| Organization OAuth | Connects with PKCE, lists projects, applies a selected project, and disconnects | Implemented + automated | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts), [`admin/test/supabase-oauth.test.ts`](admin/test/supabase-oauth.test.ts) |
-| Test identity | Stores local test credentials used to obtain a user JWT for Worker-path diagnostics | Implemented | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts) |
-| Migration operations | Browses migration directories, compares local/remote state, and applies migrations | Implemented + automated | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts), [`admin/test/supabase-schema.test.ts`](admin/test/supabase-schema.test.ts) |
-| Edge Function operations | Browses function sources, compares deployment state, and deploys selected functions | Implemented + automated | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts), [`admin/test/supabase-functions.test.ts`](admin/test/supabase-functions.test.ts) |
-
-### AI request path
-
-| Capability | Observable behavior | Status | Evidence |
-| --- | --- | --- | --- |
-| Playground diagnostics | Sends direct-Gateway or Worker-backed requests and exposes the resolved route and runtime context | Implemented + automated | [`admin/src/routes/chat.ts`](admin/src/routes/chat.ts), [`admin/src/routes/worker-chat.ts`](admin/src/routes/worker-chat.ts), [`admin/test/app.test.ts`](admin/test/app.test.ts) |
-| OpenAI-compatible APIs | Proxies Chat Completions and Responses, including SSE streaming | Implemented + automated | [`ai-gateway-worker/src/index.ts`](ai-gateway-worker/src/index.ts), [`ai-gateway-worker/test/index.test.ts`](ai-gateway-worker/test/index.test.ts) |
-| User authentication | Validates bearer JWT issuer, audience, signature, expiry, and subject before `/v1/*` handling | Implemented + automated | [`ai-gateway-worker/src/auth.ts`](ai-gateway-worker/src/auth.ts), [`ai-gateway-worker/test/index.test.ts`](ai-gateway-worker/test/index.test.ts) |
-| Entitlement and quota | Resolves free/Plus policy, bounds prompts and output, and atomically spends free credits | Implemented + automated | [`ai-gateway-worker/src/enforce.ts`](ai-gateway-worker/src/enforce.ts), [`packages/gateway-core/`](packages/gateway-core/) |
-| Provider-specific forwarding | Builds the upstream URL, injects provider and gateway credentials, and forwards streaming bodies | Partial | [`ai-gateway-worker/src/gateway.ts`](ai-gateway-worker/src/gateway.ts); current implementation uses DashScope-named credentials and compatible paths |
-| Provider-neutral adapter registry | Selects credentials, paths, request normalization, and model metadata through a provider adapter contract | Gap | Architecture boundary above; no runtime adapter registry currently exists |
-
-### Identity, billing, and data plane
-
-| Capability | Observable behavior | Status | Evidence |
-| --- | --- | --- | --- |
-| Authentication service | Provides email/password sessions, JWT issuing, JWKS, OAuth provider endpoints, and optional social login | Implemented | [`auth-worker/src/`](auth-worker/src/), [`auth-worker/README.md`](auth-worker/README.md) |
-| RevenueCat user API | Exposes customer, subscription, and active-entitlement reads scoped by JWT subject | Implemented + automated | [`worker-revenuecat/src/index.ts`](worker-revenuecat/src/index.ts), [`worker-revenuecat/test/index.test.ts`](worker-revenuecat/test/index.test.ts) |
-| Billing reconciliation | Accepts RevenueCat webhooks and user-triggered sync, then updates `user_entitlements` | Implemented | [`worker-revenuecat/src/billing.ts`](worker-revenuecat/src/billing.ts), [`packages/gateway-core/src/revenuecat-entitlement.ts`](packages/gateway-core/src/revenuecat-entitlement.ts) |
-| Administrator metrics | Restricts RevenueCat overview and chart APIs to `ALLOWED_SUBS` | Implemented + automated | [`worker-revenuecat/src/index.ts`](worker-revenuecat/src/index.ts), [`worker-revenuecat/test/index.test.ts`](worker-revenuecat/test/index.test.ts) |
-| Supabase data plane | Defines RLS-protected entitlement, usage, throttle, and atomic quota-spend structures | Implemented | [`wren-supabase/migrations/`](wren-supabase/migrations/), [`wren-supabase/tests/`](wren-supabase/tests/) |
-
-The matrix describes repository implementation and automated evidence only. It does not claim live acceptance against Cloudflare, Supabase, RevenueCat, or a model provider.
-
-## Quick start
-
-Requirements for the current built-in deployment: Node.js 18+, pnpm, a Cloudflare account, and the provider credentials needed by the selected adapter.
+The current implementation requires Node.js 18+, pnpm, a Cloudflare account, and credentials for the services you use.
 
 ```bash
 pnpm install
@@ -121,14 +96,17 @@ cp admin/.env.example admin/.env
 ./admin.sh
 ```
 
-Open `http://localhost:5173` and enter the same `ADMIN_TOKEN` configured in `admin/.env`. See each component README for its development and deployment commands.
+Open `http://localhost:5173` and enter the `ADMIN_TOKEN` from `admin/.env`. See each Worker README for local development and deployment commands.
 
-## Documentation convention
+## Constraints
 
-English is the default language and uses the normal `.md` name. Simplified Chinese translations use `.zh-CN.md`. Component READMEs cover setup and deployment; detailed API behavior belongs under [`doc/`](doc/README.md) or `admin/docs/`.
+- The local console manages infrastructure; it does not store application domain data.
+- Platform APIs, credentials, and resource mappings stay inside their integration modules.
+- Clients receive user tokens only. Provider, Gateway, and service-role credentials stay on the server.
+- Replacing one infrastructure service should not require changes to unrelated business flows.
 
 ## Security
 
-- Never commit `.env`, `.dev.vars`, tokens, or API keys.
-- The Admin service binds to `127.0.0.1` by default. Put TLS and an access boundary in front of any private-network deployment.
-- Production clients call the Worker proxy; they must not receive provider, gateway, billing, or service-role secrets.
+- Do not commit `.env`, `.dev.vars`, tokens, or API keys.
+- Admin binds to `127.0.0.1` by default. Private-network deployments still need TLS and access control.
+- Live cloud acceptance is a separate check; passing automated tests does not prove remote configuration.

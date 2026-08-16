@@ -1,119 +1,94 @@
-# Cloud Chief — 面向 OPC 项目的基础设施部署与运维
+# Cloud Chief
 
 [English](README.md) | 简体中文
 
-Cloud Chief 帮助 OPC 项目通过统一的本地控制面部署和运维常用基础设施服务，让有限的研发精力集中在产品与业务开发，而不是反复处理云控制台、凭据、部署命令和诊断脚本。
+Cloud Chief 是给 OPC 项目用的本地基础设施控制台。它把常用服务的配置、部署、状态检查和排障集中到一个地方，业务项目只需要使用部署后的 API，不必自己保管云平台密钥或拼装运维脚本。
 
-当前仓库已经覆盖 Cloudflare Workers、AI Gateway 与 D1、Supabase、RevenueCat、认证、权益、配额和模型提供商访问。这些是当前已实现的服务集合，不是产品边界。
+仓库目前接入了 Cloudflare、Supabase 和 RevenueCat，并提供认证、AI 代理、权益和配额等现成组件。这些只是现阶段为 OPC 项目实现的功能，不是固定路线图；后续接什么服务，以实际业务需要为准。
 
-## 项目目标
+## 当前功能
 
-- 为 OPC 项目提供一个统一的本地入口，完成基础设施初始化、部署、状态检查、同步和故障排查。
-- 将可重复的运维步骤沉淀为引导式流程，明确配置来源并安全隔离 Secret。
-- 提供可部署的认证、数据、AI 访问、权益、配额和计费组件，使业务代码只依赖稳定的服务 API。
-- 通过 integration adapter 和配置保持外部服务可替换，避免业务策略与具体厂商耦合。
+状态说明：**可用**表示已有完整代码路径；**部分**表示当前实现能用，但仍绑定特定平台或适配；**未实现**表示只有设计方向。这里不等同于真实云环境验收。
 
-Cloud Chief 不承载应用自身的业务领域，也不替代所连接的云平台；它负责这些基础设施集成及其运维生命周期。
+### 本地管理台
 
-当前仓库内置了兼容 Qwen/DashScope 的适配和模型目录；它们是已有实现，不是系统身份或架构边界。其他 OpenAI 兼容提供商可以复用相同的 gateway/provider 边界，但 Worker 配置完全去供应商化仍属于实现缺口。
+| 功能 | 实际作用 | 状态 |
+| --- | --- | --- |
+| Admin 登录 | 保护本地管理接口和页面 | 可用，有自动化测试 |
+| 本地配置 | 从 `.env` 初始化，在 SQLite 保存修改，可加密敏感值 | 可用，有自动化测试 |
+| Gateway 管理 | 查看、新建、修改和删除 Cloudflare AI Gateway | 可用 |
+| Provider 管理 | 管理 Gateway 的自定义模型提供商 | 可用 |
+| BYOK | 管理 Gateway 下的 provider 密钥 | 可用 |
+| API 路径 | 分别配置 Chat、Responses 和其他自定义路径 | 可用，有自动化测试 |
+| 状态同步 | 刷新远端资源并保存本地快照和同步记录 | 可用，有自动化测试 |
+| D1 管理 | 创建或查看 D1，并更新 Worker binding | 可用，有自动化测试 |
 
-## 组件
+### Worker 部署与调试
 
-| 路径 | 职责 |
+| 功能 | 实际作用 | 状态 |
+| --- | --- | --- |
+| 项目发现 | 扫描本地 Worker，识别它支持的接口和配置项 | 可用，有自动化测试 |
+| 配置编辑 | 读写 `wrangler.toml` 和本地 `.dev.vars` | 可用，有自动化测试 |
+| 本地运行 | 启动 `wrangler dev`，查看进程和健康状态 | 可用 |
+| Secret 与部署 | 设置线上 Secret，流式显示部署日志 | 可用 |
+| Workers Builds | 查看、同步和触发 Cloudflare CI 构建 | 可用 |
+| Endpoint 选择 | 支持本地地址、`workers.dev` 和自定义域名 | 可用，有自动化测试 |
+
+### Supabase
+
+| 功能 | 实际作用 | 状态 |
+| --- | --- | --- |
+| Organization OAuth | 连接 Supabase、列出项目并应用所选配置 | 可用，有自动化测试 |
+| 测试账号 | 为 Worker 调试获取用户 JWT | 可用 |
+| Migration | 浏览本地 migration、比较远端状态并执行 | 可用，有自动化测试 |
+| Edge Function | 浏览、比较和部署 Supabase Functions | 可用，有自动化测试 |
+
+### AI 调用
+
+| 功能 | 实际作用 | 状态 |
+| --- | --- | --- |
+| Playground | 分别测试 Gateway 直连和 Worker 生产链路 | 可用，有自动化测试 |
+| OpenAI 兼容接口 | 代理 Chat Completions、Responses 和 SSE 流 | 可用，有自动化测试 |
+| 用户鉴权 | 在 `/v1/*` 前校验用户 JWT | 可用，有自动化测试 |
+| 权益与配额 | 区分 free/Plus、限制输入输出并扣减免费额度 | 可用，有自动化测试 |
+| Provider 转发 | 组装上游地址、注入密钥并透传响应 | 部分：当前仍使用 DashScope 命名和兼容路径 |
+| 通用 Adapter Registry | 按 provider 选择凭据、路径和模型目录 | 未实现 |
+
+### 认证、计费与数据
+
+| 功能 | 实际作用 | 状态 |
+| --- | --- | --- |
+| Auth Worker | 邮箱密码登录、Session、JWT、JWKS 和 OAuth Provider | 可用 |
+| RevenueCat 用户接口 | 查询当前用户的订阅和有效权益 | 可用，有自动化测试 |
+| 权益同步 | 通过 Webhook 或主动 sync 更新 `user_entitlements` | 可用 |
+| 管理指标 | 通过 `ALLOWED_SUBS` 限制 RevenueCat 指标接口 | 可用，有自动化测试 |
+| Supabase 数据面 | 提供带 RLS 的权益、用量、限流和额度扣减结构 | 可用 |
+
+## 目录
+
+| 路径 | 内容 |
 | --- | --- |
-| [`admin/`](admin/README.zh-CN.md) | 管理网关、提供商、密钥、Worker、Supabase 和调试请求的本地/内网控制台 |
-| [`ai-gateway-worker/`](ai-gateway-worker/README.zh-CN.md) | 验证用户 JWT、执行权益和配额策略，并向已配置提供商转发请求的生产 AI 代理 |
-| [`worker-revenuecat/`](worker-revenuecat/README.zh-CN.md) | RevenueCat API、Webhook 与权益同步边界 |
-| [`auth-worker/`](auth-worker/README.zh-CN.md) | 基于 Better Auth 和 Cloudflare D1 的认证服务 |
-| [`wren-supabase/`](wren-supabase/README.zh-CN.md) | Supabase Schema、RLS 和配额 RPC |
-| [`packages/gateway-core/`](packages/gateway-core/) | 共享权益与配额策略代码 |
-| [`doc/`](doc/README.zh-CN.md) | Worker API 与集成文档 |
+| [`admin/`](admin/README.zh-CN.md) | 本地管理台，以及 Cloudflare、Supabase 和 Worker 运维接口 |
+| [`ai-gateway-worker/`](ai-gateway-worker/README.zh-CN.md) | 面向业务应用的 AI 代理 |
+| [`worker-revenuecat/`](worker-revenuecat/README.zh-CN.md) | RevenueCat 查询、Webhook 和权益同步 |
+| [`auth-worker/`](auth-worker/README.zh-CN.md) | 基于 Better Auth 和 D1 的认证服务 |
+| [`wren-supabase/`](wren-supabase/README.zh-CN.md) | Supabase migration、RLS 和配额 RPC |
+| [`packages/gateway-core/`](packages/gateway-core/) | AI 配额与 RevenueCat 权益的共享逻辑 |
+| [`admin/docs/`](admin/docs/README.zh-CN.md) | Admin 架构、数据来源和 API |
+| [`doc/`](doc/README.zh-CN.md) | Worker API 和客户端接入说明 |
 
-## 运行模式
+## 主要链路
 
-- 运维：操作者 → 本地 Admin → 外部平台 API、本地项目文件、部署工具和诊断能力。
-- 交付：可复用 Schema 与 Worker 组件 → 已配置云环境 → OPC 业务应用消费的稳定 API。
-- AI 请求：应用 → `ai-gateway-worker` → 已配置的 AI Gateway → 所选模型提供商。
-- 计费：RevenueCat → `worker-revenuecat` → Supabase `user_entitlements` → 受保护业务服务。
+- 运维人员通过本地 Admin 管理远端资源、本地配置和部署过程。
+- OPC 业务应用调用已经部署的 Worker，不直接接触 provider key 或 service-role key。
+- RevenueCat 将订阅状态同步到 Supabase，受保护服务读取权益结果。
+- AI 请求经 `ai-gateway-worker` 做鉴权和配额检查，再转发到已配置的 Gateway 和模型提供商。
 
-应用只携带用户 access token；上游 API Key 和 service-role 凭据仅保存在服务端或 Worker Secret 中。
+当前 AI 实现内置 Qwen/DashScope 配置，但项目不要求使用阿里模型。完全通用的 provider adapter 仍待实现。
 
-## 架构边界
+## 启动管理台
 
-- 本地控制面负责基础设施配置、快照、同步、部署流程和诊断，不拥有应用业务数据。
-- 每个外部平台 integration 负责自己的 API client、凭据、资源映射和部署机制。
-- 可部署服务向业务应用提供稳定契约，将 provider 凭据和 service-role 权限隔离在服务边界之后。
-- 鉴权、权益、配额、计费和模型策略应使用中立业务概念，不按基础设施厂商名称分支。
-- 运行时通过配置选择 integration/provider adapter；替换某个外部服务不应要求修改无关客户端或流程。
-
-## 功能矩阵
-
-状态含义：
-
-- **已实现 + 自动化**：存在实现，并有聚焦的自动化测试覆盖该能力。
-- **已实现**：存在实现；矩阵不据此声称已通过真实外部环境验收。
-- **部分实现**：已有可用的内置实现，但声明的通用边界尚未完整实现。
-- **缺口**：架构需要，但尚未形成通用实现。
-
-### 本地控制面
-
-| 能力 | 可观察行为 | 状态 | 证据 |
-| --- | --- | --- | --- |
-| Admin 鉴权 | 本地登录创建 Admin session；未登录请求无法访问管理接口 | 已实现 + 自动化 | [`admin/src/routes/auth.ts`](admin/src/routes/auth.ts)、[`admin/test/auth-routes.test.ts`](admin/test/auth-routes.test.ts) |
-| 本地配置 | 从 `.env` 初始化配置、在 SQLite 保存覆盖值，并可加密敏感值 | 已实现 + 自动化 | [`admin/src/app-config.ts`](admin/src/app-config.ts)、[`admin/test/app-config.test.ts`](admin/test/app-config.test.ts) |
-| Gateway 管理 | 查看上下文，创建、更新或删除 Cloudflare AI Gateway | 已实现 | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts)、[Admin API](admin/docs/api.zh-CN.md) |
-| Provider 管理 | 创建和删除自定义 provider，不让供应商身份进入业务策略 | 已实现 | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts)、[数据权威边界](admin/docs/data-sources.zh-CN.md) |
-| BYOK 管理 | 查看、保存和删除 gateway 范围的 provider 凭据 | 已实现 | [`admin/src/routes/admin.ts`](admin/src/routes/admin.ts)、[Admin API](admin/docs/api.zh-CN.md) |
-| API path 配置 | 按 gateway/provider 保存 Chat、Responses 和自定义路径后缀 | 已实现 + 自动化 | [`admin/src/gateway-api-path-config.ts`](admin/src/gateway-api-path-config.ts)、[`admin/test/gateway-api-path-config.test.ts`](admin/test/gateway-api-path-config.test.ts) |
-| 快照同步 | 刷新远端状态、记录同步运行；刷新失败时保留最后可用本地快照 | 已实现 + 自动化 | [`admin/src/routes/sync.ts`](admin/src/routes/sync.ts)、[`admin/test/sync-routes.test.ts`](admin/test/sync-routes.test.ts) |
-| Cloudflare D1 管理 | 查看或创建 D1 数据库，并更新 Worker 的 D1 binding | 已实现 + 自动化 | [`admin/src/routes/cloudflare-db.ts`](admin/src/routes/cloudflare-db.ts)、[`admin/test/cloudflare-db-routes.test.ts`](admin/test/cloudflare-db-routes.test.ts) |
-
-### Worker 生命周期与诊断
-
-| 能力 | 可观察行为 | 状态 | 证据 |
-| --- | --- | --- | --- |
-| 项目发现 | 发现本地 Worker 项目，推断 chat、gateway、model 和 API 能力 | 已实现 + 自动化 | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts)、[`admin/test/worker-capabilities.test.ts`](admin/test/worker-capabilities.test.ts) |
-| 运行时配置 | 读取和更新 `wrangler.toml` vars 与本地 `.dev.vars` Secret | 已实现 + 自动化 | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts)、[`admin/test/worker-runtime.test.ts`](admin/test/worker-runtime.test.ts) |
-| 本地 Worker 进程 | 启动 Wrangler dev，并报告进程和健康状态 | 已实现 | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts) |
-| 部署与 Secret | 推送允许的 Secret，并以流式日志部署所选 Worker | 已实现 | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts)、[Admin API](admin/docs/api.zh-CN.md) |
-| Workers Builds | 读取 CI 状态、同步构建配置、保存 builder token 并触发构建 | 已实现 | [`admin/src/routes/deploy.ts`](admin/src/routes/deploy.ts) |
-| Endpoint 选择 | 解析本地、`workers.dev` 和自定义域名端点，并拒绝不安全代理路径 | 已实现 + 自动化 | [`admin/src/worker-path.ts`](admin/src/worker-path.ts)、[`admin/test/worker-endpoints.test.ts`](admin/test/worker-endpoints.test.ts) |
-
-### Supabase 运维
-
-| 能力 | 可观察行为 | 状态 | 证据 |
-| --- | --- | --- | --- |
-| Organization OAuth | 通过 PKCE 连接、查看项目、应用所选项目并断开连接 | 已实现 + 自动化 | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts)、[`admin/test/supabase-oauth.test.ts`](admin/test/supabase-oauth.test.ts) |
-| 测试身份 | 保存本地测试凭据，为 Worker 路径诊断换取用户 JWT | 已实现 | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts) |
-| Migration 运维 | 浏览 migration 目录、比较本地/远端状态并执行 migration | 已实现 + 自动化 | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts)、[`admin/test/supabase-schema.test.ts`](admin/test/supabase-schema.test.ts) |
-| Edge Function 运维 | 浏览函数源码、比较部署状态并部署选定函数 | 已实现 + 自动化 | [`admin/src/routes/supabase-connect.ts`](admin/src/routes/supabase-connect.ts)、[`admin/test/supabase-functions.test.ts`](admin/test/supabase-functions.test.ts) |
-
-### AI 请求链路
-
-| 能力 | 可观察行为 | 状态 | 证据 |
-| --- | --- | --- | --- |
-| Playground 诊断 | 发送直连 Gateway 或经 Worker 的请求，并展示解析后的路由与运行时上下文 | 已实现 + 自动化 | [`admin/src/routes/chat.ts`](admin/src/routes/chat.ts)、[`admin/src/routes/worker-chat.ts`](admin/src/routes/worker-chat.ts)、[`admin/test/app.test.ts`](admin/test/app.test.ts) |
-| OpenAI 兼容 API | 代理 Chat Completions 和 Responses，包括 SSE 流式响应 | 已实现 + 自动化 | [`ai-gateway-worker/src/index.ts`](ai-gateway-worker/src/index.ts)、[`ai-gateway-worker/test/index.test.ts`](ai-gateway-worker/test/index.test.ts) |
-| 用户鉴权 | 在处理 `/v1/*` 前验证 bearer JWT 的 issuer、audience、签名、有效期和 subject | 已实现 + 自动化 | [`ai-gateway-worker/src/auth.ts`](ai-gateway-worker/src/auth.ts)、[`ai-gateway-worker/test/index.test.ts`](ai-gateway-worker/test/index.test.ts) |
-| 权益与配额 | 解析 free/Plus 策略、限制输入输出，并原子扣减免费额度 | 已实现 + 自动化 | [`ai-gateway-worker/src/enforce.ts`](ai-gateway-worker/src/enforce.ts)、[`packages/gateway-core/`](packages/gateway-core/) |
-| Provider 转发 | 构造上游 URL、注入 provider/Gateway 凭据并透传流式响应 | 部分实现 | [`ai-gateway-worker/src/gateway.ts`](ai-gateway-worker/src/gateway.ts)；当前仍使用 DashScope 命名凭据和兼容路径 |
-| 通用 adapter registry | 通过 provider adapter contract 选择凭据、路径、请求归一化和模型元数据 | 缺口 | 见上文架构边界；当前没有运行时 adapter registry |
-
-### 身份、计费与数据面
-
-| 能力 | 可观察行为 | 状态 | 证据 |
-| --- | --- | --- | --- |
-| 认证服务 | 提供邮箱密码 session、JWT 签发、JWKS、OAuth provider 端点和可选社交登录 | 已实现 | [`auth-worker/src/`](auth-worker/src/)、[`auth-worker/README.zh-CN.md`](auth-worker/README.zh-CN.md) |
-| RevenueCat 用户 API | 按 JWT subject 返回客户、订阅和有效权益 | 已实现 + 自动化 | [`worker-revenuecat/src/index.ts`](worker-revenuecat/src/index.ts)、[`worker-revenuecat/test/index.test.ts`](worker-revenuecat/test/index.test.ts) |
-| 计费对账 | 接收 RevenueCat Webhook 或用户主动 sync，并更新 `user_entitlements` | 已实现 | [`worker-revenuecat/src/billing.ts`](worker-revenuecat/src/billing.ts)、[`packages/gateway-core/src/revenuecat-entitlement.ts`](packages/gateway-core/src/revenuecat-entitlement.ts) |
-| 管理员指标 | 仅允许 `ALLOWED_SUBS` 调用 RevenueCat overview 和 chart API | 已实现 + 自动化 | [`worker-revenuecat/src/index.ts`](worker-revenuecat/src/index.ts)、[`worker-revenuecat/test/index.test.ts`](worker-revenuecat/test/index.test.ts) |
-| Supabase 数据面 | 定义受 RLS 保护的权益、用量、限流和原子额度扣减结构 | 已实现 | [`wren-supabase/migrations/`](wren-supabase/migrations/)、[`wren-supabase/tests/`](wren-supabase/tests/) |
-
-矩阵只描述仓库实现和自动化证据，不代表已经在 Cloudflare、Supabase、RevenueCat 或模型提供商真实环境完成验收。
-
-## 快速开始
-
-当前内置部署需要 Node.js 18+、pnpm、Cloudflare 账号，以及所选 adapter 的提供商凭据。
+当前实现需要 Node.js 18+、pnpm、Cloudflare 账号，以及实际使用服务的凭据。
 
 ```bash
 pnpm install
@@ -121,14 +96,17 @@ cp admin/.env.example admin/.env
 ./admin.sh
 ```
 
-打开 `http://localhost:5173`，在设置页填写与 `admin/.env` 相同的 `ADMIN_TOKEN`。开发和部署命令见各组件 README。
+浏览器打开 `http://localhost:5173`，在设置页填写 `admin/.env` 中的 `ADMIN_TOKEN`。各 Worker 的本地运行和部署命令见对应目录 README。
 
-## 文档约定
+## 约束
 
-英文使用普通 `.md` 文件名，简体中文使用 `.zh-CN.md`。组件 README 只负责定位、开发和部署；详细 API 行为归档在 [`doc/`](doc/README.zh-CN.md) 或 `admin/docs/`，避免多处复制。
+- 本地控制台管理基础设施，不保存业务领域数据。
+- 外部平台的 API、凭据和资源映射放在各自 integration 内，不散落到业务代码。
+- 客户端只拿用户 token；provider key、Gateway token 和 service-role key 留在服务端。
+- 替换基础设施服务时，不应连带修改无关业务流程。
 
 ## 安全
 
 - 不要提交 `.env`、`.dev.vars`、token 或 API Key。
-- Admin 默认只监听 `127.0.0.1`；内网部署仍需 TLS 和访问边界。
-- 生产客户端只调用 Worker，不能获得提供商、Gateway、计费系统或 service-role 密钥。
+- Admin 默认只监听 `127.0.0.1`。部署到内网时仍应增加 TLS 和访问控制。
+- 真实云环境是否可用需要单独验收；自动化测试通过不代表远端配置正确。
